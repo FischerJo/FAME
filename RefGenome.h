@@ -17,14 +17,14 @@ class RefGenome
 
     public:
 
-        delete RefGenome();
+        RefGenome() = delete;
 
         // Ctor
         // Arguments: ( see class members for full information )
         //      cpgs        number of CpGs in reference genome
         //      cpgTab      table of all CpGs in reference genome
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(unsigned int cpgs, const std::vector<const struct CpG>&& cpgTab, const vector<const string>&& genSeq);
+        RefGenome(unsigned int cpgs, std::vector<struct CpG>& cpgTab, std::vector<std::string>& genSeq);
 
 
         ~RefGenome();
@@ -46,11 +46,11 @@ class RefGenome
 
         // table of all CpGs in reference genome
         // _cpgTable has size _cpgNum
-        const std::vector<const struct CpG> cpgTable;
+        const std::vector<struct CpG> cpgTable;
 
         // table of strings holding chromosome code
         // convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-        const std::vector<const std::string> genomeSeq;
+        const std::vector<std::string> genomeSeq;
 
         // table of bitstrings* holding a bit representation of genomeSeq
         // used as a perfect hash later on
@@ -63,11 +63,11 @@ class RefGenome
         //          N -> 00   DISCARDED for all computations
         //
         // *own implementation of bitstrings
-        std::vector<const dnaBitStr> genomeBit;
+        // std::vector<const dnaBitStr> genomeBit;
 
         // hash table of all (reduced alphabet) kmers that surround CpGs in reference,
         // hash values are computed using nthash
-        std::vector<const struct kmer> kmerTable;
+        std::vector<struct kmer> kmerTable;
 
 
 };

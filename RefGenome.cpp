@@ -1,13 +1,12 @@
 
 
-#include "RefGenome.H"
+#include "RefGenome.h"
 
 
 using namespace std;
 
-RefGenome::RefGenome(unsigned int cpgs, const vector<const struct CpG>&& cpgTab,
-        const vector<const string>&& genSeq) :
-    ,   cpgNum(cpgs)
+RefGenome::RefGenome(unsigned int cpgs, vector<struct CpG>& cpgTab, vector<string>& genSeq) :
+        cpgNum(cpgs)
     ,   cpgTable(cpgTab)
     ,   genomeSeq(genSeq)
 {
