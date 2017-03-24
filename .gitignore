@@ -2,6 +2,8 @@
 *.swp
 *.swo
 
+ntHash-1.0.2*
+
 # Compiled Object files
 *.slo
 *.lo
