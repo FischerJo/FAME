@@ -33,3 +33,6 @@ ntHash-1.0.2*
 *.exe
 *.out
 *.app
+
+# Project exe
+Metal
