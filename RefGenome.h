@@ -21,13 +21,11 @@ class RefGenome
 
         // Ctor
         // Arguments: ( see class members for full information )
-        //      cpgs        number of CpGs in reference genome
         //      cpgTab      table of all CpGs in reference genome
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(unsigned int cpgs, std::vector<struct CpG>& cpgTab, std::vector<std::string>& genSeq);
+        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<std::string>& genSeq);
 
-
-        ~RefGenome();
+        ~RefGenome() = default;
 
 
         // hash all kmers in all CpGs to _kmerTable using ntHash
@@ -40,9 +38,6 @@ class RefGenome
 
     private:
 
-
-        // number of CpGs in reference genome
-        const unsigned int cpgNum;
 
         // table of all CpGs in reference genome
         // _cpgTable has size _cpgNum
@@ -63,7 +58,7 @@ class RefGenome
         //          N -> 00   DISCARDED for all computations
         //
         // *own implementation of bitstrings
-        // std::vector<const dnaBitStr> genomeBit;
+        std::vector<DnaBitStr> genomeBit;
 
         // hash table of all (reduced alphabet) kmers that surround CpGs in reference,
         // hash values are computed using nthash
