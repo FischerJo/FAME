@@ -1,6 +1,8 @@
 #ifndef CONST_H
 #define CONST_H
 
+namespace MyConst {
+
 // number of chromosomes in organism
 constexpr unsigned int CHROMNUM = 24;
 
@@ -26,5 +28,6 @@ constexpr unsigned int KMERLEN = 20;
 // internal buffer for reading reference file
 constexpr unsigned int BUFSIZE = 256 * 1024;
 
+}
 
 #endif /* CONST_H */

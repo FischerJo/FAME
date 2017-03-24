@@ -8,11 +8,13 @@
 struct idPos {
 
     // pointer to id line
-    const char* id;
+    char* const id;
     // pointer to next line after the id
-    const char* sec;
+    char* const sec;
     // flag if tag is primary assembly
     const bool imp;
+    // Ctor for emplace_back
+    idPos(char* const idC, char* const secC, const bool impC) : id(idC), sec(secC), imp(impC) {}
 };
 
 
@@ -21,10 +23,13 @@ struct CpG {
     // convention: pos points to the location of the C
     const uint8_t chrom;
     const unsigned int pos;
+    // Ctor for emplace_back
+    CpG(uint8_t chromC, unsigned int posC) : chrom(chromC), pos(posC) {}
 };
 
 
 struct kmer {
+
     // pointer to related CpG
     const struct CpG * cpg;
     // offset in this CpG, the C of the CpG is offset 0
@@ -32,11 +37,10 @@ struct kmer {
     //      1 -> forward strand
     //      0 -> reverse strand
     const uint16_t offset;
-
 };
 
 // Use this mask to extract strand information from kmer.offset
 // offset & STRANDMASK == TRUE   <=>   kmer on forward strand
-constexpr STRANDMASK = 0x4000;
+constexpr uint16_t STRANDMASK = 0x4000;
 
 #endif /* STRUCTS_H */
