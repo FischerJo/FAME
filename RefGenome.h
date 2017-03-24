@@ -9,6 +9,7 @@
 // Project includes
 #include "CONST.h"
 #include "structs.h"
+#include "DnaBitStr.h"
 
 
 // Class representing the reference genome

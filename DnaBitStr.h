@@ -40,7 +40,7 @@ class DnaBitStr
         // CONVENTION:  n*64 should NOT exceed "size" (member variable) o/w undefined behaviour
         //              seq should be of length == 32 for n <  \gaussup size DIV 64 \gaussup
         //                               length <= 32 for n == \gaussup offset DIV 64 \gaussup
-        void setBitStrN(std::string& seq, const unsigned int n)
+        void setBitStrN(std::string& seq, const unsigned int n);
 
 
         // get a bit slice of the sequence's bitstring,
