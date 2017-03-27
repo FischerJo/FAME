@@ -141,8 +141,35 @@ class DnaBitStr
 
         // return bitmask slice of sequence (or of the reverse complement sequence)
         // see getSeqSlice for more info
-        uint64_t getMaskKmer(const unsigned int pos);
-        uint64_t getMaskKmerRev(const unsigned int pos);
+        inline uint64_t getMaskKmer(const unsigned int pos)
+        {
+            // get position of first part of kmer in vector
+            const unsigned int  k1 = pos / 64;
+
+            // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
+            constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
+            // offset in word
+            const unsigned int offBitPos = pos % 64;
+            if ( offBitPos <= maxBitPos)
+            {
+
+                return ((bitMask[k1] << offBitPos) >> maxBitPos);
+
+            // if necessary get second part of kmer
+            } else {
+
+                uint64_t tmp = (bitMask[k1] << offBitPos) >> maxBitPos;
+                // right operand of shift is < 64 so we will be fine
+                return tmp | (bitMask[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
+            }
+        }
+        uint64_t getMaskKmerRev(const unsigned int pos)
+        {
+
+            // first get SEQUENCE, then reverse it and produce mask on the fly
+
+
+        }
 
     private:
 
