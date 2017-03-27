@@ -7,6 +7,7 @@
 #include <cstdint>
 
 
+#include "BitFunctions.h"
 
 // bit string representation of the DNA optimized for slice access
 // and Methylation procedures using an additional bitmask
@@ -45,21 +46,23 @@ class DnaBitStr
         //              seq should be of length == 32 for n <  \gaussup size DIV 64 \gaussup
         // for last element use setBitStrLast
         // CONVENTION:  length <= 32 for n == \gaussup offset DIV 64 \gaussup
-        inline void setBitStrN(string& seq, const unsigned int n)
+        inline void setBitStrN(std::string& seq, const unsigned int n)
         {
 
             uint64_t bitStr = 0;
             uint64_t bitM = 0xffffffffffffffffULL;
-            for (int i = 1; i <= 32; ++i)
+            for (unsigned int i = 1; i <= 32; ++i)
             {
 
                 // we don't need A here
                 switch (seq[i - 1]){
 
                     case 'C':
-                        const unsigned int shift = (64 - 2*i);
-                        bitStr |= (1ULL << shift;
-                        bitM ^= (3ULL << shift);
+                        {
+                            const unsigned int shift = (64 - 2*i);
+                            bitStr |= (1ULL << shift);
+                            bitM ^= (3ULL << shift);
+                        }
                         break;
 
                     case 'D':
@@ -122,7 +125,7 @@ class DnaBitStr
             {
 
                 uint64_t tmp = ((bitSeq[k1] << offBitPos) >> maxBitPos);
-                return BitFun::rev64(tmp ^ 0xffffffffffffffffULL);
+                return BitFun::rev64(BitFun::revKmer(tmp));
 
             // if necessary get second part of kmer
             } else {
@@ -130,7 +133,7 @@ class DnaBitStr
                 uint64_t tmp = (bitSeq[k1] << offBitPos) >> maxBitPos;
                 // right operand of shift is < 64 so we will be fine
                 tmp = tmp | (bitSeq[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
-                return BitFun::rev64(tmp ^ 0xffffffffffffffffULL);
+                return BitFun::rev64(BitFun::revKmer(tmp));
             }
         }
 
