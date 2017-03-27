@@ -1,5 +1,6 @@
 
 #include "DnaBitStr.h"
+#include "BitFunctions.h"
 
 
 using namespace std;
@@ -14,8 +15,36 @@ DnaBitStr::DnaBitStr(const unsigned int size) :
 
 
 
-void DnaBitStr::setBitStrN(string& seq, const unsigned int n)
+void DnaBitStr::setBitStrLast(string& seq)
 {
 
+    uint64_t bitStr = 0;
+    uint64_t bitM = 0xffffffffffffffffULL;
+    for (int i = 1; i <= seq.size(); ++i)
+    {
 
+        // we don't need A here
+        switch (seq[i - 1]){
+
+            case 'C':
+                const unsigned int shift = (64 - 2*i);
+                bitStr |= (1ULL << shift;
+                bitM ^= (3ULL << shift);
+                break;
+
+            case 'D':
+                bitStr |= (2ULL << (64 - 2*i));
+                break;
+
+            case 'T':
+                bitStr |= (3ULL << (64 - 2*i));
+                break;
+
+            // unknowns, A and N will be encoded as zero; nothing to do
+            default:
+                break;
+        }
+    }
+    bitSeq[n] = bitStr;
+    bitMask[n] = bitM;
 }
