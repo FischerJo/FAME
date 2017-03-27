@@ -40,9 +40,11 @@ inline uint64_t rev64(uint64_t x)
 //           T XOR 11 == 00 == A
 //           C XOR 11 == 10 == G
 //           G XOR 11 == 01 == C
-inline revKmer(uint64_t kmer)
+inline uint64_t revKmer(uint64_t kmer)
 {
     return kmer ^ MyConst::KMERMASK;
+}
+
 
 } // end namespace BitFun
 
