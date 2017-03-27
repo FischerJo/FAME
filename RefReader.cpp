@@ -61,6 +61,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
     for ( ; charsRead > (size_t) 0; charsRead = read(file, fileBuf, MyConst::BUFSIZE) )
     {
 
+        // TODO make this a function
         // contains positions of all '>' in buffer
         list<struct idPos> idQueue;
 
@@ -333,7 +334,7 @@ bool constructCpgs(char* const start, const unsigned int offset, const uint8_t c
         if (*(cBase + 1) == 'G' || *(cBase + 1) == 'g')
         {
 
-            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start + 1));
+            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start));
         }
 
     }
@@ -345,7 +346,7 @@ bool constructCpgs(char* const start, const unsigned int offset, const uint8_t c
         if (*(cBase + 1) == 'G' || *(cBase + 1) == 'g')
         {
 
-            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start + 1));
+            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start));
         }
 
     }
