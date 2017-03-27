@@ -54,4 +54,5 @@ void DnaBitStr::setBitStrLast(string& seq)
     }
     bitSeq[size-1] = bitStr;
     bitMask[size-1] = bitM;
+    bitRevMask[size-1] = bitRevM;
 }

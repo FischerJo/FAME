@@ -51,6 +51,7 @@ class DnaBitStr
 
             uint64_t bitStr = 0;
             uint64_t bitM = 0xffffffffffffffffULL;
+            uint64_t bitRevM = 0xffffffffffffffffULL;
             for (unsigned int i = 1; i <= 32; ++i)
             {
 
@@ -84,6 +85,7 @@ class DnaBitStr
             }
             bitSeq[n] = bitStr;
             bitMask[n] = bitM;
+            bitRevMask[n] = bitRevM;
         }
         void setBitStrLast(std::string& seq);
 
