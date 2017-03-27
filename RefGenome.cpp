@@ -22,7 +22,7 @@ void RefGenome::generateHashes()
 
     for (vector<struct CpG>::const_iterator it = cpgTable.begin(); it != cpgTable.end(); ++it)
     {
-        ntHashChunk(genomeSeq[it->chrom].substr(it->pos - MyConst::READLEN + 2, it->pos + MyConst::READLEN - 1).c_str());
+        ntHashChunk(genomeSeq[it->chrom] + it->pos, genomeSeqLen[it->chrom]);
 
     }
 

@@ -44,7 +44,7 @@ class RefGenome
     private:
 
         // generates all kmers in seq and hashes them and their reverse complement using nthash into kmerTable
-        inline void ntHashChunk(const char* seq)
+        inline void ntHashChunk(const char* seq, const std::size_t seqLen)
         {
 
         
