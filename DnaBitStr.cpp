@@ -9,6 +9,7 @@ DnaBitStr::DnaBitStr(const unsigned int s) :
         size(s)
     ,   bitSeq((size / 64) + 1)
     ,   bitMask((size / 64) + 1)
+    ,   bitRevMask((size / 64) + 1)
 {
 }
 
@@ -19,6 +20,7 @@ void DnaBitStr::setBitStrLast(string& seq)
 
     uint64_t bitStr = 0;
     uint64_t bitM = 0xffffffffffffffffULL;
+    uint64_t bitRevM = 0xffffffffffffffffULL;
     for (unsigned int i = 1; i <= seq.size(); ++i)
     {
 
@@ -33,8 +35,12 @@ void DnaBitStr::setBitStrLast(string& seq)
                 }
                 break;
 
-            case 'D':
-                bitStr |= (2ULL << (64 - 2*i));
+            case 'G':
+                {
+                    const unsigned int shift = (64 - 2*i);
+                    bitStr |= (2ULL << shift);
+                    bitRevM ^= (3ULL << shift);
+                }
                 break;
 
             case 'T':

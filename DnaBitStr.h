@@ -65,8 +65,12 @@ class DnaBitStr
                         }
                         break;
 
-                    case 'D':
-                        bitStr |= (2ULL << (64 - 2*i));
+                    case 'G':
+                        {
+                            const unsigned int shift = (64 - 2*i);
+                            bitStr |= (2ULL << shift);
+                            bitRevM ^= (3ULL << shift);
+                        }
                         break;
 
                     case 'T':
@@ -143,6 +147,7 @@ class DnaBitStr
         // see getSeqSlice for more info
         inline uint64_t getMaskKmer(const unsigned int pos)
         {
+
             // get position of first part of kmer in vector
             const unsigned int  k1 = pos / 64;
 
@@ -166,9 +171,26 @@ class DnaBitStr
         uint64_t getMaskKmerRev(const unsigned int pos)
         {
 
-            // first get SEQUENCE, then reverse it and produce mask on the fly
+            // get position of first part of kmer in vector
+            const unsigned int  k1 = pos / 64;
 
+            // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
+            constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
+            // offset in word
+            const unsigned int offBitPos = pos % 64;
+            if ( offBitPos <= maxBitPos)
+            {
 
+                return BitFun::rev64((bitMask[k1] << offBitPos) >> maxBitPos);
+
+            // if necessary get second part of kmer
+            } else {
+
+                uint64_t tmp = (bitMask[k1] << offBitPos) >> maxBitPos;
+                // right operand of shift is < 64 so we will be fine
+                tmp |= (bitMask[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
+                return BitFun::rev64(tmp);
+            }
         }
 
     private:
@@ -182,6 +204,9 @@ class DnaBitStr
 
         // corresponding bitmask
         std::vector<uint64_t> bitMask;
+        // corresponding reverse complement bitmask
+        // in order of the FORWARD strand, so reverse bitmask before use
+        std::vector<uint64_t> bitRevMask;
 
 };
 
