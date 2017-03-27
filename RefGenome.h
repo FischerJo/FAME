@@ -47,7 +47,50 @@ class RefGenome
         inline void ntHashChunk(const char* seq, const std::size_t seqLen)
         {
 
-        
+            // find last occurence of N before CpG and first occurence after
+            char* lastBef;
+            // TODO what if N is last?
+            for (lastBef = seq; (lastBef = (char*) memchr(lastBef, 'N', MyConst::READLEN - 1)); ++lastBef)
+            {}
+            // now lastBef points to character one after the last N before the CpG
+
+            char* firstAft = (char*) memchr(seq + MyConst::READLEN, 'N', MyConst::READLEN - 2);
+
+            // No N found before CpG, set char* to start of argument sequence
+            if (lastBef == NULL)
+            {
+                lastBef = seq;
+            }
+            // how many chars to consider, init as full sequence around CpG
+            std::size_t offset = 2*MyConst::READLEN - 2 - (lastBef - seq);
+            // set offset until first N after CpG, if present
+            if (firstAft != NULL)
+            {
+
+                offset = firstAft - lastBef;
+            }
+            // look if enough sequence is there to hash something
+            if (offset < KMERLEN)
+            {
+                return;
+            }
+
+            // how often should we apply the rolling
+            // if zero, make just initial hash
+            unsigned int rolls = offset - KMERLEN;
+            uint64_t fhVal = 0;
+            uint64_t rhVal = 0;
+            ntHash::NTPC64(lastBef, fhVal, rhVal);
+            // TODO make kmer and put it in table
+
+            for (int i = 0; i < rolls; ++i)
+            {
+
+                ntHash::NTPC64(lastBef[i], lastBef[KMERLEN + i], fhVal, rhVal);
+                // TODO make kmer and put it in table
+            }
+
+
         }
 
         // table of all CpGs in reference genome
@@ -75,7 +118,7 @@ class RefGenome
 
         // hash table of all (reduced alphabet) kmers that surround CpGs in reference,
         // hash values are computed using nthash
-        std::vector<struct kmer> kmerTable;
+        std::vector<std::list<struct kmer> > kmerTable;
 
 
 };
