@@ -87,6 +87,7 @@ class DnaBitStr
             bitMask[n] = bitM;
             bitRevMask[n] = bitRevM;
         }
+
         void setBitStrLast(std::string& seq);
 
 
@@ -117,6 +118,7 @@ class DnaBitStr
                 return tmp | (bitSeq[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
             }
         }
+
         inline uint64_t getSeqKmerRev(const unsigned int pos)
         {
 

@@ -24,7 +24,7 @@ class RefGenome
         // Arguments: ( see class members for full information )
         //      cpgTab      table of all CpGs in reference genome
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<std::string>& genSeq);
+        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<const char*>& genSeq, std::vector<std::size_t> genSeqLen);
 
         ~RefGenome() = default;
 
@@ -37,16 +37,28 @@ class RefGenome
         void generateHashes();
 
 
+        // generate the Bitstrings (i.e. sequence encoding and masks) for sequence
+        void generateBitStr();
+
+
     private:
 
+        // generates all kmers in seq and hashes them and their reverse complement using nthash into kmerTable
+        inline void ntHashChunk(const char* seq)
+        {
+
+        
+        }
 
         // table of all CpGs in reference genome
         // _cpgTable has size _cpgNum
         const std::vector<struct CpG> cpgTable;
 
         // table of strings holding chromosome code
+        // and table holding the length of the sequences
         // convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-        const std::vector<std::string> genomeSeq;
+        const std::vector<const char*> genomeSeq;
+        const std::vector<std::size_t> genomeSeqLen;
 
         // table of bitstrings* holding a bit representation of genomeSeq
         // used as a perfect hash later on

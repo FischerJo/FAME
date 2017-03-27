@@ -8,10 +8,11 @@ int main(int argc, char** argv) {
 
 
     std::vector<struct CpG> cpgTab;
-    std::vector<std::string> genSeq;
+    std::vector<const char*> genSeq;
+    std::vector<std::size_t> genSeq;
 
-    readReference(argv[1], cpgTab, genSeq);
-    RefGenome ref(cpgTab, genSeq);
+    readReference(argv[1], cpgTab, genSeq, genSeqLen);
+    RefGenome ref(cpgTab, genSeq, genSeqLen);
 }
 //
 //

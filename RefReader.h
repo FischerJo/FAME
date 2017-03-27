@@ -9,10 +9,10 @@
 
 // read reference FASTA file from ifs
 // produces a vector of all CpGs present in the genome written to cpgTab
-// produces sequence strings seperated by chromosome saved to genSeq
-//      underlying vector should be empty on calling
+// produces sequence strings seperated by chromosome saved to genSeq, their length to genSeqLen
+//      underlying vectors should be empty on calling
 //      convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, std::vector<std::string>& genSeq);
+void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, std::vector<const char*>& genSeq, std::vector<std::size_t> genSeqLen);
 
 
 // internal function to read buffer slice corresponding to primary assembly

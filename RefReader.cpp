@@ -10,7 +10,7 @@
 
 using namespace std;
 
-void readReference(const char* const filename, vector<struct CpG>& cpgTab, vector<string>& genSeq)
+void readReference(const char* const filename, vector<struct CpG>& cpgTab, vector<const char*>& genSeq, vector<size_t> genSeqLen)
 {
 
     // reserve CPGMAX many entries (should be roughly more than CpGs in human genome)
@@ -107,7 +107,8 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
 
                 chromSeq.shrink_to_fit();
                 // save chromosome sequence
-                genSeq.push_back(chromSeq);
+                genSeq.push_back(chromSeq.c_str());
+                genSeqLen.push_back(chromSeq.size());
                 // make new sequence buffer
                 chromSeq.clear();
                 chromSeq.reserve(MyConst::CHROMMAX);
@@ -130,7 +131,8 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
                 {
                     chromSeq.shrink_to_fit();
                     // save chromosome sequence
-                    genSeq.push_back(chromSeq);
+                    genSeq.push_back(chromSeq.c_str());
+                    genSeqLen.push_back(chromSeq.size());
                     // make new sequence buffer
                     chromSeq.clear();
                     chromSeq.reserve(MyConst::CHROMMAX);
