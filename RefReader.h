@@ -24,7 +24,38 @@ unsigned int readBufferSlice(char* const start, const unsigned int offset, std::
 
 // internal function to construct CpG structs from given char array
 // fills cpgTab with CpG structs found in array, using chrIndex and seqLength (number of bps read before this slice in this chromosome) as position information
-// return true iff the last read char was a C
-bool constructCpgs(char* const  start, const unsigned int offset, const uint8_t chrIndex, const unsigned int SeqLength, std::vector<struct CpG>& cpgTab);
+// cEndFlag states if the last char of previous buffer was a C
+void constructCpgs(const char* const  start, const unsigned int offset, const uint8_t chrIndex, const unsigned int SeqLength, std::vector<struct CpG>& cpgTab, bool& cEndFlag );
+
+
+// extracts (the position offsets of) all lines that are id tags (starting with '>')
+// and saves them in idQueue
+// Arguments:
+//              start:  where to start the search
+//              offset: how many chars to read
+//              idQueue:where to save the result
+inline void extractIdLines(const char* const start, const unsigned int offset, std::list<struct idPos>& idQueue)
+{
+    // extract id lines from buffer
+    for(char* idLine = start; (idLine = (char*) memchr(idLine, '>', (start + offset) - idLine)); )
+    {
+
+        char* startSec = ((char*) memchr(idLine, '\n', (start + offset) - idLine)) + 1;
+        // check if id line corresponds to primary assembly of a chromosome
+        // (i.e. following letter is a C)
+        if (*(idLine + 1) == 'C')
+        {
+
+            idQueue.emplace_back(startSec, idLine, true);
+
+
+        } else {
+
+            idQueue.emplace_back(startSec, idLine, false);
+        }
+        idLine = startSec;
+    }
+}
+
 
 #endif /* REFREADER_H */

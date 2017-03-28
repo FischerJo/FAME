@@ -53,7 +53,10 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
     }
 
     // flag which states if we are currently reading part of a chromosome sequence (true) or unmapped stuff (false)
-    bool cont_flag = false;
+    bool contFlag = false;
+
+    // flag which states if the last buffer ended with a C
+    bool cEndFlag = false;
 
     size_t charsRead = read(file, fileBuf, MyConst::BUFSIZE);
 
@@ -61,37 +64,19 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
     for ( ; charsRead > (size_t) 0; charsRead = read(file, fileBuf, MyConst::BUFSIZE) )
     {
 
-        // TODO make this a function
         // contains positions of all '>' in buffer
         list<struct idPos> idQueue;
+        extractIdLines(fileBuf, charsRead, idQueue);
 
-        // read buffer until next id line
-        for(char* idLine = fileBuf; (idLine = (char*) memchr(idLine, '>', (fileBuf + charsRead) - idLine)); )
-        {
-
-            char* startSec = ((char*) memchr(idLine, '\n', (fileBuf + charsRead) - idLine)) + 1;
-            // check if id line corresponds to primary assembly of a chromosome
-            // (i.e. following letter is a C)
-            if (*(idLine + 1) == 'C')
-            {
-
-                idQueue.emplace_back(startSec, idLine, true);
-
-
-            } else {
-
-                idQueue.emplace_back(startSec, idLine, false);
-            }
-            idLine = startSec;
-        }
 
         // if no new sequence id tags, read through
         if (idQueue.empty())
         {
 
-            if (cont_flag)
+            if (contFlag)
             {
-                constructCpgs(fileBuf, charsRead, chrIndex, seqLength, cpgTab);
+                // TODO: USE INFORMATION OF CpGs ACROSS DIFFERENT BUFFERS!
+                constructCpgs(fileBuf, charsRead, chrIndex, seqLength, cpgTab, cEndFlag);
                 seqLength += readBufferSlice(fileBuf, charsRead, chromSeq);
             }
             // read new buffer
@@ -100,10 +85,10 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
         } else {
 
             // if we are in primary assembly, read slice until next id tag
-            if (cont_flag)
+            if (contFlag)
             {
 
-                constructCpgs(fileBuf, idQueue.front().id - fileBuf, chrIndex, seqLength, cpgTab);
+                constructCpgs(fileBuf, idQueue.front().id - fileBuf, chrIndex, seqLength, cpgTab, cEndFlag);
                 seqLength += readBufferSlice(fileBuf, idQueue.front().id - fileBuf, chromSeq);
 
                 chromSeq.shrink_to_fit();
@@ -128,7 +113,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
             if (!idQueue.front().imp)
             {
                 // if we read primary assembly previously, save it
-                if (cont_flag)
+                if (contFlag)
                 {
                     chromSeq.shrink_to_fit();
                     // save chromosome sequence
@@ -141,7 +126,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
                 }
 
                 idQueue.pop_front();
-                cont_flag = false;
+                contFlag = false;
                 continue;
 
             // if we are in primary assembly
@@ -161,9 +146,9 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
                     // set offset to next id tag
                     offset = idQueue.front().id - primStart;
                 }
-                constructCpgs(primStart, offset, chrIndex, seqLength, cpgTab);
+                constructCpgs(primStart, offset, chrIndex, seqLength, cpgTab, cEndFlag);
                 seqLength += readBufferSlice(primStart, offset, chromSeq);
-                cont_flag = true;
+                contFlag = true;
             }
 
         }
@@ -176,106 +161,6 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
         cerr << "Error reading file " << filename << "\n\n";
         exit(EXIT_FAILURE);
     }
-
-
-
-
-
-    // TODO
-    // while (getline(ifs, line)) {
-    //
-    //     // Throw out unlocalized contigs
-    //     if (line.begin() != line.end() && *(line.begin()) == '>' && ++(line.begin()) != line.end() && *(++(line.begin())) != 'C')
-    //     {
-    //
-    //         cont_flag = false;
-    //         continue;
-    //     }
-    //     // if we have description tag of real chromosome assembly
-    //     if (line.begin() != line.end() && *(line.begin()) == '>' && ++(line.begin()) != line.end() && *(++(line.begin())) == 'C')
-    //     {
-    //
-    //         // if we have read something already read, dump it to the output reset chromSeq variable
-    //         if (chrIndex > -1)
-    //         {
-    //
-    //             // shrink size to actual sequence length
-    //             chromSeq.shrink_to_fit();
-    //             // dump chromosome sequence to output table
-    //             genSeq[chrIndex] = chromSeq;
-    //             // keeps capacity untouched and erases content
-    //             chromSeq.clear();
-    //             // extend capacity again
-    //             chromSeq.reserve(260000000);
-    //         }
-    //         ++chrIndex;
-    //         cont_flag = true;
-    //         continue;
-    //     }
-    //     // ignore descriptions and comments
-    //     if (!cont_flag || line.begin() == line.end() || *(line.begin()) == ';' )
-    //     {
-    //
-    //         continue;
-    //     }
-    //
-    //     for (string::iterator it = line.begin(); it != line.end(); ++it)
-    //     {
-    //         ++seq_length;
-    //
-    //         // pop Cs that are out of the window
-    //         if (!c_queue.empty())
-    //         {
-    //
-    //             if  (c_queue.back() < (seq_length - 2*READL))
-    //             {
-    //                 --c_count;
-    //                 c_queue.pop_back();
-    //             }
-    //         }
-    //         // pop cpgs that are out of the window, update statistics
-    //         if (!cpg_queue.empty())
-    //         {
-    //             if  (cpg_queue.back() < (seq_length - READL + 1))
-    //             {
-    //
-    //                 --cpg_count;
-    //                 ++cpg_adj_c[c_count];
-    //                 ++cpg_adj_cpg[cpg_count];
-    //                 cpg_queue.pop_back();
-    //             }
-    //         }
-    //
-    //
-    //         if (*it == 'C' || *it == 'c')
-    //         {
-    //
-    //             ++c_count;
-    //             c_queue.push_front(seq_length);
-    //
-    //             if ( (++it) != line.end() )
-    //             {
-    //                 ++seq_length;
-    //
-    //                 if (*it == 'G' || *it == 'g')
-    //                 {
-    //
-    //                     ++cpg_num;
-    //                     ++cpg_count;
-    //                     cpg_queue.push_front(seq_length - 1);
-    //                 }
-    //
-    //             } else {
-    //
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // discard unused memory
-    cpgTab.shrink_to_fit();
-
 }
 
 
@@ -322,11 +207,27 @@ inline unsigned int readBufferSlice(char* const start, const unsigned int offset
 }
 
 
-bool constructCpgs(char* const start, const unsigned int offset, const uint8_t chrIndex, const unsigned int SeqLength, std::vector<struct CpG>& cpgTab)
+bool constructCpgs(char* const start, const unsigned int offset, const uint8_t chrIndex, const unsigned int SeqLength, std::vector<struct CpG>& cpgTab, bool& cEndFlag)
 {
 
+    // TODO: skip newline from count...
+    //
+    // where to set the start of the CpG
+    constexpr unsigned int winStart = MyConst::READLEN + 2;
+
+    // if previous char was c, check if first char is g
+    if (cEndFlag)
+    {
+        if (*start == 'G' || *start == 'g')
+        {
+
+            // another off by one because we are already at the 'G'
+            cpgTab.emplace_back(chrIndex, SeqLength - winStart - 1);
+
+        }
+    }
+
     // find Cs
-    // last char cannot be a c of cpg in this buffer
     for (char* cBase = start; (cBase = (char*) memchr(cBase, 'C', (start + offset - 1) - cBase)); ++cBase)
     {
 
@@ -334,7 +235,7 @@ bool constructCpgs(char* const start, const unsigned int offset, const uint8_t c
         if (*(cBase + 1) == 'G' || *(cBase + 1) == 'g')
         {
 
-            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start));
+            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start) - winStart);
         }
 
     }
@@ -346,7 +247,7 @@ bool constructCpgs(char* const start, const unsigned int offset, const uint8_t c
         if (*(cBase + 1) == 'G' || *(cBase + 1) == 'g')
         {
 
-            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start));
+            cpgTab.emplace_back(chrIndex, SeqLength + (cBase - start) - winStart);
         }
 
     }
@@ -354,8 +255,8 @@ bool constructCpgs(char* const start, const unsigned int offset, const uint8_t c
     // check last char
     if (*(start + offset) == 'C' || *(start + offset) == 'c')
     {
-        return true;
+        cEndFlag = true;
     }
 
-    return false;
+    cEndFlag = false;
 }
