@@ -5,11 +5,14 @@
 #include <istream>
 #include <string>
 #include <vector>
+#include <list>
+#include <cstring>      // memchr()
 
 // Project includes
 #include "CONST.h"
 #include "structs.h"
 #include "DnaBitStr.h"
+#include "ntHash-1.0.2/nthash.hpp"
 
 
 // Class representing the reference genome
@@ -44,13 +47,14 @@ class RefGenome
     private:
 
         // generates all kmers in seq and hashes them and their reverse complement using nthash into kmerTable
-        inline void ntHashChunk(const char* seq, const std::size_t seqLen)
+        // CONVENTION:
+        //              seq points to a character sequence containing at least 2*READLEN - 2 many chars
+        inline void ntHashChunk(const char* seq, const struct CpG& cpg)
         {
 
             // find last occurence of N before CpG and first occurence after
-            char* lastBef;
-            // TODO what if N is last?
-            for (lastBef = seq; (lastBef = (char*) memchr(lastBef, 'N', MyConst::READLEN - 1)); ++lastBef)
+            const char* lastBef;
+            for (lastBef = seq; (lastBef = (char*) memchr(lastBef, 'N', (MyConst::READLEN - 1 - (lastBef - seq)))); ++lastBef)
             {}
             // now lastBef points to character one after the last N before the CpG
 
@@ -70,31 +74,43 @@ class RefGenome
                 offset = firstAft - lastBef;
             }
             // look if enough sequence is there to hash something
-            if (offset < KMERLEN)
+            if (offset < MyConst::KMERLEN)
             {
                 return;
             }
 
             // how often should we apply the rolling
             // if zero, make just initial hash
-            unsigned int rolls = offset - KMERLEN;
+            unsigned int rolls = offset - MyConst::KMERLEN;
             uint64_t fhVal = 0;
             uint64_t rhVal = 0;
             ntHash::NTPC64(lastBef, fhVal, rhVal);
-            // TODO make kmer and put it in table
+            // note that READLEN is bounded by a small integer (less then 16 bits) and
+            // kmer offset is bounded by readlen so pointer arithmetic is fine here
+            uint16_t kPos = lastBef - seq;
+            kmerTable[rhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
+            // set forward strand flag
+            kPos |= 0x4000;
+            kmerTable[fhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
 
-            for (int i = 0; i < rolls; ++i)
+
+            for (unsigned int i = 0; i < rolls; ++i)
             {
 
-                ntHash::NTPC64(lastBef[i], lastBef[KMERLEN + i], fhVal, rhVal);
-                // TODO make kmer and put it in table
+                ntHash::NTPC64(lastBef[i], lastBef[MyConst::KMERLEN + i], fhVal, rhVal);
+                kPos = lastBef - seq + i + 1;
+                kmerTable[rhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
+                // set forward strand flag
+                kPos |= 0x4000;
+                kmerTable[fhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
             }
 
 
         }
+        void ntHashLast(const char* seq, const unsigned int bpsAfterCpG, const struct CpG& cpg);
+        void ntHashFirst(const char* seq, const unsigned int posOfCpG, const struct CpG& cpg);
 
         // table of all CpGs in reference genome
-        // _cpgTable has size _cpgNum
         const std::vector<struct CpG> cpgTable;
 
         // table of strings holding chromosome code

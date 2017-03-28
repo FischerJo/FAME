@@ -32,11 +32,13 @@ struct kmer {
 
     // pointer to related CpG
     const struct CpG * cpg;
-    // offset in this CpG, the C of the CpG is offset 0
+    // offset in this CpG, the C of the CpG position - READLEN + 2 is offset 0
     // 2nd highest bit is flag for strand; use STRANDMASK to extract information
     //      1 -> forward strand
     //      0 -> reverse strand
     const uint16_t offset;
+    // Ctor for emplace_back
+    kmer(const struct CpG* cpgC, uint16_t offsetC) : cpg(cpgC), offset(offsetC) {}
 };
 
 // Use this mask to extract strand information from kmer.offset

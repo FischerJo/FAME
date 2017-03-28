@@ -42,7 +42,7 @@ constexpr unsigned int KMERLEN = 20;
 constexpr uint64_t KMERMASK = (1ULL << KMERLEN) - 1;
 
 // yields value for number of kmers in one read at compile time
-// constexpr kPerRead = READLEN - KMERLEN;
+// constexpr KPERREAD = READLEN - KMERLEN + 1;
 
 
 
