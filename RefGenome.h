@@ -27,7 +27,7 @@ class RefGenome
         // Arguments: ( see class members for full information )
         //      cpgTab      table of all CpGs in reference genome
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<const char*>& genSeq, std::vector<std::size_t> genSeqLen);
+        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<std::vector<char> >& genSeq);
 
         ~RefGenome() = default;
 
@@ -48,67 +48,71 @@ class RefGenome
 
         // generates all kmers in seq and hashes them and their reverse complement using nthash into kmerTable
         // CONVENTION:
-        //              seq points to a character sequence containing at least 2*READLEN - 2 many chars
-        inline void ntHashChunk(const char* seq, const struct CpG& cpg)
+        inline void ntHashChunk(const std::vector<char>& seq, const unsigned int& pos, const struct CpG& cpg)
         {
 
-            // find last occurence of N before CpG and first occurence after
-            const char* lastBef;
-            for (lastBef = seq; (lastBef = (char*) memchr(lastBef, 'N', (MyConst::READLEN - 1 - (lastBef - seq)))); ++lastBef)
-            {}
-            // now lastBef points to character one after the last N before the CpG
+            // retrieve the underlying char vector of the sequence and offset it to the cpg context position
+            const char* cpgContext = seq.data() + pos;
 
-            char* firstAft = (char*) memchr(seq + MyConst::READLEN, 'N', MyConst::READLEN - 2);
-
-            // No N found before CpG, set char* to start of argument sequence
-            if (lastBef == NULL)
-            {
-                lastBef = seq;
-            }
-            // how many chars to consider, init as full sequence around CpG
-            std::size_t offset = 2*MyConst::READLEN - 2 - (lastBef - seq);
-            // set offset until first N after CpG, if present
-            if (firstAft != NULL)
+            // find last N before the CpG
+            unsigned int lasN = 0;
+            for ( ; lasN < (MyConst::READLEN - 2); ++lasN)
             {
 
-                offset = firstAft - lastBef;
+                if ( *(cpgContext + MyConst::READLEN - 3 - lasN) == 'N')
+                {
+                    break;
+                }
             }
-            // look if enough sequence is there to hash something
-            if (offset < MyConst::KMERLEN)
+
+            // find first N after cpg
+            unsigned int off = 0;
+            for ( ; off < (MyConst::READLEN - 2); ++off)
+            {
+
+                if ( *(cpgContext + MyConst::READLEN + off) == 'N')
+                {
+
+                    break;
+                }
+            }
+
+            // length of the context around the CpG without Ns
+            unsigned int contextLen = lasN + off + 2;
+            // if we don't have enough to read, return without hashing
+            if (contextLen < MyConst::KMERLEN)
             {
                 return;
             }
+            // move char* to one after the last N occuring before a CpG
+            unsigned int start = MyConst::READLEN - 2 - lasN;
+            cpgContext += start;
 
-            // how often should we apply the rolling
-            // if zero, make just initial hash
-            unsigned int rolls = offset - MyConst::KMERLEN;
             uint64_t fhVal = 0;
             uint64_t rhVal = 0;
-            ntHash::NTPC64(lastBef, fhVal, rhVal);
+            ntHash::NTPC64(cpgContext, fhVal, rhVal);
             // note that READLEN is bounded by a small integer (less then 16 bits) and
             // kmer offset is bounded by readlen so pointer arithmetic is fine here
-            uint16_t kPos = lastBef - seq;
+            uint16_t kPos = start;
             kmerTable[rhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
             // set forward strand flag
             kPos |= 0x4000;
             kmerTable[fhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
 
 
-            for (unsigned int i = 0; i < rolls; ++i)
+            for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
 
-                ntHash::NTPC64(lastBef[i], lastBef[MyConst::KMERLEN + i], fhVal, rhVal);
-                kPos = lastBef - seq + i + 1;
+                ntHash::NTPC64(cpgContext[i], cpgContext[MyConst::KMERLEN + i], fhVal, rhVal);
+                kPos = start + i + 1;
                 kmerTable[rhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
                 // set forward strand flag
                 kPos |= 0x4000;
                 kmerTable[fhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
             }
-
-
         }
-        void ntHashLast(const char* seq, const unsigned int bpsAfterCpG, const struct CpG& cpg);
-        void ntHashFirst(const char* seq, const unsigned int posOfCpG, const struct CpG& cpg);
+        void ntHashLast(const std::vector<char>& seq, const unsigned int& pos, const unsigned int& bpsAfterCpG, const struct CpG& cpg);
+        void ntHashFirst(const std::vector<char>& seq, const unsigned int& pos, const struct CpG& cpg);
 
         // table of all CpGs in reference genome
         const std::vector<struct CpG> cpgTable;
@@ -116,8 +120,8 @@ class RefGenome
         // table of strings holding chromosome code
         // and table holding the length of the sequences
         // convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-        const std::vector<const char*> genomeSeq;
-        const std::vector<std::size_t> genomeSeqLen;
+        const std::vector<std::vector<char> > genomeSeq;
+        // const std::vector<std::size_t> genomeSeqLen;
 
         // table of bitstrings* holding a bit representation of genomeSeq
         // used as a perfect hash later on
