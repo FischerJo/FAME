@@ -6,7 +6,7 @@
 using namespace std;
 
 
-void readReference(const char* const filename, vector<struct CpG>& cpgTab, vector<vector<char> >& genSeq)
+void readReference(const char* const filename, vector<struct CpG>& cpgTab, vector<struct CpG>& cpgStartTab, vector<vector<char> >& genSeq)
 {
 
     string line;
@@ -16,7 +16,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
     seq.reserve(MyConst::CHROMMAX);
 
     // stores the chromosome index we are currently reading
-    uint8_t chrIndex = -1;
+    uint8_t chrIndex = 0;
 
     // flag stating if we currently read a real chromosome assembly
     bool contFlag = false;
@@ -66,7 +66,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
         if (contFlag)
         {
 
-            readLine(line, lastC, chrIndex, cpgTab, seq);
+            readLine(line, lastC, chrIndex, cpgTab, cpgStartTab, seq);
 
         } else {
 

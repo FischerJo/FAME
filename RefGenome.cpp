@@ -5,8 +5,9 @@
 
 using namespace std;
 
-RefGenome::RefGenome(vector<struct CpG>& cpgTab, vector<vector<char> >& genSeq) :
+RefGenome::RefGenome(vector<struct CpG>& cpgTab, vector<struct CpG>& cpgStartTab, vector<vector<char> >& genSeq) :
         cpgTable(cpgTab)
+    ,   cpgStartTable(cpgStartTab)
     ,   genomeSeq(genSeq)
     ,   genomeBit()
     ,   kmerTable()
@@ -20,33 +21,30 @@ void RefGenome::generateHashes()
 
     // size of the hash table is approximately |CpGs| * hashed values per CpG
     kmerTable.resize(cpgTable.size() * (2 * MyConst::READLEN - MyConst::KMERLEN));
+
+    // hash CpGs from the start
+    for (vector<struct CpG>::const_iterator it = cpgStartTable.begin(); it != cpgStartTable.end(); ++it)
+    {
+
+        ntHashFirst(genomeSeq[it->chrom], it->pos, *it);
+    }
+
     // hash each CpG
     for (vector<struct CpG>::const_iterator it = cpgTable.begin(); it != cpgTable.end(); ++it)
     {
         // hash individual kmers
         //
-        // CpG is not too near to the start
-        if (it->pos >= 0)
+        // how long is the rest of the sequence after start of this cpg
+        // last term resembles position directly after CpG
+        const unsigned int remainderBps = genomeSeq[it->chrom].size() - 1 - (it->pos - MyConst::READLEN);
+        // if we can read the full sequence breadth
+        if (remainderBps >= (MyConst::READLEN - 2) )
         {
-            // how long is the rest of the sequence after start of this cpg
-            // last term resembles position directly after CpG
-            const unsigned int remainderBps = genomeSeq[it->chrom].size() - 1 - (it->pos - MyConst::READLEN);
-            // if we can read the full sequence breadth
-            if (remainderBps >= (MyConst::READLEN - 2) )
-            {
-                ntHashChunk(genomeSeq[it->chrom], it->pos, *it);
-            } else {
-
-                // substract 2 because seq points to CG which should be excluded of the count
-                ntHashLast(genomeSeq[it->chrom], it->pos, remainderBps, *it);
-            }
-        // CpG is near to the start of chromosome sequence
+            ntHashChunk(genomeSeq[it->chrom], it->pos, *it);
         } else {
 
-            // ASSUMPTION: chromosome length is bigger than readlength
-            // TODO find better way for the hashing
-            // search again for CpG
-            ntHashFirst(genomeSeq[it->chrom], it->pos, *it);
+            // substract 2 because seq points to CG which should be excluded of the count
+            ntHashLast(genomeSeq[it->chrom], it->pos, remainderBps, *it);
         }
 
     }
@@ -118,12 +116,11 @@ void RefGenome::ntHashLast(const vector<char>& seq,const unsigned int& pos, cons
     }
 }
 
-void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& pos, const struct CpG& cpg)
+void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCpG, const struct CpG& cpg)
 {
 
     // retrieve the underlying char vector of the sequence and offset it to the cpg context position
     const char* cpgContext = seq.data();
-    const unsigned int posOfCpG = MyConst::READLEN + 2 - pos;
 
     // find last N before the CpG
     unsigned int lasN = 0;

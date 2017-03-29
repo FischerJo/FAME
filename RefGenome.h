@@ -25,9 +25,10 @@ class RefGenome
 
         // Ctor
         // Arguments: ( see class members for full information )
-        //      cpgTab      table of all CpGs in reference genome
+        //      cpgTab      table of all CpGs in reference genome except for the ones near the start of a sequence (i.e. less then READLEN away from start)
+        //      cpgStartTab table of CpGs near the start
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<std::vector<char> >& genSeq);
+        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq);
 
         ~RefGenome() = default;
 
@@ -112,10 +113,11 @@ class RefGenome
             }
         }
         void ntHashLast(const std::vector<char>& seq, const unsigned int& pos, const unsigned int& bpsAfterCpG, const struct CpG& cpg);
-        void ntHashFirst(const std::vector<char>& seq, const unsigned int& pos, const struct CpG& cpg);
+        void ntHashFirst(const std::vector<char>& seq, const unsigned int& cpgOffset, const struct CpG& cpg);
 
         // table of all CpGs in reference genome
         const std::vector<struct CpG> cpgTable;
+        const std::vector<struct CpG> cpgStartTable;
 
         // table of strings holding chromosome code
         // and table holding the length of the sequences
