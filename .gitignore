@@ -2,7 +2,9 @@
 *.swp
 *.swo
 
+# external gits
 ntHash-1.0.2*
+googletest*
 
 # Compiled Object files
 *.slo
