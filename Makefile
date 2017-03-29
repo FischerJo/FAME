@@ -1,5 +1,5 @@
 
-OBJECTS=RefReader.o RefGenome.o DnaBitStr.o main.o
+OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o main.o
 PROGNAME=Metal
 CXX=g++
 
@@ -16,9 +16,6 @@ all: ${PROGNAME}
 
 %.o: %.cpp
 	${CXX} ${CXXFLAGS} -c $<
-
-# testsuite: ${OBJECTS} main_test.o
-# 	${CXX} ${CXXFLAGS} ${OBJECTS} main_test.o -o $@ 
 
 ${PROGNAME}: ${OBJECTS}
 	${CXX} ${CXXFLAGS} ${OBJECTS} -o $@ 
