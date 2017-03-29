@@ -20,7 +20,7 @@ constexpr unsigned int CHROMMAX = 260000000;
 constexpr unsigned int CPGMAX = 24000000;
 
 // maximum read length of the reads in bp
-constexpr unsigned int READLEN = 100;
+constexpr unsigned int READLEN = 30;
 
 
 
