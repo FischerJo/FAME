@@ -35,6 +35,14 @@ void DnaBitStr::setBitStrLast(string& seq)
                 }
                 break;
 
+            case 'c':
+                {
+                    const unsigned int shift = (64 - 2*i);
+                    bitStr |= (1ULL << shift);
+                    bitM ^= (3ULL << shift);
+                }
+                break;
+
             case 'G':
                 {
                     const unsigned int shift = (64 - 2*i);
@@ -43,7 +51,19 @@ void DnaBitStr::setBitStrLast(string& seq)
                 }
                 break;
 
+            case 'g':
+                {
+                    const unsigned int shift = (64 - 2*i);
+                    bitStr |= (2ULL << shift);
+                    bitRevM ^= (3ULL << shift);
+                }
+                break;
+
             case 'T':
+                bitStr |= (3ULL << (64 - 2*i));
+                break;
+
+            case 't':
                 bitStr |= (3ULL << (64 - 2*i));
                 break;
 
