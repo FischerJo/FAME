@@ -69,10 +69,10 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
         {
 
             // if there exists next letter, check if g
-            if ( (++it) != line.end() )
+            if ( (it + 1) != line.end() )
             {
 
-                if (*it == 'G' || *it == 'g')
+                if (*(it + 1) == 'G' || *(it + 1) == 'g')
                 {
                     if (seq.size() < (MyConst::READLEN - 1))
                     {
@@ -83,8 +83,8 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
 
                         cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
                     }
+                    seq += *(++it);
                 }
-                seq += *it;
 
             // else update lastC because we are at the end of line
             } else {
