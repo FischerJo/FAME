@@ -64,7 +64,9 @@ inline uint64_t rev64(uint64_t x)
 //           G XOR 11 == 01 == C
 inline uint64_t revKmer(uint64_t kmer)
 {
-    return kmer ^ MyConst::KMERMASK;
+    // empty bits (i.e. bits that are untouched because kmer is not as big as 64 bits)
+    constexpr unsigned int emptyBits = (64 - (2 * MyConst::KMERLEN));
+    return (BitFun::rev64(kmer ^ MyConst::KMERMASK) >> emptyBits);
 }
 
 

@@ -154,7 +154,7 @@ class DnaBitStr
             {
 
                 uint64_t tmp = ((bitSeq[k1] << offBitPos) >> maxBitPos);
-                return BitFun::rev64(BitFun::revKmer(tmp));
+                return BitFun::revKmer(tmp);
 
             // if necessary get second part of kmer
             } else {
@@ -162,7 +162,7 @@ class DnaBitStr
                 uint64_t tmp = (bitSeq[k1] << offBitPos) >> maxBitPos;
                 // right operand of shift is < 64 so we will be fine
                 tmp = tmp | (bitSeq[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
-                return BitFun::rev64(BitFun::revKmer(tmp));
+                return BitFun::revKmer(tmp);
             }
         }
 

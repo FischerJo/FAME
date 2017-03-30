@@ -37,9 +37,8 @@ constexpr unsigned int READLEN = 30;
 // Length of a kmer in bp
 constexpr unsigned int KMERLEN = 20;
 
-// Kmer bitmask for accessing kmer in 64 bit
-// CONVENTION: kmer is saved in the lower KMERLEN bits
-constexpr uint64_t KMERMASK = (1ULL << KMERLEN) - 1;
+// Kmer bitmask to build reverse complement of 64bit kmer
+constexpr uint64_t KMERMASK = 0xffffffffffffffffULL;
 
 // yields value for number of kmers in one read at compile time
 // constexpr KPERREAD = READLEN - KMERLEN + 1;
