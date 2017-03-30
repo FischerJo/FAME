@@ -38,3 +38,4 @@ googletest*
 
 # Project exe
 Metal
+test/tester
