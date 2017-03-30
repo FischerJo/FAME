@@ -41,11 +41,10 @@ class DnaBitStr
 
 
         // Set the n-th 64 bit element of bitSeq and bitMask according to sequence part
-        // CONVENTION:  we start counting here at 1 (i.e. n>= 1)
-        //              n*64 should NOT exceed "size" - 1 (member variable) o/w undefined behaviour
-        //              seq should be of length == 32 for n <  \gaussup size DIV 64 \gaussup
+        // CONVENTION:  we start counting here at 0 (i.e. n>= 0)
+        //              (n + 1)*64 should NOT exceed "size" - 1 (member variable) o/w undefined behaviour
+        //              seq should be of length == 32 for n <  \gaussdown size DIV 64 \gaussdown
         // for last element use setBitStrLast
-        // CONVENTION:  length <= 32 for n == \gaussup offset DIV 64 \gaussup
         inline void setBitStrN(std::string& seq, const unsigned int n)
         {
 
@@ -113,19 +112,19 @@ class DnaBitStr
 
 
         // get a bit slice (kmer) of the sequence's bitstring (or of the reverse complement sequence),
-        // starting at pos (pos == 0 is forst letter of sequence)
+        // starting at pos (pos == 0 is first letter of sequence)
         // returns the kmer as 64bit slice
         // if kmer length < 32 then the last (least significant) kmer length*2 bits will hold the bitstring
         inline uint64_t getSeqKmer(const unsigned int pos)
         {
 
             // get position of first part of kmer in vector
-            const unsigned int  k1 = pos / 64;
+            const unsigned int  k1 = pos / 32;
 
             // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
-            constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
+            constexpr unsigned int maxBitPos = 64 - (2 * MyConst::KMERLEN);
             // offset in word
-            const unsigned int offBitPos = pos % 64;
+            const unsigned int offBitPos = 2 * (pos % 32);
             if ( offBitPos <= maxBitPos)
             {
 
@@ -144,12 +143,12 @@ class DnaBitStr
         {
 
             // get position of first part of kmer in vector
-            const unsigned int  k1 = pos / 64;
+            const unsigned int  k1 = pos / 32;
 
             // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
-            constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
+            constexpr unsigned int maxBitPos = 64 - (2 * MyConst::KMERLEN);
             // offset in word
-            const unsigned int offBitPos = pos % 64;
+            const unsigned int offBitPos = 2 * (pos % 32);
             if ( offBitPos <= maxBitPos)
             {
 
@@ -174,12 +173,12 @@ class DnaBitStr
         {
 
             // get position of first part of kmer in vector
-            const unsigned int  k1 = pos / 64;
+            const unsigned int  k1 = pos / 32;
 
             // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
             constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
             // offset in word
-            const unsigned int offBitPos = pos % 64;
+            const unsigned int offBitPos = 2 * (pos % 32);
             if ( offBitPos <= maxBitPos)
             {
 
@@ -197,12 +196,12 @@ class DnaBitStr
         {
 
             // get position of first part of kmer in vector
-            const unsigned int  k1 = pos / 64;
+            const unsigned int  k1 = pos / 32;
 
             // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
             constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
             // offset in word
-            const unsigned int offBitPos = pos % 64;
+            const unsigned int offBitPos = 2 * (pos % 32);
             if ( offBitPos <= maxBitPos)
             {
 
