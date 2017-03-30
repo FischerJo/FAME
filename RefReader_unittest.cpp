@@ -312,7 +312,7 @@ TEST(readReference_test, MultiseqFile2)
     ASSERT_EQ(2, cpgStartTab.size());
     ASSERT_EQ(0, cpgStartTab[0].chrom);
     ASSERT_EQ(7, cpgStartTab[0].pos);
-    ASSERT_EQ(0, cpgStartTab[1].chrom);
+    ASSERT_EQ(1, cpgStartTab[1].chrom);
     ASSERT_EQ(7, cpgStartTab[1].pos);
     ASSERT_EQ(0, cpgTab.size());
 
@@ -347,7 +347,7 @@ TEST(readReference_test, MultiseqFile3)
     ASSERT_EQ(2, cpgStartTab.size());
     ASSERT_EQ(0, cpgStartTab[0].chrom);
     ASSERT_EQ(7, cpgStartTab[0].pos);
-    ASSERT_EQ(0, cpgStartTab[1].chrom);
+    ASSERT_EQ(1, cpgStartTab[1].chrom);
     ASSERT_EQ(7, cpgStartTab[1].pos);
     ASSERT_EQ(0, cpgTab.size());
 
@@ -364,12 +364,12 @@ TEST(readReference_test, MultiseqFile3)
 
 // Test if one line of one chromosome ends with a C and the next line of next chromosome with a G
 // that this is not a CpG
-// MultiSeqFile3 contains
+// MultiSeqFile4.fa contains
 //
 // >C
-// AACTCTCCTAAAATCCTTAGTTATACGTTTggttgtatatctc
+// AACTCTCCTATGTGTAAATCCTTAGTTATACGTTTggttgtatatctc
 // >C
-// GAACTCTCCGAAAATACTTAAGCTTTGCTATAGTCGTG
+// GAACTCTCCGAAAATACTTAAGCTTTGCTATAGTCCTG
 //
 TEST(readReference_test, MultiseqFile4)
 {
@@ -380,15 +380,15 @@ TEST(readReference_test, MultiseqFile4)
     readReference("MultiseqFile4.fa", cpgTab, cpgStartTab, genSeq);
 
     // test if CpG is correctly constructed
-    ASSERT_EQ(0, cpgStartTab.size());
-    ASSERT_EQ(2, cpgTab.size());
+    ASSERT_EQ(1, cpgTab.size());
+    ASSERT_EQ(1, cpgStartTab.size());
     ASSERT_EQ(0, cpgTab[0].chrom);
-    ASSERT_EQ(25 - MyConst::READLEN + 2, cpgTab[0].pos);
-    ASSERT_EQ(1, cpgTab[1].chrom);
-    ASSERT_EQ(34 - MyConst::READLEN + 2, cpgTab[1].pos);
+    ASSERT_EQ(30 - MyConst::READLEN + 2, cpgTab[0].pos);
+    ASSERT_EQ(1, cpgStartTab[0].chrom);
+    ASSERT_EQ(8, cpgStartTab[0].pos);
 
-    std::string seq1 = "AACTCTCCTAAAATCCTTAGTTATACGTTTggttgtatatctc";
-    std::string seq2 = "GAACTCTCCTAAAATACTTAAGCTTTGCTATAGTCGTG";
+    std::string seq1 = "AACTCTCCTATGTGTAAATCCTTAGTTATACGTTTggttgtatatctc";
+    std::string seq2 = "GAACTCTCCGAAAATACTTAAGCTTTGCTATAGTCCTG";
 
     // test if full sequence is read (and nothing else)
     ASSERT_EQ(2, genSeq.size());
