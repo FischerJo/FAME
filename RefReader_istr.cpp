@@ -38,7 +38,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
                 // put a vector of chars of size equal to the stringlength read so far to genSeq
                 genSeq.emplace_back(seq.size());
                 // copy the content of sequence to the object holding all sequences
-                copy(seq.begin(), seq.end(), genSeq[chrIndex].begin());
+                copy(seq.begin(), seq.end(), genSeq[chrIndex - 1].begin());
                 // reset buffer
                 seq.clear();
                 // reset flag for last c
