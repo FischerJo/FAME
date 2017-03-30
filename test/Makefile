@@ -19,7 +19,7 @@ CPPFLAGS += -isystem $(GTEST_DIR)/include
 CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread
 
 # All tests produced by this Makefile.  ADD TESTS HERE
-TESTS = RefReader_unittest.o BitFunctions_unittest.o
+TESTS = RefReader_unittest.o BitFunctions_unittest.o DnaBitStr_unittest.o
 # files to test
 OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o
 
