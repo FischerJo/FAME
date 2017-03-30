@@ -46,7 +46,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
 
             }
             // check if primary assembly
-            if (*(++(line.begin())) == 'C')
+            if (*(line.begin() + 1) == 'C')
             {
 
                 ++chrIndex;
@@ -76,4 +76,16 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
 
 
     }
+
+    // if we read primary assembly previously, write it to vectors
+    if (contFlag)
+    {
+
+        // put a vector of chars of size equal to the stringlength read so far to genSeq
+        genSeq.emplace_back(seq.size());
+        // copy the content of sequence to the object holding all sequences
+        copy(seq.begin(), seq.end(), genSeq[chrIndex - 1].begin());
+    }
+
+    ifs.close();
 }

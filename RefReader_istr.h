@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 
+#include <iostream> // for debugging
+
 #include "structs.h"
 #include "CONST.h"
 
