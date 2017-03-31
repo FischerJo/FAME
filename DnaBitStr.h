@@ -62,7 +62,7 @@ class DnaBitStr
                         {
                             const unsigned int shift = (64 - 2*i);
                             bitStr |= (1ULL << shift);
-                            bitM ^= (3ULL << shift);
+                            bitM ^= (2ULL << shift);
                         }
                         break;
 
@@ -70,7 +70,7 @@ class DnaBitStr
                         {
                             const unsigned int shift = (64 - 2*i);
                             bitStr |= (1ULL << shift);
-                            bitM ^= (3ULL << shift);
+                            bitM ^= (2ULL << shift);
                         }
                         break;
 
@@ -78,7 +78,7 @@ class DnaBitStr
                         {
                             const unsigned int shift = (64 - 2*i);
                             bitStr |= (2ULL << shift);
-                            bitRevM ^= (3ULL << shift);
+                            bitRevM ^= (2ULL << shift);
                         }
                         break;
 
@@ -86,7 +86,7 @@ class DnaBitStr
                         {
                             const unsigned int shift = (64 - 2*i);
                             bitStr |= (2ULL << shift);
-                            bitRevM ^= (3ULL << shift);
+                            bitRevM ^= (2ULL << shift);
                         }
                         break;
 
@@ -126,7 +126,7 @@ class DnaBitStr
             constexpr unsigned int maxBitPos = 64 - (2 * MyConst::KMERLEN);
             // offset in word
             const unsigned int offBitPos = 2 * (pos % 32);
-            if ( offBitPos <= maxBitPos)
+            if ( offBitPos <= maxBitPos )
             {
 
                 return ((bitSeq[k1] << offBitPos) >> maxBitPos);
@@ -150,7 +150,7 @@ class DnaBitStr
             constexpr unsigned int maxBitPos = 64 - (2 * MyConst::KMERLEN);
             // offset in word
             const unsigned int offBitPos = 2 * (pos % 32);
-            if ( offBitPos <= maxBitPos)
+            if ( offBitPos <= maxBitPos )
             {
 
                 uint64_t tmp = ((bitSeq[k1] << offBitPos) >> maxBitPos);
@@ -176,11 +176,13 @@ class DnaBitStr
             // get position of first part of kmer in vector
             const unsigned int  k1 = pos / 32;
 
+
             // maximum position that kmer start can have in 64bit word without exceeding the 64 bit
             constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
             // offset in word
             const unsigned int offBitPos = 2 * (pos % 32);
-            if ( offBitPos <= maxBitPos)
+
+            if ( offBitPos <= maxBitPos )
             {
 
                 return ((bitMask[k1] << offBitPos) >> maxBitPos);
@@ -203,7 +205,7 @@ class DnaBitStr
             constexpr unsigned int maxBitPos = 64 - 2*MyConst::KMERLEN;
             // offset in word
             const unsigned int offBitPos = 2 * (pos % 32);
-            if ( offBitPos <= maxBitPos)
+            if ( offBitPos <= maxBitPos )
             {
 
                 return BitFun::rev64((bitRevMask[k1] << offBitPos) >> maxBitPos) >> maxBitPos;
