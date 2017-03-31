@@ -38,7 +38,7 @@ constexpr unsigned int READLEN = 30;
 constexpr unsigned int KMERLEN = 20;
 
 // Kmer bitmask to build reverse complement of 64bit kmer
-constexpr uint64_t KMERMASK = 0xffffffffffffffffULL;
+constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 2*KMERLEN) - 1);
 
 // yields value for number of kmers in one read at compile time
 // constexpr KPERREAD = READLEN - KMERLEN + 1;
