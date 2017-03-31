@@ -52,6 +52,7 @@ class RefGenome
         inline void ntHashChunk(const std::vector<char>& seq, const unsigned int& pos, const struct CpG& cpg)
         {
 
+            // TODO: make DNA bitstring
             // retrieve the underlying char vector of the sequence and offset it to the cpg context position
             const char* cpgContext = seq.data() + pos;
 
