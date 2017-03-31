@@ -110,7 +110,7 @@ class DnaBitStr
             bitRevMask[n] = bitRevM;
         }
 
-        void setBitStrLast(std::string& seq);
+        void setBitStrLast(std::string&& seq);
 
 
         // get a bit slice (kmer) of the sequence's bitstring (or of the reverse complement sequence),

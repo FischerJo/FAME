@@ -10,6 +10,7 @@ TEST(DnaBitStr_test, setSimple1)
     const uint64_t bitEnc = 0x0000000000000000ULL;
     const uint64_t bitMask = 0xffffffffffffffffULL;
     const uint64_t revBitEnc = 0xffffffffffffffffULL;
+    const uint64_t revBitMask = bitMask;
 
     DnaBitStr bitstr(32);
     bitstr.setBitStrN(std::move(seq), 0);
@@ -24,13 +25,13 @@ TEST(DnaBitStr_test, setSimple1)
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
         bitsRev = bitstr.getSeqKmerRev(i);
-        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+        ASSERT_EQ( (revBitEnc << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, bitsRev);
 
         mask = bitstr.getMaskKmer(i);
         ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
 
         maskRev = bitstr.getMaskKmerRev(i);
-        ASSERT_EQ( (bitMask << 2*i) >> shiftRight, maskRev);
+        ASSERT_EQ( (revBitMask << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, maskRev);
     }
 }
 
@@ -51,18 +52,17 @@ TEST(DnaBitStr_test, setSimple2)
     constexpr unsigned int shiftRight = (64 - (2 * MyConst::KMERLEN) );
     for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
     {
-
         bits = bitstr.getSeqKmer(i);
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
         bitsRev = bitstr.getSeqKmerRev(i);
-        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+        ASSERT_EQ( (revBitEnc << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, bitsRev);
 
         mask = bitstr.getMaskKmer(i);
         ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
 
         maskRev = bitstr.getMaskKmerRev(i);
-        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+        ASSERT_EQ( (revBitMask << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, maskRev);
     }
 }
 
@@ -88,13 +88,13 @@ TEST(DnaBitStr_test, setSimple3)
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
         bitsRev = bitstr.getSeqKmerRev(i);
-        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+        ASSERT_EQ( (revBitEnc << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, bitsRev);
 
         mask = bitstr.getMaskKmer(i);
         ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
 
         maskRev = bitstr.getMaskKmerRev(i);
-        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+        ASSERT_EQ( (revBitMask << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, maskRev);
     }
 }
 
@@ -120,13 +120,13 @@ TEST(DnaBitStr_test, setSimple4)
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
         bitsRev = bitstr.getSeqKmerRev(i);
-        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+        ASSERT_EQ( (revBitEnc << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, bitsRev);
 
         mask = bitstr.getMaskKmer(i);
         ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
 
         maskRev = bitstr.getMaskKmerRev(i);
-        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+        ASSERT_EQ( (revBitMask << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, maskRev);
     }
 }
 
@@ -167,21 +167,21 @@ TEST(DnaBitStr_test, setComplex1)
 
 }
 
-// Test setting and reading a simple 40bp sequence
+// Test setting and reading a simple 64bp sequence
 TEST(DnaBitStr_test, setLong1)
 {
 
     std::string seq0 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    std::string seq1 = "AAAAAAAA";
+    std::string seq1 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     const uint64_t bitEnc = 0x0000000000000000ULL;
     const uint64_t bitMask = 0x000000ffffffffffULL;
     const uint64_t revBitEnc = bitMask;
 
-    DnaBitStr bitstr(40);
+    DnaBitStr bitstr(64);
     bitstr.setBitStrN(std::move(seq0), 0);
     bitstr.setBitStrN(std::move(seq1), 1);
 
-    for (unsigned int i = 15; i <= 20; ++i)
+    for (unsigned int i = 15; i <= 33; ++i)
     {
 
         uint64_t bits = bitstr.getSeqKmer(i);
@@ -196,5 +196,87 @@ TEST(DnaBitStr_test, setLong1)
         uint64_t maskRev = bitstr.getMaskKmerRev(i);
         ASSERT_EQ(bitMask, maskRev);
     }
+
+}
+
+// Test setting and reading a simple 64bp sequence
+TEST(DnaBitStr_test, setLong2)
+{
+
+    std::string seq0 = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+    std::string seq1 = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+    const uint64_t bitEnc = 0x0000005555555555ULL;
+    const uint64_t bitMask = bitEnc;
+    const uint64_t revBitEnc = 0x000000aaaaaaaaaaULL;
+    const uint64_t revBitMask = 0x000000ffffffffffULL;
+
+    DnaBitStr bitstr(64);
+    bitstr.setBitStrN(std::move(seq0), 0);
+    bitstr.setBitStrN(std::move(seq1), 1);
+
+    for (unsigned int i = 15; i <= 33; ++i)
+    {
+
+        uint64_t bits = bitstr.getSeqKmer(i);
+        ASSERT_EQ(bitEnc, bits);
+
+        uint64_t bitsRev = bitstr.getSeqKmerRev(i);
+        ASSERT_EQ(revBitEnc, bitsRev);
+
+        uint64_t mask = bitstr.getMaskKmer(i);
+        ASSERT_EQ(bitMask, mask);
+
+        uint64_t maskRev = bitstr.getMaskKmerRev(i);
+        ASSERT_EQ(revBitMask, maskRev);
+    }
+
+}
+
+//Test setting and reading last bit segment
+TEST(DnaBitStr_test, setLastSimple)
+{
+    // sequence of 21 bp
+    // encoding: 0111 0111 0011 0110 1100 1011 0110 1100 1000 1101 1000
+    std::string seq = "CTCTATCGTAGTCGTAGATCG";
+    const uint64_t bitEnc = 0x7736cb6c8d800000ULL;
+    // mask: 0111 0111 1111 0111 1111 1111 0111 1111 1111 1101 1100
+    const uint64_t bitMask = 0x77f7ff7ffdc00000ULL;
+    // sequence: CGATCTACGACTACGATAGAG
+    // encoding: 0001 1000 1101 1100 0110 0001 1100 0110 0011 0010 0010
+    const uint64_t revBitEnc = 0x0000018dc61c6322ULL;
+    // mask: 0001 1111 1101 1111 0111 1101 1111 0111 1111 1111 1111
+    const uint64_t revBitMask = 0x000001fdf7df7fffULL;
+
+    DnaBitStr bitstr(21);
+    bitstr.setBitStrLast(std::move(seq));
+
+    constexpr unsigned int shiftRight = (64 - (2 * MyConst::KMERLEN) );
+    uint64_t bits, bitsRev, mask, maskRev;
+    for (unsigned int i = 0; i < 2; ++i)
+    {
+
+        bits = bitstr.getSeqKmer(i);
+        ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
+
+        bitsRev = bitstr.getSeqKmerRev(i);
+        ASSERT_EQ( (revBitEnc << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, bitsRev);
+
+        mask = bitstr.getMaskKmer(i);
+        ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
+
+        maskRev = bitstr.getMaskKmerRev(i);
+        ASSERT_EQ( (revBitMask << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, maskRev);
+    }
+
+}
+
+// Test setting and reading last bit segment with overlap
+TEST(DnaBitStr_test, setLastOverlap)
+{
+}
+
+//Test setting and reading a complex 40bp sequence
+TEST(DnaBitStr_test, setLong3)
+{
 
 }
