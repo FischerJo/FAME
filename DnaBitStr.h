@@ -46,7 +46,7 @@ class DnaBitStr
         //              (n + 1)*64 should NOT exceed "size" - 1 (member variable) o/w undefined behaviour
         //              seq should be of length == 32 for n <  \gaussdown size DIV 64 \gaussdown
         // for last element use setBitStrLast
-        inline void setBitStrN(std::string& seq, const unsigned int n)
+        inline void setBitStrN(std::string&& seq, const unsigned int n)
         {
 
             uint64_t bitStr = 0;

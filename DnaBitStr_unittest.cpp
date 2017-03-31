@@ -12,7 +12,7 @@ TEST(DnaBitStr_test, setSimple1)
     const uint64_t revBitEnc = 0xffffffffffffffffULL;
 
     DnaBitStr bitstr(32);
-    bitstr.setBitStrN(seq, 0);
+    bitstr.setBitStrN(std::move(seq), 0);
 
     uint64_t bits, bitsRev, mask, maskRev;
     // align kmer to lower bits
@@ -44,7 +44,7 @@ TEST(DnaBitStr_test, setSimple2)
     const uint64_t revBitMask = 0xffffffffffffffffULL;
 
     DnaBitStr bitstr(32);
-    bitstr.setBitStrN(seq, 0);
+    bitstr.setBitStrN(std::move(seq), 0);
 
     uint64_t bits, bitsRev, mask, maskRev;
     // align kmer to lower bits
@@ -76,7 +76,7 @@ TEST(DnaBitStr_test, setSimple3)
     const uint64_t revBitMask = revBitEnc;
 
     DnaBitStr bitstr(32);
-    bitstr.setBitStrN(seq, 0);
+    bitstr.setBitStrN(std::move(seq), 0);
 
     uint64_t bits, bitsRev, mask, maskRev;
     // align kmer to lower bits
@@ -108,7 +108,7 @@ TEST(DnaBitStr_test, setSimple4)
     const uint64_t revBitMask = bitMask;
 
     DnaBitStr bitstr(32);
-    bitstr.setBitStrN(seq, 0);
+    bitstr.setBitStrN(std::move(seq), 0);
 
     uint64_t bits, bitsRev, mask, maskRev;
     // align kmer to lower bits
@@ -135,15 +135,15 @@ TEST(DnaBitStr_test, setComplex1)
 {
     // encoding: 1001 1111 0010 0111 1000 0001 1011 0010 0111 1000 1101 1011 1000 1110 0110 1110
     std::string seq = "GCTTAGCTGAACGTAGCTGATCGTGATGCGTG";
-    uint64_t bitEnc = 0x9f2781b278db8d6dULL;
-    uint64_t bitMask = 0xdff7fdff7fdfff7fULL;
+    const uint64_t bitEnc = 0x9f2781b278db8d6dULL;
+    const uint64_t bitMask = 0xdff7fdff7fdfff7fULL;
     // reverse complement: CACGCATCACGATCAGCTACGTTCAGCTAAGC
     // encoding: 0100 0110 0100 1101 0001 1000 1101 0010 0111 0001 1011 1101 0010 0111 0000 1001
-    uint64_t revBitEnc = 0x464d18d271bd2709ULL;
-    uint64_t revBitMask = 0x777ddfdf7dfdf7fdULL;
+    const uint64_t revBitEnc = 0x464d18d271bd2709ULL;
+    const uint64_t revBitMask = 0x777ddfdf7dfdf7fdULL;
 
     DnaBitStr bitstr(32);
-    bitstr.setBitStrN(seq, 0);
+    bitstr.setBitStrN(std::move(seq), 0);
 
     uint64_t bits, bitsRev, mask, maskRev;
     // align kmer to lower bits
@@ -151,6 +151,7 @@ TEST(DnaBitStr_test, setComplex1)
     for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
     {
 
+        std::cout << i << std::endl;
         bits = bitstr.getSeqKmer(i);
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
