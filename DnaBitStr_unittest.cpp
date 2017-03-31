@@ -166,3 +166,35 @@ TEST(DnaBitStr_test, setComplex1)
 
 
 }
+
+// Test setting and reading a simple 40bp sequence
+TEST(DnaBitStr_test, setLong1)
+{
+
+    std::string seq0 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    std::string seq1 = "AAAAAAAA";
+    const uint64_t bitEnc = 0x0000000000000000ULL;
+    const uint64_t bitMask = 0x000000ffffffffffULL;
+    const uint64_t revBitEnc = bitMask;
+
+    DnaBitStr bitstr(40);
+    bitstr.setBitStrN(std::move(seq0), 0);
+    bitstr.setBitStrN(std::move(seq1), 1);
+
+    for (unsigned int i = 15; i <= 20; ++i)
+    {
+
+        uint64_t bits = bitstr.getSeqKmer(i);
+        ASSERT_EQ(bitEnc, bits);
+
+        uint64_t bitsRev = bitstr.getSeqKmerRev(i);
+        ASSERT_EQ(revBitEnc, bitsRev);
+
+        uint64_t mask = bitstr.getMaskKmer(i);
+        ASSERT_EQ(bitMask, mask);
+
+        uint64_t maskRev = bitstr.getMaskKmerRev(i);
+        ASSERT_EQ(bitMask, maskRev);
+    }
+
+}

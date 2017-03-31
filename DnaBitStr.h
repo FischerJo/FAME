@@ -135,9 +135,7 @@ class DnaBitStr
             // if necessary get second part of kmer
             } else {
 
-                // TODO this is wrong - we may have nonzero bits on the right side of first kmer fragment
-                // TODO fix this everywhere
-                uint64_t tmp = (bitSeq[k1] << offBitPos) >> maxBitPos;
+                uint64_t tmp = ((bitSeq[k1] << offBitPos) >> offBitPos) << (offBitPos - maxBitPos);
                 // right operand of shift is < 64 so we will be fine
                 return tmp | (bitSeq[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
             }
@@ -157,13 +155,12 @@ class DnaBitStr
             {
 
                 uint64_t tmp = ((bitSeq[k1] << offBitPos) >> maxBitPos);
-                std::cout << std::bitset<64>(tmp) << std::endl;
                 return BitFun::revKmer(tmp);
 
             // if necessary get second part of kmer
             } else {
 
-                uint64_t tmp = (bitSeq[k1] << offBitPos) >> maxBitPos;
+                uint64_t tmp = ((bitSeq[k1] << offBitPos) >> offBitPos) << (offBitPos - maxBitPos);
                 // right operand of shift is < 64 so we will be fine
                 tmp = tmp | (bitSeq[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
                 return BitFun::revKmer(tmp);
@@ -194,7 +191,7 @@ class DnaBitStr
             // if necessary get second part of kmer
             } else {
 
-                uint64_t tmp = (bitMask[k1] << offBitPos) >> maxBitPos;
+                uint64_t tmp = ((bitMask[k1] << offBitPos) >> offBitPos) << (offBitPos - maxBitPos);
                 // right operand of shift is < 64 so we will be fine
                 return tmp | (bitMask[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
             }
@@ -217,10 +214,10 @@ class DnaBitStr
             // if necessary get second part of kmer
             } else {
 
-                uint64_t tmp = (bitRevMask[k1] << offBitPos) >> maxBitPos;
+                uint64_t tmp = ((bitRevMask[k1] << offBitPos) >> offBitPos) << (offBitPos - maxBitPos);
                 // right operand of shift is < 64 so we will be fine
                 tmp |= (bitRevMask[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
-                return BitFun::rev64(tmp);
+                return BitFun::rev64(tmp) >> maxBitPos;
             }
         }
 
