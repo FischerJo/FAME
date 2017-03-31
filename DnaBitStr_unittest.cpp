@@ -7,9 +7,9 @@
 TEST(DnaBitStr_test, setSimple1)
 {
     std::string seq = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    uint64_t bitEnc = 0x0000000000000000ULL;
-    uint64_t bitMask = 0xffffffffffffffffULL;
-    uint64_t revBitEnc = 0xffffffffffffffffULL;
+    const uint64_t bitEnc = 0x0000000000000000ULL;
+    const uint64_t bitMask = 0xffffffffffffffffULL;
+    const uint64_t revBitEnc = 0xffffffffffffffffULL;
 
     DnaBitStr bitstr(32);
     bitstr.setBitStrN(seq, 0);
@@ -20,6 +20,7 @@ TEST(DnaBitStr_test, setSimple1)
     for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
     {
 
+        bits = bitstr.getSeqKmer(i);
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
         bitsRev = bitstr.getSeqKmerRev(i);
@@ -31,8 +32,102 @@ TEST(DnaBitStr_test, setSimple1)
         maskRev = bitstr.getMaskKmerRev(i);
         ASSERT_EQ( (bitMask << 2*i) >> shiftRight, maskRev);
     }
+}
 
+// Test setting and reading a simple 32bp sequence of Cs
+TEST(DnaBitStr_test, setSimple2)
+{
+    std::string seq = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+    const uint64_t bitEnc = 0x5555555555555555ULL;
+    const uint64_t bitMask = bitEnc;
+    const uint64_t revBitEnc = 0xaaaaaaaaaaaaaaaaULL;
+    const uint64_t revBitMask = 0xffffffffffffffffULL;
 
+    DnaBitStr bitstr(32);
+    bitstr.setBitStrN(seq, 0);
+
+    uint64_t bits, bitsRev, mask, maskRev;
+    // align kmer to lower bits
+    constexpr unsigned int shiftRight = (64 - (2 * MyConst::KMERLEN) );
+    for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
+    {
+
+        bits = bitstr.getSeqKmer(i);
+        ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
+
+        bitsRev = bitstr.getSeqKmerRev(i);
+        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+
+        mask = bitstr.getMaskKmer(i);
+        ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
+
+        maskRev = bitstr.getMaskKmerRev(i);
+        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+    }
+}
+
+// Test setting and reading a simple 32bp sequence of Gs
+TEST(DnaBitStr_test, setSimple3)
+{
+    std::string seq = "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG";
+    const uint64_t bitEnc = 0xaaaaaaaaaaaaaaaaULL;
+    const uint64_t bitMask = 0xffffffffffffffffULL;
+    const uint64_t revBitEnc = 0x5555555555555555ULL;
+    const uint64_t revBitMask = revBitEnc;
+
+    DnaBitStr bitstr(32);
+    bitstr.setBitStrN(seq, 0);
+
+    uint64_t bits, bitsRev, mask, maskRev;
+    // align kmer to lower bits
+    constexpr unsigned int shiftRight = (64 - (2 * MyConst::KMERLEN) );
+    for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
+    {
+
+        bits = bitstr.getSeqKmer(i);
+        ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
+
+        bitsRev = bitstr.getSeqKmerRev(i);
+        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+
+        mask = bitstr.getMaskKmer(i);
+        ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
+
+        maskRev = bitstr.getMaskKmerRev(i);
+        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+    }
+}
+
+// Test setting and reading a simple 32bp sequence of Ts
+TEST(DnaBitStr_test, setSimple4)
+{
+    std::string seq = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT";
+    const uint64_t bitMask = 0xffffffffffffffffULL;
+    const uint64_t bitEnc = bitMask;
+    const uint64_t revBitEnc = 0x0000000000000000ULL;
+    const uint64_t revBitMask = bitMask;
+
+    DnaBitStr bitstr(32);
+    bitstr.setBitStrN(seq, 0);
+
+    uint64_t bits, bitsRev, mask, maskRev;
+    // align kmer to lower bits
+    constexpr unsigned int shiftRight = (64 - (2 * MyConst::KMERLEN) );
+    for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
+    {
+
+        bits = bitstr.getSeqKmer(i);
+        ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
+
+        bitsRev = bitstr.getSeqKmerRev(i);
+        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+
+        mask = bitstr.getMaskKmer(i);
+        ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
+
+        maskRev = bitstr.getMaskKmerRev(i);
+        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+    }
 }
 
 // Test setting and reading a 32bp sequence
