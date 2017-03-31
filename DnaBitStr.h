@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include <iostream>  // for tests
+#include <bitset>   // for tests
 
 #include "BitFunctions.h"
 
@@ -134,6 +135,8 @@ class DnaBitStr
             // if necessary get second part of kmer
             } else {
 
+                // TODO this is wrong - we may have nonzero bits on the right side of first kmer fragment
+                // TODO fix this everywhere
                 uint64_t tmp = (bitSeq[k1] << offBitPos) >> maxBitPos;
                 // right operand of shift is < 64 so we will be fine
                 return tmp | (bitSeq[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
@@ -154,6 +157,7 @@ class DnaBitStr
             {
 
                 uint64_t tmp = ((bitSeq[k1] << offBitPos) >> maxBitPos);
+                std::cout << std::bitset<64>(tmp) << std::endl;
                 return BitFun::revKmer(tmp);
 
             // if necessary get second part of kmer
@@ -169,7 +173,7 @@ class DnaBitStr
 
 
         // return bitmask slice of sequence (or of the reverse complement sequence)
-        // see getSeqSlice for more info
+        // see getSeqKmer for more info
         inline uint64_t getMaskKmer(const unsigned int pos)
         {
 

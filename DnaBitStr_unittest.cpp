@@ -135,7 +135,7 @@ TEST(DnaBitStr_test, setComplex1)
 {
     // encoding: 1001 1111 0010 0111 1000 0001 1011 0010 0111 1000 1101 1011 1000 1110 0110 1110
     std::string seq = "GCTTAGCTGAACGTAGCTGATCGTGATGCGTG";
-    const uint64_t bitEnc = 0x9f2781b278db8d6dULL;
+    const uint64_t bitEnc = 0x9f2781b278db8e6eULL;
     const uint64_t bitMask = 0xdff7fdff7fdfff7fULL;
     // reverse complement: CACGCATCACGATCAGCTACGTTCAGCTAAGC
     // encoding: 0100 0110 0100 1101 0001 1000 1101 0010 0111 0001 1011 1101 0010 0111 0000 1001
@@ -151,18 +151,17 @@ TEST(DnaBitStr_test, setComplex1)
     for (unsigned int i = 0; i < (32 - MyConst::KMERLEN + 1); ++i)
     {
 
-        std::cout << i << std::endl;
         bits = bitstr.getSeqKmer(i);
         ASSERT_EQ( (bitEnc << 2*i) >> shiftRight, bits);
 
         bitsRev = bitstr.getSeqKmerRev(i);
-        ASSERT_EQ( (revBitEnc << 2*i) >> shiftRight, bitsRev);
+        ASSERT_EQ( (revBitEnc << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, bitsRev);
 
         mask = bitstr.getMaskKmer(i);
         ASSERT_EQ( (bitMask << 2*i) >> shiftRight, mask);
 
         maskRev = bitstr.getMaskKmerRev(i);
-        ASSERT_EQ( (revBitMask << 2*i) >> shiftRight, maskRev);
+        ASSERT_EQ( (revBitMask << 2*(32 - MyConst::KMERLEN - i)) >> shiftRight, maskRev);
     }
 
 
