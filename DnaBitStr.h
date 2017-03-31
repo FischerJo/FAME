@@ -6,6 +6,7 @@
 #include <string>
 #include <cstdint>
 
+#include <iostream>  // for tests
 
 #include "BitFunctions.h"
 
@@ -205,14 +206,14 @@ class DnaBitStr
             if ( offBitPos <= maxBitPos)
             {
 
-                return BitFun::rev64((bitMask[k1] << offBitPos) >> maxBitPos);
+                return BitFun::rev64((bitRevMask[k1] << offBitPos) >> maxBitPos) >> maxBitPos;
 
             // if necessary get second part of kmer
             } else {
 
-                uint64_t tmp = (bitMask[k1] << offBitPos) >> maxBitPos;
+                uint64_t tmp = (bitRevMask[k1] << offBitPos) >> maxBitPos;
                 // right operand of shift is < 64 so we will be fine
-                tmp |= (bitMask[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
+                tmp |= (bitRevMask[k1 + 1] >> (64 - (offBitPos - maxBitPos)));
                 return BitFun::rev64(tmp);
             }
         }
