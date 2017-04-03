@@ -273,10 +273,35 @@ TEST(DnaBitStr_test, setLastSimple)
 // Test setting and reading last bit segment with overlap
 TEST(DnaBitStr_test, setLastOverlap)
 {
-}
 
-//Test setting and reading a complex 40bp sequence
-TEST(DnaBitStr_test, setLong3)
-{
+    // pos 19                              |
+    // pos 24                                   |
+    std::string seq0 = "TGACCGTTCACCAATTATAGCGCTAAATGCTA";
+    std::string seq1 = "AGTATGCAGCCC";
 
+    DnaBitStr bitstr(44);
+    bitstr.setBitStrN(std::move(seq0), 0);
+    bitstr.setBitStrLast(std::move(seq1));
+
+    const uint64_t bitEnc19 = 0x00000099c0e70b39ULL;
+    const uint64_t bitMask19 = 0x000000ddfff7fffdULL;
+    // GCATACTTAGCATTTAGCGC
+    const uint64_t revBitEnc19 = 0x000000931f24fc99ULL;
+    const uint64_t revBitMask19 = 0x000000dfdff7ffddULL;
+
+    const uint64_t bitEnc24 = 0x000000039c2ce495ULL;
+    const uint64_t bitMask24 = 0x000000ffdffff7d5ULL;
+    // GGGCTGCATACTTAGCATTT
+    const uint64_t revBitEnc24 = 0x000000a9e4c7c93fULL;
+    const uint64_t revBitMask24 = 0x000000fdf7f7fdffULL;
+
+    ASSERT_EQ(bitEnc19, bitstr.getSeqKmer(19));
+    ASSERT_EQ(bitMask19, bitstr.getMaskKmer(19));
+    ASSERT_EQ(revBitEnc19, bitstr.getSeqKmerRev(19));
+    ASSERT_EQ(revBitMask19, bitstr.getMaskKmerRev(19));
+
+    ASSERT_EQ(bitEnc24, bitstr.getSeqKmer(24));
+    ASSERT_EQ(bitMask24, bitstr.getMaskKmer(24));
+    ASSERT_EQ(revBitEnc24, bitstr.getSeqKmerRev(24));
+    ASSERT_EQ(revBitMask24, bitstr.getMaskKmerRev(24));
 }
