@@ -1,33 +1,33 @@
 
-# require(ggplot2)
-# require(reshape2)
-# require(ggthemes)
-#
-# randData <- read.table("hashedRand.tsv", sep='\t', col.names=c('Bin', 'Random'))
-# distData <- read.table("hashedDist.tsv", sep='\t', col.names=c('Bin', 'Distinct'))
-#
-#
-#
-# wholeData <- as.data.frame(cbind(randData, distData[,2]))
-# colnames(wholeData) <- c('Bin', 'Random', 'Distinct')
-#
-#
-#
-# meltedData <- melt(wholeData, id.vars='Bin')
-#
-#
-# # generate counts
-# maxi <- max(wholeData[,-1])
-# randStats <- cbind(1:maxi, tabulate(randData[,2], maxi))
-# distStats <- cbind(1:maxi, tabulate(distData[,2], maxi))
-#
-# colnames(randStats) <- c('collisions', 'Random')
-# colnames(distStats) <- c('collisions', 'Distinct')
-#
-# wholeStats <- as.data.frame(cbind(randStats, distStats[,2]))
-# colnames(wholeStats) <- c('collisions', 'Random', 'Distinct')
-# meltedStats <- melt(wholeStats, id.vars='collisions')
-# colnames(meltedStats) <- c('collisions', 'variable', 'value')
+require(ggplot2)
+require(reshape2)
+require(ggthemes)
+
+randData <- read.table("hashedRand.tsv", sep='\t', col.names=c('Bin', 'Random'))
+distData <- read.table("hashedDist.tsv", sep='\t', col.names=c('Bin', 'Distinct'))
+
+
+
+wholeData <- as.data.frame(cbind(randData, distData[,2]))
+colnames(wholeData) <- c('Bin', 'Random', 'Distinct')
+
+
+
+meltedData <- melt(wholeData, id.vars='Bin')
+
+
+# generate counts
+maxi <- max(wholeData[,-1])
+randStats <- cbind(1:maxi, tabulate(randData[,2], maxi))
+distStats <- cbind(1:maxi, tabulate(distData[,2], maxi))
+
+colnames(randStats) <- c('collisions', 'Random')
+colnames(distStats) <- c('collisions', 'Distinct')
+
+wholeStats <- as.data.frame(cbind(randStats, distStats[,2]))
+colnames(wholeStats) <- c('collisions', 'Random', 'Distinct')
+meltedStats <- melt(wholeStats, id.vars='collisions')
+colnames(meltedStats) <- c('collisions', 'variable', 'value')
 
 pdf('ntHash_stats.pdf')
 
