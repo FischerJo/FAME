@@ -36,7 +36,8 @@ class RefGenome
 
 
 
-    private:
+    // TODO: make this private once its tested
+    // private:
 
         // generate Bit representation of whole genome for genomeBit
         // using full alphabet
@@ -165,16 +166,16 @@ class RefGenome
             uint16_t kPos = lasN;
 
             // update kmer table
-            ++kmerTable[fhVal % kmerTable.capacity()].len;
-            kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+            ++kmerTable[fhVal % kmerTable.size()].len;
+            kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
             // initial hash forward
             uint64_t rhVal = ntHash::NTP64(seqStart);
             kPos |= 0x4000;
 
             // update kmer table
-            ++kmerTable[rhVal % kmerTable.capacity()].len;
-            kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+            ++kmerTable[rhVal % kmerTable.size()].len;
+            kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
 
 
@@ -184,14 +185,14 @@ class RefGenome
                 rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 kPos = lasN + i + 1;
                 // update kmer table
-                ++kmerTable[rhVal % kmerTable.capacity()].len;
-                kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+                ++kmerTable[rhVal % kmerTable.size()].len;
+                kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
                 fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 kPos |= 0x4000;
                 // update kmer table
-                ++kmerTable[fhVal % kmerTable.capacity()].len;
-                kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+                ++kmerTable[fhVal % kmerTable.size()].len;
+                kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
             }
         }
         void ntHashLast(const std::vector<char>& seq, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& cpg);

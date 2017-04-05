@@ -195,16 +195,16 @@ void RefGenome::ntHashLast(const vector<char>& seq,const unsigned int& pos, cons
     uint16_t kPos = lasN;
 
     // update kmer table
-    ++kmerTable[fhVal % kmerTable.capacity()].len;
-    kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+    ++kmerTable[fhVal % kmerTable.size()].len;
+    kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
     // initial hash forward
     uint64_t rhVal = ntHash::NTP64(seqStart);
     kPos |= 0x4000;
 
     // update kmer table
-    ++kmerTable[rhVal % kmerTable.capacity()].len;
-    kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+    ++kmerTable[rhVal % kmerTable.size()].len;
+    kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
 
 
@@ -214,14 +214,14 @@ void RefGenome::ntHashLast(const vector<char>& seq,const unsigned int& pos, cons
         rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         kPos = lasN + i + 1;
         // update kmer table
-        ++kmerTable[rhVal % kmerTable.capacity()].len;
-        kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+        ++kmerTable[rhVal % kmerTable.size()].len;
+        kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
         fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         kPos |= 0x4000;
         // update kmer table
-        ++kmerTable[fhVal % kmerTable.capacity()].len;
-        kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+        ++kmerTable[fhVal % kmerTable.size()].len;
+        kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
     }
 
 }
@@ -340,16 +340,16 @@ void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCp
     uint16_t kPos = lasN;
 
     // update kmer table
-    ++kmerTable[fhVal % kmerTable.capacity()].len;
-    kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
+    ++kmerTable[fhVal % kmerTable.size()].len;
+    kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
 
     // initial hash forward
     uint64_t rhVal = ntHash::NTP64(seqStart);
     kPos |= 0x4000;
 
     // update kmer table
-    ++kmerTable[rhVal % kmerTable.capacity()].len;
-    kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
+    ++kmerTable[rhVal % kmerTable.size()].len;
+    kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
 
 
 
@@ -359,14 +359,14 @@ void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCp
         rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         kPos = lasN + i + 1;
         // update kmer table
-        ++kmerTable[rhVal % kmerTable.capacity()].len;
-        kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
+        ++kmerTable[rhVal % kmerTable.size()].len;
+        kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
 
         fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         kPos |= 0x4000;
         // update kmer table
-        ++kmerTable[fhVal % kmerTable.capacity()].len;
-        kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
+        ++kmerTable[fhVal % kmerTable.size()].len;
+        kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
     }
 
 }
