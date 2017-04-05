@@ -162,20 +162,20 @@ class RefGenome
             char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
 
             // initial hash backward
-            uint64_t fhVal = ntHash::NTP64(seqStartRev);
+            uint64_t rhVal = ntHash::NTP64(seqStartRev);
             uint16_t kPos = lasN;
-
-            // update kmer table
-            ++kmerTable[fhVal % kmerTable.size()].len;
-            kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
-
-            // initial hash forward
-            uint64_t rhVal = ntHash::NTP64(seqStart);
-            kPos |= 0x4000;
 
             // update kmer table
             ++kmerTable[rhVal % kmerTable.size()].len;
             kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
+
+            // initial hash forward
+            uint64_t fhVal = ntHash::NTP64(seqStart);
+            kPos |= STRANDMASK;
+
+            // update kmer table
+            ++kmerTable[fhVal % kmerTable.size()].len;
+            kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
 
 
@@ -189,7 +189,7 @@ class RefGenome
                 kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
                 fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-                kPos |= 0x4000;
+                kPos |= STRANDMASK;
                 // update kmer table
                 ++kmerTable[fhVal % kmerTable.size()].len;
                 kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
