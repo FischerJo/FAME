@@ -44,6 +44,9 @@ constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 
 // constexpr KPERREAD = READLEN - KMERLEN + 1;
 
 
+// bitmask to extract type of CpG used by kmer.cpg
+constexpr uint32_t INDMASK = 0x80000000;
+
 
 // internal buffer for reading reference file
 constexpr unsigned int BUFSIZE = 256 * 1024;

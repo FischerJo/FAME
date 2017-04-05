@@ -33,88 +33,169 @@ class RefGenome
         ~RefGenome() = default;
 
 
-        // hash all kmers in all CpGs to _kmerTable using ntHash
-        // the kmers are represented in REDUCED alphabet {A,T,G}
-        // mapping all Cs to Ts
-        // generate Bit representation of whole genome for genomeBit
-        // using full alphabet
-        void generateHashes();
 
-
-        // generate the Bitstrings (i.e. sequence encoding and masks) for sequence
-        void generateBitStr();
 
 
     private:
 
+        // generate Bit representation of whole genome for genomeBit
+        // using full alphabet
+        void generateBitStrings(std::vector<std::vector<char> >& genomeSeq);
+
+
+        // hash all kmers in all CpGs to _kmerTable using ntHash
+        // the kmers are represented in REDUCED alphabet {A,T,G}
+        // mapping all Cs to Ts
+        void generateHashes(std::vector<std::vector<char> >& genomeSeq);
+
+
         // generates all kmers in seq and hashes them and their reverse complement using nthash into kmerTable
-        // CONVENTION:
-        inline void ntHashChunk(const std::vector<char>& seq, const unsigned int& pos, const struct CpG& cpg)
+        inline void ntHashChunk(const std::vector<char>& seq, const unsigned int& pos, const uint32_t& cpg)
         {
 
-            // TODO: make DNA bitstring
-            // retrieve the underlying char vector of the sequence and offset it to the cpg context position
-            const char* cpgContext = seq.data() + pos;
+            // construct corresponding sequence with reduced alphabet
+            std::vector<char> redSeq(2*MyConst::READLEN - 2);
+            std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
 
-            // find last N before the CpG
-            unsigned int lasN = 0;
-            for ( ; lasN < (MyConst::READLEN - 2); ++lasN)
+            std::vector<char>::const_iterator start = seq.begin();
+            std::advance(start, pos);
+            std::vector<char>::const_iterator end = seq.begin();
+            std::advance(end, pos + MyConst::READLEN);
+
+            // position in substring
+            unsigned int j = 0;
+            // last N before the CpG
+            int lasN = -1;
+            // move over sequence until CpG, construct reduced alphabet string and retrieve the positions of the last N
+            for ( ; start != end; ++start, ++j)
             {
 
-                if ( *(cpgContext + MyConst::READLEN - 3 - lasN) == 'N')
+                const int revPos = 2*MyConst::READLEN - 3 - j;
+                switch (*start)
                 {
-                    break;
+                    case 'N':
+                        lasN = j;
+                        break;
+
+                    case 'C':
+                        redSeq[j] = 'T';
+                        redSeqRev[revPos] = 'G';
+                        break;
+
+                    case 'G':
+                        redSeq[j] = 'G';
+                        redSeqRev[revPos] = 'T';
+                        break;
+
+                    case 'T':
+                        redSeq[j] = 'T';
+                        redSeqRev[revPos] = 'A';
+                        break;
+
+                    case 'A':
+                        redSeq[j] = 'A';
+                        redSeqRev[revPos] = 'T';
+                        break;
+
+                    default:
+                        std::cerr << "Read has unknown character \'" << *start << "\' result will not be reliable.\n\n";
+
                 }
+
             }
-
-            // find first N after cpg
-            unsigned int off = 0;
-            for ( ; off < (MyConst::READLEN - 2); ++off)
+            // move to one after last N
+            ++lasN;
+            // move over second half in reverse order
+            // reassign end to the position of G
+            --end;
+            // reassign start to final position
+            start = seq.begin();
+            std::advance(start, pos + 2*MyConst::READLEN - 3);
+            j = 2*MyConst::READLEN - 3;
+            // offset where the first N after the CpG is
+            int off = 2*MyConst::READLEN - 2;
+            for ( ; start != end; --start, --j)
             {
-
-                if ( *(cpgContext + MyConst::READLEN + off) == 'N')
+                const int revPos = 2*MyConst::READLEN - 3 - j;
+                switch (*start)
                 {
+                    case 'N':
+                        off = j;
+                        break;
 
-                    break;
+                    case 'C':
+                        redSeq[j] = 'T';
+                        redSeqRev[revPos] = 'G';
+                        break;
+
+                    case 'G':
+                        redSeq[j] = 'G';
+                        redSeqRev[revPos] = 'T';
+                        break;
+
+                    case 'T':
+                        redSeq[j] = 'T';
+                        redSeqRev[revPos] = 'A';
+                        break;
+
+                    case 'A':
+                        redSeq[j] = 'A';
+                        redSeqRev[revPos] = 'T';
+                        break;
+
+                    default:
+                        std::cerr << "Read has unknown character \'" << *start << "\' result will not be reliable.\n\n";
                 }
+
+
             }
 
             // length of the context around the CpG without Ns
-            unsigned int contextLen = lasN + off + 2;
+            unsigned int contextLen = off - lasN;
             // if we don't have enough to read, return without hashing
             if (contextLen < MyConst::KMERLEN)
             {
                 return;
             }
-            // move char* to one after the last N occuring before a CpG
-            unsigned int start = MyConst::READLEN - 2 - lasN;
-            cpgContext += start;
+            char* seqStart = redSeq.data() + lasN;
+            char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
 
-            uint64_t fhVal = 0;
-            uint64_t rhVal = 0;
-            ntHash::NTPC64(cpgContext, fhVal, rhVal);
-            // note that READLEN is bounded by a small integer (less then 16 bits) and
-            // kmer offset is bounded by readlen so pointer arithmetic is fine here
-            uint16_t kPos = start;
-            kmerTable[rhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
-            // set forward strand flag
+            // initial hash backward
+            uint64_t fhVal = ntHash::NTP64(seqStartRev);
+            uint16_t kPos = lasN;
+
+            // update kmer table
+            ++kmerTable[fhVal % kmerTable.capacity()].len;
+            kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+
+            // initial hash forward
+            uint64_t rhVal = ntHash::NTP64(seqStart);
             kPos |= 0x4000;
-            kmerTable[fhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
+
+            // update kmer table
+            ++kmerTable[rhVal % kmerTable.capacity()].len;
+            kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+
 
 
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
 
-                ntHash::NTPC64(cpgContext[i], cpgContext[MyConst::KMERLEN + i], fhVal, rhVal);
-                kPos = start + i + 1;
-                kmerTable[rhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
-                // set forward strand flag
+                rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+                kPos = lasN + i + 1;
+                // update kmer table
+                ++kmerTable[rhVal % kmerTable.capacity()].len;
+                kmerTable[rhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
+
+                fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 kPos |= 0x4000;
-                kmerTable[fhVal % kmerTable.capacity()].emplace_back(&cpg, kPos);
+                // update kmer table
+                ++kmerTable[fhVal % kmerTable.capacity()].len;
+                kmerTable[fhVal % kmerTable.capacity()].collis.emplace_back(cpg, kPos);
             }
         }
-        void ntHashLast(const std::vector<char>& seq, const unsigned int& pos, const unsigned int& bpsAfterCpG, const struct CpG& cpg);
-        void ntHashFirst(const std::vector<char>& seq, const unsigned int& cpgOffset, const struct CpG& cpg);
+        void ntHashLast(const std::vector<char>& seq, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& cpg);
+        void ntHashFirst(const std::vector<char>& seq, const unsigned int& cpgOffset, const uint32_t& cpg);
 
         // table of all CpGs in reference genome
         const std::vector<struct CpG> cpgTable;
@@ -123,7 +204,7 @@ class RefGenome
         // table of strings holding chromosome code
         // and table holding the length of the sequences
         // convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-        const std::vector<std::vector<char> > genomeSeq;
+        // const std::vector<std::vector<char> > genomeSeq;
         // const std::vector<std::size_t> genomeSeqLen;
 
         // table of bitstrings* holding a bit representation of genomeSeq
@@ -141,7 +222,7 @@ class RefGenome
 
         // hash table of all (reduced alphabet) kmers that surround CpGs in reference,
         // hash values are computed using nthash
-        std::vector<std::list<struct kmer> > kmerTable;
+        std::vector<colList > kmerTable;
 
 
 };
