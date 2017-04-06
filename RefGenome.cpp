@@ -211,13 +211,14 @@ void RefGenome::ntHashLast(const vector<char>& seq,const unsigned int& pos, cons
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
 
-        rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        // + 1 offset because first kmer is already read
         kPos = lasN + i + 1;
         // update kmer table
         ++kmerTable[rhVal % kmerTable.size()].len;
         kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
-        fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         kPos |= STRANDMASK;
         // update kmer table
         ++kmerTable[fhVal % kmerTable.size()].len;
@@ -356,13 +357,14 @@ void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCp
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
 
-        rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        // + 1 offset because first kmer is already read
         kPos = lasN + i + 1;
         // update kmer table
         ++kmerTable[rhVal % kmerTable.size()].len;
         kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
 
-        fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         kPos |= STRANDMASK;
         // update kmer table
         ++kmerTable[fhVal % kmerTable.size()].len;

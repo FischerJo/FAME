@@ -158,38 +158,45 @@ class RefGenome
             {
                 return;
             }
+
             char* seqStart = redSeq.data() + lasN;
             char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
 
             // initial hash backward
             uint64_t rhVal = ntHash::NTP64(seqStartRev);
-            uint16_t kPos = lasN;
+            // first kmer on reverse complement corresponds to last kmer in forward sequence
+            uint16_t kPosRev = off - MyConst::KMERLEN;
 
             // update kmer table
             ++kmerTable[rhVal % kmerTable.size()].len;
-            kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
+            kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPosRev);
+
+            // hash kmers of backward strand
+            for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+            {
+                --kPosRev;
+                ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+                // update kmer table
+                ++kmerTable[rhVal % kmerTable.size()].len;
+                kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPosRev);
+
+            }
 
             // initial hash forward
             uint64_t fhVal = ntHash::NTP64(seqStart);
+            uint16_t kPos = lasN;
             kPos |= STRANDMASK;
 
             // update kmer table
             ++kmerTable[fhVal % kmerTable.size()].len;
             kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
-
-
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
 
-                rhVal = ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-                kPos = lasN + i + 1;
-                // update kmer table
-                ++kmerTable[rhVal % kmerTable.size()].len;
-                kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
-                fhVal = ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-                kPos |= STRANDMASK;
+                ++kPos;
+                ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 // update kmer table
                 ++kmerTable[fhVal % kmerTable.size()].len;
                 kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
