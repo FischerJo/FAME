@@ -195,7 +195,6 @@ class RefGenome
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
 
-
                 ++kPos;
                 ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 // update kmer table

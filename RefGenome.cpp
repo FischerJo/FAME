@@ -63,7 +63,7 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
         //
         // how long is the rest of the sequence after start of this cpg
         // last term resembles position directly after CpG
-        const unsigned int remainderBps = genomeSeq[it->chrom].size() - 1 - (it->pos - MyConst::READLEN);
+        const unsigned int remainderBps = genomeSeq[it->chrom].size() - (it->pos + MyConst::READLEN);
         // if we can read the full sequence breadth
         if (remainderBps >= (MyConst::READLEN - 2) )
         {
@@ -74,7 +74,6 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
 
             ntHashLast(genomeSeq[it->chrom], it->pos, remainderBps, cpgCount);
         }
-
     }
 
 
@@ -221,7 +220,6 @@ void RefGenome::ntHashLast(const vector<char>& seq,const unsigned int& pos, cons
 
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-
 
         ++kPos;
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
