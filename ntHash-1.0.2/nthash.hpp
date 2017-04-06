@@ -315,8 +315,8 @@ inline uint64_t NTP64(const char * kmerSeq) {
 }
 
 // ntHash for sliding k-mers
-inline uint64_t NTP64(const uint64_t fhVal, const unsigned char charOut, const unsigned char charIn) {
-    return(rol(fhVal, 1) ^ msTab[charOut][MyConst::KMERLEN%64] ^ msTab[charIn][0]);
+inline void NTP64(uint64_t& fhVal, const unsigned char charOut, const unsigned char charIn) {
+    fhVal = (rol(fhVal, 1) ^ msTab[charOut][MyConst::KMERLEN%64] ^ msTab[charIn][0]);
 }
 
 // canonical ntHash

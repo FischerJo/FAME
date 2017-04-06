@@ -39,7 +39,7 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
         if (it != line.end())
         {
 
-            if (*it == 'G' || *it == 'g')
+            if (*it == 'G')
             {
                 // start reading for CpG READLEN - 2 chars before, offsets are started counting at 0 but string.size() starts at 1
                 // so we need to start at sequencesize - (READLEN - 2) - 1
@@ -65,14 +65,14 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
         seq += *it;
 
         // test if letter is C
-        if (*it == 'C' || *it == 'c')
+        if (*it == 'C')
         {
 
             // if there exists next letter, check if g
             if ( (it + 1) != line.end() )
             {
 
-                if (*(it + 1) == 'G' || *(it + 1) == 'g')
+                if (*(it + 1) == 'G')
                 {
                     if (seq.size() < (MyConst::READLEN - 1))
                     {

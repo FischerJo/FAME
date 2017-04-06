@@ -36,21 +36,7 @@ void DnaBitStr::setBitStrLast(string&& seq)
                 }
                 break;
 
-            case 'c':
-                {
-                    bitStr |= (1ULL << shift);
-                    bitM ^= (2ULL << shift);
-                }
-                break;
-
             case 'G':
-                {
-                    bitStr |= (2ULL << shift);
-                    bitRevM ^= (2ULL << shift);
-                }
-                break;
-
-            case 'g':
                 {
                     bitStr |= (2ULL << shift);
                     bitRevM ^= (2ULL << shift);
@@ -60,11 +46,6 @@ void DnaBitStr::setBitStrLast(string&& seq)
             case 'T':
                 bitStr |= (3ULL << (64 - 2*i));
                 break;
-
-            case 't':
-                bitStr |= (3ULL << (64 - 2*i));
-                break;
-
 
             // unknowns, A and N will be encoded as zero; nothing to do
             default:

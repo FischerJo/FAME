@@ -1,5 +1,6 @@
 
 #include <fstream>
+#include <algorithm>
 
 #include "RefReader_istr.h"
 
@@ -66,6 +67,9 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
         if (contFlag)
         {
 
+            // transform to upper case
+            transform(line.begin(), line.end(), line.begin(), [](unsigned char c) { return toupper(c); });
+            // parse the line
             readLine(line, lastC, chrIndex, cpgTab, cpgStartTab, seq);
 
         } else {

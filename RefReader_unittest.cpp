@@ -90,28 +90,31 @@ TEST(readLine_test, firstCharG)
 }
 
 // Test if small letter characters are read correctly
-TEST(readLine_test, smallChars)
-{
-    std::vector<struct CpG> cpgTab;
-    std::vector<struct CpG> cpgStartTab;
-    std::string seq = "GCCTctaAGg";
-    std::string readSeq = "";
-    bool lastC = false;
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
-
-    ASSERT_EQ(0, cpgTab.size());
-    ASSERT_EQ(0, cpgStartTab.size());
-
-    ASSERT_EQ(10, readSeq.size());
-    ASSERT_EQ(seq, readSeq);
-}
+//
+// TEST IS OUTDATED, READLINE EXPECTS SMALL LETTERS NOW
+//
+// TEST(readLine_test, smallChars)
+// {
+//     std::vector<struct CpG> cpgTab;
+//     std::vector<struct CpG> cpgStartTab;
+//     std::string seq = "GCCTctaAGg";
+//     std::string readSeq = "";
+//     bool lastC = false;
+//     readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+//
+//     ASSERT_EQ(0, cpgTab.size());
+//     ASSERT_EQ(0, cpgStartTab.size());
+//
+//     ASSERT_EQ(10, readSeq.size());
+//     ASSERT_EQ(seq, readSeq);
+// }
 
 // test if small/ big letter CpG over 2 lines is read correctly
 TEST(readLine_test, smallChars2)
 {
     std::vector<struct CpG> cpgTab;
     std::vector<struct CpG> cpgStartTab;
-    std::string seq = "Gc";
+    std::string seq = "GC";
     std::string readSeq = "";
     bool lastC = false;
     readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
@@ -129,14 +132,14 @@ TEST(readLine_test, smallChars2)
     ASSERT_EQ(1, cpgStartTab[0].pos);
     ASSERT_EQ(4, readSeq.size());
 
-    seq = "g";
+    seq = "G";
     readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
     ASSERT_EQ(false, lastC);
     ASSERT_EQ(0, cpgTab.size());
     ASSERT_EQ(2, cpgStartTab.size());
     ASSERT_EQ(3, cpgStartTab[1].pos);
     ASSERT_EQ(5, readSeq.size());
-    ASSERT_EQ("GcGCg", readSeq);
+    ASSERT_EQ("GCGCG", readSeq);
 }
 
 
@@ -292,13 +295,13 @@ TEST(readReference_test, MultiseqFile1)
 }
 
 
-// Test if multiple simple chromosome sequences are read
+// Test if multiple simple chromosome sequences with small letters are read correctly
 // MultiseqFile2.fa contains
 //
 // >C
-// AACTCTCCGAAA
+// AACTCTCCGAaa
 // >C
-// AACTCTCCGAAA
+// AACtcTcCGAAA
 //
 TEST(readReference_test, MultiseqFile2)
 {
@@ -387,7 +390,7 @@ TEST(readReference_test, MultiseqFile4)
     ASSERT_EQ(1, cpgStartTab[0].chrom);
     ASSERT_EQ(8, cpgStartTab[0].pos);
 
-    std::string seq1 = "AACTCTCCTATGTGTAAATCCTTAGTTATACGTTTggttgtatatctc";
+    std::string seq1 = "AACTCTCCTATGTGTAAATCCTTAGTTATACGTTTGGTTGTATATCTC";
     std::string seq2 = "GAACTCTCCGAAAATACTTAAGCTTTGCTATAGTCCTG";
 
     // test if full sequence is read (and nothing else)
