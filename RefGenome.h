@@ -191,6 +191,7 @@ class RefGenome
             ++kmerTable[fhVal % kmerTable.size()].len;
             kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
+            // hash kmers of forward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
 

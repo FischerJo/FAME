@@ -45,7 +45,7 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
 
 
     // size of the hash table is approximately 2 * |CpGs| * hashed values per CpG
-    kmerTable.resize(2 * cpgTable.size() * (2 * MyConst::READLEN - MyConst::KMERLEN));
+    kmerTable.resize(2 * (cpgTable.size() + cpgStartTable.size()) * (2 * MyConst::READLEN - MyConst::KMERLEN));
 
     // hash CpGs from the start
     uint32_t cpgCount = 0;
@@ -192,39 +192,43 @@ void RefGenome::ntHashLast(const vector<char>& seq,const unsigned int& pos, cons
 
     // initial hash backward
     uint64_t rhVal = ntHash::NTP64(seqStartRev);
-    uint16_t kPos = lasN;
+    // first kmer on reverse complement corresponds to last kmer in forward sequence
+    uint16_t kPosRev = off - MyConst::KMERLEN;
 
     // update kmer table
     ++kmerTable[rhVal % kmerTable.size()].len;
-    kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
+    kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPosRev);
+
+    // hash kmers of backward strand
+    for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+    {
+        --kPosRev;
+        ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+        // update kmer table
+        ++kmerTable[rhVal % kmerTable.size()].len;
+        kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPosRev);
+
+    }
 
     // initial hash forward
     uint64_t fhVal = ntHash::NTP64(seqStart);
+    uint16_t kPos = lasN;
     kPos |= STRANDMASK;
 
     // update kmer table
     ++kmerTable[fhVal % kmerTable.size()].len;
     kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
-
-
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
 
-        ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-        // + 1 offset because first kmer is already read
-        kPos = lasN + i + 1;
-        // update kmer table
-        ++kmerTable[rhVal % kmerTable.size()].len;
-        kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
 
+        ++kPos;
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-        kPos |= STRANDMASK;
         // update kmer table
         ++kmerTable[fhVal % kmerTable.size()].len;
         kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
     }
-
 }
 
 void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCpG, const uint32_t& cpg)
@@ -236,7 +240,7 @@ void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCp
 
     vector<char>::const_iterator start = seq.begin();
     vector<char>::const_iterator end = seq.begin();
-    advance(end, posOfCpG);
+    advance(end, posOfCpG + 2);
 
     // position in substring
     unsigned int pos = 0;
@@ -286,7 +290,7 @@ void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCp
     --end;
     // reassign start to final position
     start = seq.begin();
-    advance(start, pos + MyConst::READLEN + posOfCpG - 1);
+    advance(start, MyConst::READLEN + posOfCpG - 1);
     pos = MyConst::READLEN + posOfCpG - 1;
     // offset where the first N after the CpG is
     int off = MyConst::READLEN + posOfCpG;
@@ -334,41 +338,46 @@ void RefGenome::ntHashFirst(const vector<char>& seq, const unsigned int& posOfCp
         return;
     }
     char* seqStart = redSeq.data() + lasN;
-    char* seqStartRev = redSeqRev.data() + (MyConst::READLEN - posOfCpG - off);
+    char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + posOfCpG - off);
 
     // initial hash backward
     uint64_t rhVal = ntHash::NTP64(seqStartRev);
-    uint16_t kPos = lasN;
+    // first kmer on reverse complement corresponds to last kmer in forward sequence
+    uint16_t kPosRev = off - MyConst::KMERLEN;
 
     // update kmer table
     ++kmerTable[rhVal % kmerTable.size()].len;
-    kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
+    kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPosRev);
+
+    // hash kmers of backward strand
+    for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+    {
+        --kPosRev;
+        ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+        // update kmer table
+        ++kmerTable[rhVal % kmerTable.size()].len;
+        kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPosRev);
+
+    }
 
     // initial hash forward
     uint64_t fhVal = ntHash::NTP64(seqStart);
+    uint16_t kPos = lasN;
     kPos |= STRANDMASK;
 
     // update kmer table
     ++kmerTable[fhVal % kmerTable.size()].len;
     kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
 
-
-
+    // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
 
-        ntHash::NTP64(rhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-        // + 1 offset because first kmer is already read
-        kPos = lasN + i + 1;
-        // update kmer table
-        ++kmerTable[rhVal % kmerTable.size()].len;
-        kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
 
+        ++kPos;
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-        kPos |= STRANDMASK;
         // update kmer table
         ++kmerTable[fhVal % kmerTable.size()].len;
         kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg | MyConst::INDMASK, kPos);
     }
-
 }
