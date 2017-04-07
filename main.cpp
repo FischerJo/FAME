@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     std::vector<std::vector<char>> genSeq;
 
     readReference(argv[1], cpgTab, cpgStartTab, genSeq);
-    RefGenome ref(cpgTab, cpgStartTab, genSeq);
+    RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq);
 }
 //
 //
