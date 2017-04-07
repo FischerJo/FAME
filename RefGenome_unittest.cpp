@@ -12,6 +12,17 @@
 //     KMERLEN TO 20
 
 
+TEST(RefGenom_test, kmerDef)
+{
+
+    KMER::kmer k = std::move(KMER::constructKmer(1, 15, 10,1));
+
+    ASSERT_EQ(15, KMER::getCpG(k));
+    ASSERT_EQ(1, KMER::isForward(k));
+    ASSERT_EQ(1, KMER::isStartCpG(k));
+    ASSERT_EQ(10, KMER::getOffset(k));
+
+}
 
 
 // Test hashing of a simple sequence with one normal CpGs
@@ -35,7 +46,7 @@ TEST(RefGenome_test, simple1)
 
     std::vector<struct CpG> cpgStart;
 
-    RefGenome ref (cpgTab, cpgStart, genSeq);
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
@@ -50,10 +61,11 @@ TEST(RefGenome_test, simple1)
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
         // lookup if kmer is present in hash table
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, kRev.cpg);
-        ASSERT_EQ(off, kRev.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(kRev));
+        ASSERT_EQ(0, KMER::isForward(kRev));
+        ASSERT_EQ(off, KMER::getOffset(kRev));
     }
 
     for (unsigned int i = 3; i <= (61 - MyConst::KMERLEN); ++i)
@@ -64,17 +76,18 @@ TEST(RefGenome_test, simple1)
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer k = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, k.cpg);
-        ASSERT_EQ(off | STRANDMASK, k.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer k = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(k));
+        ASSERT_EQ(1, KMER::isForward(k));
+        ASSERT_EQ(off, KMER::getOffset(k));
     }
 
     // test if nothing else was hashed
     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
     {
 
-        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].len);
+        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].size());
 
     }
 }
@@ -102,7 +115,7 @@ TEST(RefGenome_test, simpleWithN)
 
     std::vector<struct CpG> cpgStart;
 
-    RefGenome ref (cpgTab, cpgStart, genSeq);
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
@@ -117,10 +130,11 @@ TEST(RefGenome_test, simpleWithN)
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
         // lookup if kmer is present in hash table
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, kRev.cpg);
-        ASSERT_EQ(off, kRev.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(kRev));
+        ASSERT_EQ(0, KMER::isForward(kRev));
+        ASSERT_EQ(off, KMER::getOffset(kRev));
     }
 
     for (unsigned int i = 10; i <= (50 - MyConst::KMERLEN); ++i)
@@ -131,17 +145,18 @@ TEST(RefGenome_test, simpleWithN)
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer k = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, k.cpg);
-        ASSERT_EQ(off | STRANDMASK, k.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer k = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(k));
+        ASSERT_EQ(1, KMER::isForward(k));
+        ASSERT_EQ(off, KMER::getOffset(k));
     }
 
     // test if nothing else was hashed
     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
     {
 
-        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].len);
+        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].size());
 
     }
 }
@@ -164,14 +179,14 @@ TEST(RefGenome_test, simpleTooShort)
 
     std::vector<struct CpG> cpgStart;
 
-    RefGenome ref (cpgTab, cpgStart, genSeq);
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
 
     // test if nothing else was hashed
     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
     {
 
-        ASSERT_EQ(0, ref.kmerTable[i].len);
+        ASSERT_EQ(0, ref.kmerTable[i].size());
 
     }
 }
@@ -198,7 +213,7 @@ TEST(RefGenome_test, simpleAtStart)
     std::vector<struct CpG> cpgStart;
     cpgStart.emplace_back(0, 5);
 
-    RefGenome ref (cpgTab, cpgStart, genSeq);
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
@@ -213,11 +228,12 @@ TEST(RefGenome_test, simpleAtStart)
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
         // lookup if kmer is present in hash table
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, kRev.cpg ^ MyConst::INDMASK);
-        ASSERT_EQ(MyConst::INDMASK, kRev.cpg & MyConst::INDMASK);
-        ASSERT_EQ(off, kRev.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(kRev));
+        ASSERT_EQ(0, KMER::isForward(kRev));
+        ASSERT_EQ(off, KMER::getOffset(kRev));
+        ASSERT_EQ(1, KMER::isStartCpG(kRev));
     }
 
     for (unsigned int i = 0; i <= (35 - MyConst::KMERLEN); ++i)
@@ -228,18 +244,19 @@ TEST(RefGenome_test, simpleAtStart)
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer k = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, k.cpg ^ MyConst::INDMASK);
-        ASSERT_EQ(MyConst::INDMASK, k.cpg & MyConst::INDMASK);
-        ASSERT_EQ(off | STRANDMASK, k.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer k = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(k));
+        ASSERT_EQ(1, KMER::isForward(k));
+        ASSERT_EQ(off, KMER::getOffset(k));
+        ASSERT_EQ(1, KMER::isStartCpG(k));
     }
 
     // test if nothing else was hashed
     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
     {
 
-        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].len);
+        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].size());
 
     }
 }
@@ -266,7 +283,7 @@ TEST(RefGenome_test, simpleAtEnd)
 
     std::vector<struct CpG> cpgStart;
 
-    RefGenome ref (cpgTab, cpgStart, genSeq);
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
@@ -281,10 +298,11 @@ TEST(RefGenome_test, simpleAtEnd)
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
         // lookup if kmer is present in hash table
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, kRev.cpg);
-        ASSERT_EQ(off, kRev.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(kRev));
+        ASSERT_EQ(0, KMER::isForward(kRev));
+        ASSERT_EQ(off, KMER::getOffset(kRev));
     }
 
     for (unsigned int i = 3; i <= (36 - MyConst::KMERLEN); ++i)
@@ -295,17 +313,18 @@ TEST(RefGenome_test, simpleAtEnd)
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer k = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, k.cpg);
-        ASSERT_EQ(off | STRANDMASK, k.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer k = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(k));
+        ASSERT_EQ(1, KMER::isForward(k));
+        ASSERT_EQ(off, KMER::getOffset(k));
     }
 
     // test if nothing else was hashed
     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
     {
 
-        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].len);
+        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].size());
 
     }
 }
@@ -332,7 +351,7 @@ TEST(RefGenome_test, simpleAtEndN)
 
     std::vector<struct CpG> cpgStart;
 
-    RefGenome ref (cpgTab, cpgStart, genSeq);
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
@@ -347,10 +366,11 @@ TEST(RefGenome_test, simpleAtEndN)
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
         // lookup if kmer is present in hash table
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, kRev.cpg);
-        ASSERT_EQ(off, kRev.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(kRev));
+        ASSERT_EQ(0, KMER::isForward(kRev));
+        ASSERT_EQ(off, KMER::getOffset(kRev));
     }
 
     for (unsigned int i = 9; i <= (34 - MyConst::KMERLEN); ++i)
@@ -361,17 +381,25 @@ TEST(RefGenome_test, simpleAtEndN)
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].len);
-        const struct kmer k = ref.kmerTable[hash % ref.kmerTable.size()].collis[index];
-        ASSERT_EQ(0, k.cpg);
-        ASSERT_EQ(off | STRANDMASK, k.offset);
+        ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
+        KMER::kmer k = ref.kmerTable[hash % ref.kmerTable.size()][index];
+        ASSERT_EQ(0, KMER::getCpG(k));
+        ASSERT_EQ(1, KMER::isForward(k));
+        ASSERT_EQ(off, KMER::getOffset(k));
     }
 
     // test if nothing else was hashed
     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
     {
 
-        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].len);
+        ASSERT_EQ(kmerInd[i], ref.kmerTable[i].size());
 
     }
 }
+
+
+// TODO:
+// Test for multiple chromosomes
+//
+//
+// Test for multiple overlapping CpGs

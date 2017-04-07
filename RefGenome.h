@@ -28,7 +28,7 @@ class RefGenome
         //      cpgTab      table of all CpGs in reference genome except for the ones near the start of a sequence (i.e. less then READLEN away from start)
         //      cpgStartTab table of CpGs near the start
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq);
+        RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genSeq);
 
         ~RefGenome() = default;
 
@@ -168,8 +168,7 @@ class RefGenome
             uint16_t kPosRev = off - MyConst::KMERLEN;
 
             // update kmer table
-            ++kmerTable[rhVal % kmerTable.size()].len;
-            kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPosRev);
+            kmerTable[rhVal % kmerTable.size()].emplace_back(std::move(KMER::constructKmer(0, cpg, kPosRev, 0)));
 
             // hash kmers of backward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
@@ -177,19 +176,16 @@ class RefGenome
                 --kPosRev;
                 ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
                 // update kmer table
-                ++kmerTable[rhVal % kmerTable.size()].len;
-                kmerTable[rhVal % kmerTable.size()].collis.emplace_back(cpg, kPosRev);
+                kmerTable[rhVal % kmerTable.size()].emplace_back(std::move(KMER::constructKmer(0, cpg, kPosRev, 0)));
 
             }
 
             // initial hash forward
             uint64_t fhVal = ntHash::NTP64(seqStart);
             uint16_t kPos = lasN;
-            kPos |= STRANDMASK;
 
             // update kmer table
-            ++kmerTable[fhVal % kmerTable.size()].len;
-            kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
+            kmerTable[fhVal % kmerTable.size()].emplace_back(std::move(KMER::constructKmer(1, cpg, kPos, 0)));
 
             // hash kmers of forward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
@@ -198,8 +194,7 @@ class RefGenome
                 ++kPos;
                 ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 // update kmer table
-                ++kmerTable[fhVal % kmerTable.size()].len;
-                kmerTable[fhVal % kmerTable.size()].collis.emplace_back(cpg, kPos);
+                kmerTable[fhVal % kmerTable.size()].emplace_back(std::move(KMER::constructKmer(1, cpg, kPos, 0)));
             }
         }
         void ntHashLast(const std::vector<char>& seq, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& cpg);
@@ -230,7 +225,8 @@ class RefGenome
 
         // hash table of all (reduced alphabet) kmers that surround CpGs in reference,
         // hash values are computed using nthash
-        std::vector<colList > kmerTable;
+        // std::vector<colList > kmerTable;
+        std::vector<std::vector<KMER::kmer> > kmerTable;
 
 
 };
