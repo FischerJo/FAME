@@ -13,8 +13,11 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
     string line;
 
     // stores the sequence of each chromosome
-    string seq;
+    vector<char> seq;
+
+    genSeq.reserve(MyConst::CHROMNUM);
     seq.reserve(MyConst::CHROMMAX);
+    cpgTab.reserve(MyConst::CPGMAX);
 
     // stores the chromosome index we are currently reading
     uint8_t chrIndex = 0;
@@ -37,11 +40,12 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
             {
 
                 // put a vector of chars of size equal to the stringlength read so far to genSeq
-                genSeq.emplace_back(seq.size());
+                genSeq.emplace_back(move(seq));
                 // copy the content of sequence to the object holding all sequences
-                copy(seq.begin(), seq.end(), genSeq[chrIndex - 1].begin());
+                // copy(seq.begin(), seq.end(), genSeq[chrIndex - 1].begin());
                 // reset buffer
-                seq.clear();
+                seq = vector<char>();
+                seq.reserve(MyConst::CHROMMAX);
                 // reset flag for last c
                 lastC = false;
 
@@ -67,8 +71,6 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
         if (contFlag)
         {
 
-            // transform to upper case
-            transform(line.begin(), line.end(), line.begin(), [](unsigned char c) { return toupper(c); });
             // parse the line
             readLine(line, lastC, chrIndex, cpgTab, cpgStartTab, seq);
 

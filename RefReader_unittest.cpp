@@ -13,17 +13,17 @@ TEST(readLine_test, simple)
 {
     std::vector<struct CpG> cpgTab;
     std::vector<struct CpG> cpgStartTab;
-    std::string seq = "AACTCTTTGGTAATTGTGAATTATGGGGGGGCGAATTAAAAAACTGGGAAATGTGAACAACAAA";
-    std::string readSeq = "TTT";
+    std::string seqS = "AACTCTTTGGTAATTGTGAATTATGGGGGGGCGAATTAAAAAACTGGGAAATGTGAACAACAAA";
+    std::vector<char> seq (seqS.begin(), seqS.end());
+    std::string readSeqS = "TTT";
+    std::vector<char> readSeq (readSeqS.begin(), readSeqS.end());
     bool lastC = false;
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
     ASSERT_EQ(1, cpgTab.size());
     ASSERT_EQ(0, cpgTab[0].chrom);
     // + 3 offset because readSeq is already initialized with 3 letters
     ASSERT_EQ(31 - MyConst::READLEN + 2 + 3, cpgTab[0].pos);
     ASSERT_EQ(0, cpgStartTab.size());
-
-    EXPECT_EQ("TTT" + seq, readSeq);
 
     ASSERT_EQ(false, lastC);
 }
@@ -33,15 +33,18 @@ TEST(readLine_test, lastCPos)
 {
     std::vector<struct CpG> cpgTab;
     std::vector<struct CpG> cpgStartTab;
-    std::string seq = "CGC";
-    std::string readSeq = "";
+    std::string seqS = "CGC";
+    std::string readSeqS = "";
+    std::vector<char> seq (seqS.begin(), seqS.end());
+    std::vector<char> readSeq (readSeqS.begin(), readSeqS.end());
     bool lastC = true;
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(true, lastC);
 
-    seq = "CG";
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    seqS = "CG";
+    seq = std::vector<char>(seqS.begin(), seqS.end());
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(false, lastC);
 
@@ -52,15 +55,18 @@ TEST(readLine_test, lastCNeg)
 {
     std::vector<struct CpG> cpgTab;
     std::vector<struct CpG> cpgStartTab;
-    std::string seq = "CG";
-    std::string readSeq = "";
+    std::string seqS = "CG";
+    std::string readSeqS = "";
+    std::vector<char> seq (seqS.begin(), seqS.end());
+    std::vector<char> readSeq (readSeqS.begin(), readSeqS.end());
     bool lastC = false;
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(false, lastC);
 
-    seq = "CGC";
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    seqS = "CGC";
+    seq = std::vector<char>(seqS.begin(), seqS.end());
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(true, lastC);
 
@@ -71,17 +77,20 @@ TEST(readLine_test, firstCharG)
 {
     std::vector<struct CpG> cpgTab;
     std::vector<struct CpG> cpgStartTab;
-    std::string seq = "GC";
-    std::string readSeq = "";
+    std::string seqS = "GC";
+    std::string readSeqS = "";
+    std::vector<char> seq (seqS.begin(), seqS.end());
+    std::vector<char> readSeq (readSeqS.begin(), readSeqS.end());
     bool lastC = false;
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(true, lastC);
     ASSERT_EQ(0, cpgTab.size());
     ASSERT_EQ(0, cpgStartTab.size());
 
-    seq = "G";
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    seqS = "G";
+    seq = std::vector<char>(seqS.begin(), seqS.end());
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(0, cpgTab.size());
     ASSERT_EQ(1, cpgStartTab.size());
@@ -91,40 +100,45 @@ TEST(readLine_test, firstCharG)
 
 // Test if small letter characters are read correctly
 //
-// TEST IS OUTDATED, READLINE EXPECTS SMALL LETTERS NOW
-//
-// TEST(readLine_test, smallChars)
-// {
-//     std::vector<struct CpG> cpgTab;
-//     std::vector<struct CpG> cpgStartTab;
-//     std::string seq = "GCCTctaAGg";
-//     std::string readSeq = "";
-//     bool lastC = false;
-//     readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
-//
-//     ASSERT_EQ(0, cpgTab.size());
-//     ASSERT_EQ(0, cpgStartTab.size());
-//
-//     ASSERT_EQ(10, readSeq.size());
-//     ASSERT_EQ(seq, readSeq);
-// }
+TEST(readLine_test, smallChars)
+{
+    std::vector<struct CpG> cpgTab;
+    std::vector<struct CpG> cpgStartTab;
+    std::string seqS = "GCCTctaAGg";
+    std::string readSeqS = "";
+    std::vector<char> seq (seqS.begin(), seqS.end());
+    std::vector<char> readSeq (readSeqS.begin(), readSeqS.end());
+    bool lastC = false;
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
+
+    ASSERT_EQ(0, cpgTab.size());
+    ASSERT_EQ(0, cpgStartTab.size());
+
+    ASSERT_EQ(10, readSeq.size());
+    seqS = "GCCTCTAAGG";
+    std::vector<char> testSeq (seqS.begin(), seqS.end());
+    ASSERT_EQ(testSeq, readSeq);
+}
 
 // test if small/ big letter CpG over 2 lines is read correctly
 TEST(readLine_test, smallChars2)
 {
     std::vector<struct CpG> cpgTab;
     std::vector<struct CpG> cpgStartTab;
-    std::string seq = "GC";
-    std::string readSeq = "";
+    std::string seqS = "GC";
+    std::string readSeqS = "";
+    std::vector<char> seq (seqS.begin(), seqS.end());
+    std::vector<char> readSeq (readSeqS.begin(), readSeqS.end());
     bool lastC = false;
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(true, lastC);
     ASSERT_EQ(0, cpgTab.size());
     ASSERT_EQ(0, cpgStartTab.size());
 
-    seq = "GC";
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    seqS = "GC";
+    seq = std::vector<char>(seqS.begin(), seqS.end());
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
 
     ASSERT_EQ(true, lastC);
     ASSERT_EQ(0, cpgTab.size());
@@ -132,14 +146,17 @@ TEST(readLine_test, smallChars2)
     ASSERT_EQ(1, cpgStartTab[0].pos);
     ASSERT_EQ(4, readSeq.size());
 
-    seq = "G";
-    readLine(seq, lastC, 1, cpgTab, cpgStartTab, readSeq);
+    seqS = "G";
+    seq = std::vector<char>(seqS.begin(), seqS.end());
+    readLine(seqS, lastC, 1, cpgTab, cpgStartTab, readSeq);
     ASSERT_EQ(false, lastC);
     ASSERT_EQ(0, cpgTab.size());
     ASSERT_EQ(2, cpgStartTab.size());
     ASSERT_EQ(3, cpgStartTab[1].pos);
     ASSERT_EQ(5, readSeq.size());
-    ASSERT_EQ("GCGCG", readSeq);
+    readSeqS = "GCGCG";
+    std::vector<char> readSeqTest (readSeqS.begin(), readSeqS.end());
+    ASSERT_EQ(readSeqTest, readSeq);
 }
 
 
@@ -164,9 +181,10 @@ TEST(readReference_test, SimpleFile1)
     ASSERT_EQ(31 - MyConst::READLEN + 2, cpgTab[0].pos);
 
     // test if full sequence is read (and nothing else)
-    std::string seq = "AACTCTTTGGTAATTGTGAATTATGGGGGGGCGAATTAAAAAACTGGGAAATGTGAACAACAAA";
+    std::string seqS = "AACTCTTTGGTAATTGTGAATTATGGGGGGGCGAATTAAAAAACTGGGAAATGTGAACAACAAA";
+    std::vector<char> seq (seqS.begin(), seqS.end());
     ASSERT_EQ(1, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
+    ASSERT_EQ(seq, genSeq[0]);
 
 }
 
@@ -193,9 +211,10 @@ TEST(readReference_test, SimpleFile2)
     ASSERT_EQ(2, cpgStartTab[0].pos);
 
     // test if full sequence is read (and nothing else)
-    std::string seq = "AACGTTTAGTTGTGTTCTTATTTAAATGTGGTGTCTTTCGTGCTG";
+    std::string seqS = "AACGTTTAGTTGTGTTCTTATTTAAATGTGGTGTCTTTCGTGCTG";
+    std::vector<char> seq (seqS.begin(), seqS.end());
     ASSERT_EQ(1, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
+    ASSERT_EQ(seq, genSeq[0]);
 }
 
 // Test if multiline sequence is read correctly
@@ -224,9 +243,10 @@ TEST(readReference_test, MultilineFile1)
     ASSERT_EQ(102 - MyConst::READLEN + 2, cpgTab[2].pos);
 
     // test if full sequence is read (and nothing else)
-    std::string seq = "AACTCTTTGGTAATTGTGAATTATGGGGGGGCGAATTAAAAAACTGGGAAATGTGAACAACAAAAACGTTTAGTTGTGTTCTTATTTAAATGTGGTGTCTTTCGTGCTG";
+    std::string seqS = "AACTCTTTGGTAATTGTGAATTATGGGGGGGCGAATTAAAAAACTGGGAAATGTGAACAACAAAAACGTTTAGTTGTGTTCTTATTTAAATGTGGTGTCTTTCGTGCTG";
+    std::vector<char> seq (seqS.begin(), seqS.end());
     ASSERT_EQ(1, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
+    ASSERT_EQ(seq, genSeq[0]);
 }
 
 
@@ -253,10 +273,11 @@ TEST(readReference_test, MultilineFile2)
     ASSERT_EQ(0, cpgTab[0].chrom);
     ASSERT_EQ(43 - MyConst::READLEN + 2, cpgTab[0].pos);
 
-    std::string seq = "AACTCGTTTGGTAATTGTGAATTATGGGGAAGGTGAATTAAATCGTTTAGTTGTGTTCTTATTTAAATGTGGTGTCTTTAGTGCTG";
+    std::string seqS = "AACTCGTTTGGTAATTGTGAATTATGGGGAAGGTGAATTAAATCGTTTAGTTGTGTTCTTATTTAAATGTGGTGTCTTTAGTGCTG";
+    std::vector<char> seq (seqS.begin(), seqS.end());
     // test if full sequence is read (and nothing else)
     ASSERT_EQ(1, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
+    ASSERT_EQ(seq, genSeq[0]);
 }
 
 
@@ -286,11 +307,12 @@ TEST(readReference_test, MultiseqFile1)
     ASSERT_EQ(7, cpgStartTab[0].pos);
     ASSERT_EQ(0, cpgTab.size());
 
-    std::string seq = "AACTCTCCGAAA";
+    std::string seqS = "AACTCTCCGAAA";
+    std::vector<char> seq (seqS.begin(), seqS.end());
 
     // test if full sequence is read (and nothing else)
     ASSERT_EQ(1, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
+    ASSERT_EQ(seq, genSeq[0]);
 
 }
 
@@ -319,12 +341,13 @@ TEST(readReference_test, MultiseqFile2)
     ASSERT_EQ(7, cpgStartTab[1].pos);
     ASSERT_EQ(0, cpgTab.size());
 
-    std::string seq = "AACTCTCCGAAA";
+    std::string seqS = "AACTCTCCGAAA";
+    std::vector<char> seq (seqS.begin(), seqS.end());
 
     // test if full sequence is read (and nothing else)
     ASSERT_EQ(2, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[1]);
+    ASSERT_EQ(seq, genSeq[0]);
+    ASSERT_EQ(seq, genSeq[1]);
 
 }
 
@@ -354,12 +377,13 @@ TEST(readReference_test, MultiseqFile3)
     ASSERT_EQ(7, cpgStartTab[1].pos);
     ASSERT_EQ(0, cpgTab.size());
 
-    std::string seq = "AACTCTCCGAAA";
+    std::string seqS = "AACTCTCCGAAA";
+    std::vector<char> seq (seqS.begin(), seqS.end());
 
     // test if full sequence is read (and nothing else)
     ASSERT_EQ(2, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[0]);
-    ASSERT_EQ(std::vector<char>(seq.begin(),seq.end()), genSeq[1]);
+    ASSERT_EQ(seq, genSeq[0]);
+    ASSERT_EQ(seq, genSeq[1]);
 
 }
 
@@ -390,13 +414,15 @@ TEST(readReference_test, MultiseqFile4)
     ASSERT_EQ(1, cpgStartTab[0].chrom);
     ASSERT_EQ(8, cpgStartTab[0].pos);
 
-    std::string seq1 = "AACTCTCCTATGTGTAAATCCTTAGTTATACGTTTGGTTGTATATCTC";
-    std::string seq2 = "GAACTCTCCGAAAATACTTAAGCTTTGCTATAGTCCTG";
+    std::string seq1S = "AACTCTCCTATGTGTAAATCCTTAGTTATACGTTTGGTTGTATATCTC";
+    std::vector<char> seq1 (seq1S.begin(), seq1S.end());
+    std::string seq2S = "GAACTCTCCGAAAATACTTAAGCTTTGCTATAGTCCTG";
+    std::vector<char> seq2 (seq2S.begin(), seq2S.end());
 
     // test if full sequence is read (and nothing else)
     ASSERT_EQ(2, genSeq.size());
-    ASSERT_EQ(std::vector<char>(seq1.begin(),seq1.end()), genSeq[0]);
-    ASSERT_EQ(std::vector<char>(seq2.begin(),seq2.end()), genSeq[1]);
+    ASSERT_EQ(seq1, genSeq[0]);
+    ASSERT_EQ(seq2, genSeq[1]);
 
 }
 

@@ -27,74 +27,134 @@ void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, 
 //              chrIndex    index of the current chromosome (start counting from 1!)
 //              cpgTab      reference to where the CpGs should be saved (will be padded at the end)
 //              seq         sequence to which chars should be appended
-inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::string& seq)
+inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<char>& seq)
 {
 
     chrIndex = chrIndex - 1;
     // check for G if last letter in previous line was C
-    if (lastC)
+    // if (lastC)
+    // {
+    //
+    //     std::string::iterator it = line.begin();
+    //     if (it != line.end())
+    //     {
+    //
+    //         if (*it == 'G')
+    //         {
+    //             // start reading for CpG READLEN - 2 chars before, offsets are started counting at 0 but string.size() starts at 1
+    //             // so we need to start at sequencesize - (READLEN - 2) - 1
+    //             if (seq.size() < (MyConst::READLEN - 1))
+    //             {
+    //
+    //                 // note that seq.size() > 1 because lastC is only set if we read a C before
+    //                 cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
+    //
+    //             } else {
+    //
+    //                 cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
+    //             }
+    //
+    //         }
+    //     }
+    // }
+    //
+    // // search for CpGs
+    // for (std::string::iterator it = line.begin(); it != line.end(); ++it)
+    // {
+    //
+    //     seq += *it;
+    //
+    //     // test if letter is C
+    //     if (*it == 'C')
+    //     {
+    //
+    //         // if there exists next letter, check if g
+    //         if ( (it + 1) != line.end() )
+    //         {
+    //
+    //             if (*(it + 1) == 'G')
+    //             {
+    //                 if (seq.size() < (MyConst::READLEN - 1))
+    //                 {
+    //
+    //                     cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
+    //
+    //                 } else {
+    //
+    //                     cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
+    //                 }
+    //                 seq += *(++it);
+    //             }
+    //
+    //         // else update lastC because we are at the end of line
+    //         } else {
+    //
+    //             lastC = true;
+    //             return;
+    //         }
+    //     }
+    // }
+    // lastC = false;
+    //
+
+    // parse the line
+    // transform lower case to upper case, construct cpg objects and write unknowns as N
+    for (char& c : line)
     {
 
-        std::string::iterator it = line.begin();
-        if (it != line.end())
+        switch (c)
         {
 
-            if (*it == 'G')
-            {
-                // start reading for CpG READLEN - 2 chars before, offsets are started counting at 0 but string.size() starts at 1
-                // so we need to start at sequencesize - (READLEN - 2) - 1
-                if (seq.size() < (MyConst::READLEN - 1))
+            case 'g':
+            case 'G':
+
+                // if previous letter was C, construct a CpG object
+                if (lastC)
                 {
-
-                    // note that seq.size() > 1 because lastC is only set if we read a C before
-                    cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
-
-                } else {
-
-                    cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
-                }
-
-            }
-        }
-    }
-
-    // search for CpGs
-    for (std::string::iterator it = line.begin(); it != line.end(); ++it)
-    {
-
-        seq += *it;
-
-        // test if letter is C
-        if (*it == 'C')
-        {
-
-            // if there exists next letter, check if g
-            if ( (it + 1) != line.end() )
-            {
-
-                if (*(it + 1) == 'G')
-                {
-                    if (seq.size() < (MyConst::READLEN - 1))
+                    if (seq.size() >= (MyConst::READLEN - 1))
                     {
 
-                        cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
+                        cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
 
                     } else {
 
-                        cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
+                        cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
                     }
-                    seq += *(++it);
+                    lastC = false;
                 }
+                seq.emplace_back('G');
+                break;
 
-            // else update lastC because we are at the end of line
-            } else {
+            case 'c':
+            case 'C':
 
+                seq.emplace_back('C');
                 lastC = true;
-                return;
-            }
+                break;
+
+            case 'a':
+            case 'A':
+
+                seq.emplace_back('A');
+                lastC = false;
+                break;
+
+            case 't':
+            case 'T':
+
+                seq.emplace_back('T');
+                lastC = false;
+                break;
+
+            default:
+
+                seq.emplace_back('N');
+                lastC = false;
+                break;
+
+
         }
     }
-    lastC = false;
 
 }
 
