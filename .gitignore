@@ -2,6 +2,9 @@
 *.swp
 *.swo
 
+# gprofile
+gmon.out
+
 # external gits
 ntHash-1.0.2*
 googletest*
