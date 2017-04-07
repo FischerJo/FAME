@@ -3,13 +3,13 @@ OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o main.o
 PROGNAME=Metal
 CXX=g++
 
-CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -fopenmp
+CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3
 
-.PHONY: all clean
+.PHONY: all clean profile
 
 all: ${PROGNAME}
 
-# test: testsuite
+profile: ${PROGNAME}Profile
 
 %.o: %.cpp %.h
 	${CXX} ${CXXFLAGS} -c $<
@@ -20,5 +20,8 @@ all: ${PROGNAME}
 ${PROGNAME}: ${OBJECTS}
 	${CXX} ${CXXFLAGS} ${OBJECTS} -o $@ 
 
+${PROGNAME}Profile: ${OBJECTS}
+	${CXX} ${CXXFLAGS} -pg ${OBJECTS} -o $@
+
 clean:
-	rm -f ${OBJECTS} ${PROGNAME} main_test.o
+	rm -f ${OBJECTS} ${PROGNAME}
