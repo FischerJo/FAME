@@ -29,6 +29,8 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
 
     ifstream ifs (filename);
 
+    cout << "Start reading file" << endl;
+
     while (getline(ifs, line)) {
 
         // Test for id tag line
@@ -39,10 +41,8 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
             if (contFlag)
             {
 
-                // put a vector of chars of size equal to the stringlength read so far to genSeq
+                seq.shrink_to_fit();
                 genSeq.emplace_back(move(seq));
-                // copy the content of sequence to the object holding all sequences
-                // copy(seq.begin(), seq.end(), genSeq[chrIndex - 1].begin());
                 // reset buffer
                 seq = vector<char>();
                 seq.reserve(MyConst::CHROMMAX);
@@ -83,15 +83,17 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
 
     }
 
+    cout << "Done parsing file" << endl;
+
     // if we read primary assembly previously, write it to vectors
     if (contFlag)
     {
 
-        // put a vector of chars of size equal to the stringlength read so far to genSeq
-        genSeq.emplace_back(seq.size());
-        // copy the content of sequence to the object holding all sequences
-        copy(seq.begin(), seq.end(), genSeq[chrIndex - 1].begin());
+        seq.shrink_to_fit();
+        genSeq.emplace_back(move(seq));
     }
 
+    cpgTab.shrink_to_fit();
+    genSeq.shrink_to_fit();
     ifs.close();
 }
