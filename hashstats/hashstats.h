@@ -7,15 +7,12 @@
 // how many kmers should be drawn
 // pow(3,20) same size as the distinct sequences for KMERLEN == 20
 constexpr unsigned long SAMPSIZE = 3486784401;
-// constexpr unsigned long SAMPSIZE = 15000000;
 
 // size of the hash table
-// 20 million
-constexpr unsigned int TABSIZE = 20000000;
-// constexpr unsigned int TABSIZE = 200000;
+constexpr unsigned int TABSIZE = 1000000000;
 
 // encoding of numbers
-constexpr char LETCODE[3] = {'C','G','T'};
+constexpr char LETCODE[3] = {'A','G','T'};
 
 // draw SAMPSIZE manz hashes, draw letters uniformly at random
 // encode the kmers using nthash
