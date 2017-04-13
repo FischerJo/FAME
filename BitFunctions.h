@@ -37,17 +37,18 @@ namespace BitFun {
 //
 
 // constants for bitswap
-constexpr uint64_t mu1 = 0x3333333333333333ULL;
-constexpr uint64_t mu2 = 0x0f0f0f0f0f0f0f0fULL;
-constexpr uint64_t mu3 = 0x00ff00ff00ff00ffULL;
-constexpr uint64_t mu4 = 0x0000ffff0000ffffULL;
-
+namespace detail {
+    constexpr uint64_t mu1 = 0x3333333333333333ULL;
+    constexpr uint64_t mu2 = 0x0f0f0f0f0f0f0f0fULL;
+    constexpr uint64_t mu3 = 0x00ff00ff00ff00ffULL;
+    constexpr uint64_t mu4 = 0x0000ffff0000ffffULL;
+}
 inline uint64_t rev64(uint64_t x)
 {
-    x = ((x >> 2) & mu1) | ((x & mu1) << 2);
-    x = ((x >> 4) & mu2) | ((x & mu2) << 4);
-    x = ((x >> 8) & mu3) | ((x & mu3) << 8);
-    x = ((x >> 16) & mu4) | ((x & mu4) << 16);
+    x = ((x >> 2) & detail::mu1) | ((x & detail::mu1) << 2);
+    x = ((x >> 4) & detail::mu2) | ((x & detail::mu2) << 4);
+    x = ((x >> 8) & detail::mu3) | ((x & detail::mu3) << 8);
+    x = ((x >> 16) & detail::mu4) | ((x & detail::mu4) << 16);
     return (x >> 32) | (x << 32);
 
 }
@@ -69,6 +70,18 @@ inline uint64_t revKmer(uint64_t kmer)
     return (BitFun::rev64(kmer ^ MyConst::KMERMASK) >> emptyBits);
 }
 
+
+// compute a bitmask from a given sequence encoded with alphabet above
+//
+// NOTE:    if sequence is smaller then 64 bit, all remaining bits will
+//          be 1 after code execution
+inline uint64_t getMask(uint64_t seq)
+{
+    const uint64_t x = seq & 0x5555555555555555ULL;
+    uint64_t y = seq & 0xaaaaaaaaaaaaaaaaULL;
+    y = (y >> 1) & x;
+    return ~((x^y) << 1);
+}
 
 } // end namespace BitFun
 

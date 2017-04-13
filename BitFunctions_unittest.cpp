@@ -96,3 +96,49 @@ TEST(BitFunctions, kmer2)
 // ---------------------------------
 // ---------------------------------
 // ---------------------------------
+
+
+
+// ---------------------------------
+// -------- TESTS FOR MASK ---------
+// ---------------------------------
+
+TEST(BitFunctions, SimpleMask)
+{
+
+    // kmer: AGCT
+    // encoding 0010 0111
+    uint64_t kmer = 0x0000000000000027ULL;
+
+    // mask 1111 0111
+    // remaining bits filled with ones
+    uint64_t mask = 0xfffffffffffffff7ULL;
+    ASSERT_EQ(mask, BitFun::getMask(kmer));
+}
+
+TEST(BitFunctions, mask2)
+{
+    // kmer: AGTCGTGCTAGTGACGTGTT
+    // encoding 0010 1101 1011 1001 1100 1011 1000 0110 1110 1111
+    uint64_t kmer = 0x0000002db9cb86efULL;
+
+    // mask 1111 1101 1111 1101 1111 1111 1111 0111 1111 1111
+    // remaining bits filled with ones
+    uint64_t mask = 0xfffffffdfdfff7ffULL;
+    ASSERT_EQ(mask, BitFun::getMask(kmer));
+}
+
+TEST(BitFunctions, mask3)
+{
+    // kmer: CGAACTGGATGAGCACGTAGACGCTTGAATCG
+    // encoding 0110 0000 0111 1010 0011 1000 1001 0001 1011 0010 0001 1001 1111 1000 0011 0110
+    uint64_t kmer = 0x607a3891b219f836ULL;
+
+    // mask 0111 1111 0111 1111 1111 1111 1101 1101 1111 1111 1101 1101 1111 1111 1111 0111
+    uint64_t mask = 0x7f7fffddffddfff7ULL;
+    ASSERT_EQ(mask, BitFun::getMask(kmer));
+}
+
+// ---------------------------------
+// ---------------------------------
+// ---------------------------------
