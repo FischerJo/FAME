@@ -30,50 +30,97 @@ struct CpG {
 };
 
 
+struct metaCpG {
+    // index of first CpG of this meta CpG
+    uint32_t start;
+    // start of this meta CpG is cpgTable[start].pos
+    // end of this meta CpG is cpgTable[start].pos + WINLEN
+    // if startmetaCpG .start is 0 and end is WINLEN
+
+    // index of last CpG in this meta CpG
+    uint32_t end;
+
+    // Ctor for emplace_back
+    metaCpG(uint32_t startC, uint32_t endC) : start(startC), end(endC) {}
+};
+
+
+// namespace KMER {
+//
+//     // KMER DEFINITION
+//     //
+//     // most signficant bit hold if cpg is start cpg (1) or normal (0)
+//     // next 31 bit state if the index of the kmer in the cpg vector
+//     // 33th most significant bit states if kmer is of forward (1) or reverse strand (0)
+//     // remaining bits define the offset (starting at C position - READLEN + 2 as 0) in the CpG context
+//     typedef uint64_t kmer;
+//
+//     // Use this mask to extract strand information from kmer.offset
+//     // offset & STRANDMASK == TRUE   <=>   kmer on forward strand
+//     constexpr uint64_t STRANDMASK = 0x0000000080000000ULL;
+//     // cpg mask to identify start (1) and normal (0) cpgs
+//     constexpr uint64_t CPGMASK = 0x8000000000000000ULL;
+//
+//     // returns 1 if kmer lies on forwards strand, 0 on backward
+//     inline bool isForward(KMER::kmer& k)
+//     {
+//         return (k & KMER::STRANDMASK) >> 31;
+//     }
+//
+//     // returns whether kmer is of start cpg (1) or normal (0)
+//     inline bool isStartCpG(KMER::kmer& k)
+//     {
+//         return (k & KMER::CPGMASK) >> 63;
+//     }
+//
+//     // return the offset of given kmer inside its cpg
+//     inline uint64_t getOffset(KMER::kmer& k)
+//     {
+//         return k & 0x000000007fffffffULL;
+//     }
+//
+//     inline uint64_t getCpG(KMER::kmer& k)
+//     {
+//         return (k & ~KMER::CPGMASK) >> 32;
+//     }
+//
+//     // constructs a kmer according to its definition
+//     inline KMER::kmer constructKmer(uint64_t strand, uint64_t CpG, uint64_t off, uint64_t isStart)
+//     {
+//
+//         return (isStart << 63) | (CpG << 32) | (strand << 31) | off;
+//     }
+// }
 namespace KMER {
 
     // KMER DEFINITION
     //
-    // most signficant bit hold if cpg is start cpg (1) or normal (0)
-    // next 31 bit state if the index of the kmer in the cpg vector
-    // 33th most significant bit states if kmer is of forward (1) or reverse strand (0)
-    // remaining bits define the offset (starting at C position - READLEN + 2 as 0) in the CpG context
+    // 32 upper (more significant) bit hold metaCpG index, lower 32 bit hold offset inside metaCpG
+    // most significant bit holds flag that is 1 <=> points to start meta CpG
     typedef uint64_t kmer;
 
-    // Use this mask to extract strand information from kmer.offset
-    // offset & STRANDMASK == TRUE   <=>   kmer on forward strand
-    constexpr uint64_t STRANDMASK = 0x0000000080000000ULL;
-    // cpg mask to identify start (1) and normal (0) cpgs
-    constexpr uint64_t CPGMASK = 0x8000000000000000ULL;
-
-    // returns 1 if kmer lies on forwards strand, 0 on backward
-    inline bool isForward(KMER::kmer& k)
-    {
-        return (k & KMER::STRANDMASK) >> 31;
-    }
-
-    // returns whether kmer is of start cpg (1) or normal (0)
-    inline bool isStartCpG(KMER::kmer& k)
-    {
-        return (k & KMER::CPGMASK) >> 63;
-    }
 
     // return the offset of given kmer inside its cpg
-    inline uint64_t getOffset(KMER::kmer& k)
+    inline uint32_t getOffset(KMER::kmer& k)
     {
-        return k & 0x000000007fffffffULL;
+        return k & 0x00000000ffffffffULL;
     }
 
-    inline uint64_t getCpG(KMER::kmer& k)
+    inline uint32_t getMetaCpG(KMER::kmer& k)
     {
-        return (k & ~KMER::CPGMASK) >> 32;
+        return (k & 0x7fffffff00000000ULL) >> 32;
+    }
+
+    inline bool isStartCpG(KMER::kmer& k)
+    {
+        return (k & 0x8000000000000000ULL);
     }
 
     // constructs a kmer according to its definition
-    inline KMER::kmer constructKmer(uint64_t strand, uint64_t CpG, uint64_t off, uint64_t isStart)
+    inline KMER::kmer constructKmer(uint64_t isStart, uint32_t metacpg, uint32_t off)
     {
 
-        return (isStart << 63) | (CpG << 32) | (strand << 31) | off;
+        return  (isStart << 63) | ((uint64_t)metacpg << 32) | off;
     }
 }
 

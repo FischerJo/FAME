@@ -45,12 +45,14 @@ constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 
 
 
 // bitmask to extract type of CpG used by kmer.cpg
-constexpr uint32_t INDMASK = 0x80000000;
+// constexpr uint32_t INDMASK = 0x80000000;
+
+// size of hash table
+constexpr unsigned int HTABSIZE = 2 << 7;
 
 
-// internal buffer for reading reference file
-constexpr unsigned int BUFSIZE = 256 * 1024;
-
+// window length for meta CpGs
+constexpr unsigned int WINLEN = 1 << 14;
 
 }
 
