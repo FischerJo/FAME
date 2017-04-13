@@ -2,6 +2,9 @@
 *.swp
 *.swo
 
+# results of stat programs
+hashstats*
+
 # gprofile
 gmon.out
 gprofResults*
