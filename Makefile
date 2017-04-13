@@ -21,7 +21,7 @@ ${PROGNAME}: ${OBJECTS}
 	${CXX} ${CXXFLAGS} ${OBJECTS} -o $@ 
 
 ${PROGNAME}Profile: ${OBJECTS}
-	${CXX} ${CXXFLAGS} -pg ${OBJECTS} -o $@
+	${CXX} ${CXXFLAGS} -pg -rdynamic ${OBJECTS} -o $@
 
 clean:
 	rm -f ${OBJECTS} ${PROGNAME}
