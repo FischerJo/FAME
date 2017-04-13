@@ -4,6 +4,8 @@
 
 # gprofile
 gmon.out
+gprofResults*
+MetalProfile
 
 # external gits
 ntHash-1.0.2*
