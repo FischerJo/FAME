@@ -40,7 +40,7 @@ class RefGenome
     // private:
 
         // simple max inline functions
-        inline uint32_t max(uint32_t x, uint32_t y) {return x > y ? x : y;}
+        inline int max(int x, int y) {return x > y ? x : y;}
 
         // produces all struct Meta CpGs
         void generateMetaCpGs();
@@ -71,7 +71,7 @@ class RefGenome
         {
 
             // kmers to be skipped
-            const unsigned int skipKmer = max(pos - lastPos, 0);
+            const unsigned int skipKmer = max(lastPos - pos, 0);
             // construct corresponding sequence with reduced alphabet
             std::vector<char> redSeq(2*MyConst::READLEN - 2);
             std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
@@ -201,7 +201,7 @@ class RefGenome
 
             // update kmer table
             kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-            strandTable[tabIndex[rhVal % tabIndex.size()]] = 0;
+            strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
 
 
             // hash kmers of backward strand
@@ -211,7 +211,7 @@ class RefGenome
                 ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
                 // update kmer table
                 kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-                strandTable[tabIndex[rhVal % tabIndex.size()]] = 0;
+                strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
 
             }
 
@@ -221,7 +221,7 @@ class RefGenome
 
             // update kmer table
             kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-            strandTable[tabIndex[fhVal % tabIndex.size()]] = 1;
+            strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
 
             // hash kmers of forward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
@@ -231,8 +231,10 @@ class RefGenome
                 ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 // update kmer table
                 kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-                strandTable[tabIndex[fhVal % tabIndex.size()]] = 1;
+                strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
             }
+            lastPos = pos + lasN + contextLen - MyConst::KMERLEN + 1;
+
         }
         void ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff);
         void ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& cpgOffset, const uint32_t& metacpg);
@@ -243,7 +245,7 @@ class RefGenome
         {
 
             // kmers to be skipped
-            const unsigned int skipKmer = max(pos - lastPos, 0);
+            const unsigned int skipKmer = max(lastPos - pos, 0);
             // construct corresponding sequence with reduced alphabet
             std::vector<char> redSeq(2*MyConst::READLEN - 2);
             std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
@@ -368,8 +370,6 @@ class RefGenome
 
             // initial hash backward
             uint64_t rhVal = ntHash::NTP64(seqStartRev);
-            // first kmer on reverse complement corresponds to last kmer in forward sequence
-            uint16_t kPosRev = off - MyConst::KMERLEN;
 
             // update indices
             ++tabIndex[rhVal % tabIndex.size()];
@@ -378,7 +378,6 @@ class RefGenome
             // hash kmers of backward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
-                --kPosRev;
                 ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
                 // update indices
                 ++tabIndex[rhVal % tabIndex.size()];
@@ -387,7 +386,6 @@ class RefGenome
 
             // initial hash forward
             uint64_t fhVal = ntHash::NTP64(seqStart);
-            uint16_t kPos = lasN;
 
             // update indices
             ++tabIndex[fhVal % tabIndex.size()];
@@ -396,11 +394,13 @@ class RefGenome
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
 
-                ++kPos;
                 ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 // update indices
                 ++tabIndex[fhVal % tabIndex.size()];
             }
+            // update position of last hashed kmer (+ 1)
+            lastPos = pos + lasN + contextLen - MyConst::KMERLEN + 1;
+
         }
         void ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG);
         void ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& cpgOffset);
@@ -412,7 +412,7 @@ class RefGenome
 
             unsigned long kmerNum = 0;
             // count start CpG kmers
-            for (metaCpG m : metaStartCpGs)
+            for (metaCpG& m : metaStartCpGs)
             {
 
                 // we know that all of the CpGs at start will overlap
@@ -428,7 +428,7 @@ class RefGenome
                 }
             }
             // count normal CpG kmers
-            for (metaCpG m : metaCpGs)
+            for (metaCpG& m : metaCpGs)
             {
 
                 const uint8_t chr = cpgTable[m.start].chrom;
@@ -452,7 +452,17 @@ class RefGenome
             }
 
             // resize table to number of kmers that have to be hashed
-            kmerTable.resize(kmerNum);
+            // *2 because of forward and reverse
+            kmerTable.resize(kmerNum*2);
+            strandTable.resize(kmerNum*2);
+
+            unsigned long sum = 0;
+            // update to sums of previous entrys
+            for (unsigned int i = 0; i < tabIndex.size(); ++i)
+            {
+                sum += tabIndex[i];
+                tabIndex[i] = sum;
+            }
 
         }
 

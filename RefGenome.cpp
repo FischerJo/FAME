@@ -46,7 +46,7 @@ void RefGenome::generateMetaCpGs()
     while (cpgStartInd < cpgStartTable.size())
     {
 
-        while (cpgStartTable[cpgStartInd].chrom == currChr)
+        while (cpgStartInd < cpgStartTable.size() && cpgStartTable[cpgStartInd].chrom == currChr)
         {
 
             ++cpgStartInd;
@@ -63,20 +63,33 @@ void RefGenome::generateMetaCpGs()
     currChr = 0;
 
     // while there are CpGs left to look at
+    //
     while (cpgTabInd < cpgTable.size())
     {
 
-        while (cpgTable[cpgTabInd].pos < cpgTable[start].pos + MyConst::WINLEN && cpgStartTable[cpgTabInd].chrom == currChr)
-        {
-            ++cpgTabInd;
-        }
-        if (cpgStartTable[cpgTabInd].chrom != currChr) ++currChr;
+        // fill current metaCpG window with CpGs
+        const uint32_t windowEnd = cpgTable[start].pos + MyConst::WINLEN;
 
-        // genereate meta CpG
-        metaCpGs.emplace_back(start, cpgTabInd - 1);
-        // set start for next meta CpG
-        start = cpgTabInd;
+        for (; cpgTabInd < cpgTable.size(); ++cpgTabInd)
+        {
+            if (cpgTable[cpgTabInd].pos >= windowEnd || cpgTable[cpgTabInd].chrom != currChr)
+            {
+
+                // generate meta CpG
+                metaCpGs.emplace_back(start, cpgTabInd - 1);
+                // set start for next meta CpG
+                start = cpgTabInd;
+                // update current chromosome index if necessary
+                if (cpgTable[cpgTabInd].chrom != currChr) ++currChr;
+                // break out of inner for loop (i.e. filling of current metaCpG
+                break;
+            }
+
+        }
+
     }
+    // put in meta CpG containging last CpGs
+    metaCpGs.emplace_back(start, cpgTabInd - 1);
 
     metaCpGs.shrink_to_fit();
     metaStartCpGs.shrink_to_fit();
@@ -145,7 +158,7 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
             if (remainderBps >= (MyConst::READLEN - 2) )
             {
 
-                ntHashChunk(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgStartTable[cpgInd].pos, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
+                ntHashChunk(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgTable[cpgInd].pos, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
 
             } else {
 
