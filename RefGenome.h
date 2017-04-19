@@ -233,7 +233,7 @@ class RefGenome
                 kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
                 strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
             }
-            lastPos = pos + lasN + contextLen - MyConst::KMERLEN + 1;
+            lastPos = pos + off - MyConst::KMERLEN;
 
         }
         void ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff);
@@ -399,7 +399,7 @@ class RefGenome
                 ++tabIndex[fhVal % tabIndex.size()];
             }
             // update position of last hashed kmer (+ 1)
-            lastPos = pos + lasN + contextLen - MyConst::KMERLEN + 1;
+            lastPos = pos + off - MyConst::KMERLEN;
 
         }
         void ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG);
@@ -410,13 +410,11 @@ class RefGenome
         inline void estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
         {
 
-            unsigned long kmerNum = 0;
             // count start CpG kmers
             for (metaCpG& m : metaStartCpGs)
             {
 
                 // we know that all of the CpGs at start will overlap
-                kmerNum += cpgStartTable[m.end].pos + MyConst::READLEN - MyConst::KMERLEN + 1;
                 const uint8_t chr = cpgStartTable[m.start].chrom;
 
                 uint32_t lastPos = 0;
@@ -436,25 +434,18 @@ class RefGenome
                 uint32_t lastPos = 0;
 
                 // kmers of first CpG
-                kmerNum += 2*MyConst::READLEN - MyConst::KMERLEN + 1;
                 ntCountChunk(genomeSeq[chr], lastPos, cpgTable[m.start].pos);
 
                 // consecutive CpG kmers
                 for (uint32_t cpgInd = m.start + 1; cpgInd <= m.end; ++cpgInd)
                 {
 
-                    kmerNum += max(cpgTable[cpgInd].pos - lastPos, 0) + 2*MyConst::READLEN - 1 - MyConst::KMERLEN;
                     // count the collisions
                     ntCountChunk(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos);
                 }
 
 
             }
-
-            // resize table to number of kmers that have to be hashed
-            // *2 because of forward and reverse
-            kmerTable.resize(kmerNum*2);
-            strandTable.resize(kmerNum*2);
 
             unsigned long sum = 0;
             // update to sums of previous entrys
@@ -463,6 +454,10 @@ class RefGenome
                 sum += tabIndex[i];
                 tabIndex[i] = sum;
             }
+
+            // resize table to number of kmers that have to be hashed
+            kmerTable.resize(sum);
+            strandTable.resize(sum);
 
         }
 

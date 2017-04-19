@@ -54,8 +54,8 @@ TEST(RefGenome_test, simple1)
     ASSERT_EQ(0, ref.metaCpGs[0].end);
 
     // test if hashTable is initialized correctly
-    ASSERT_EQ(2*(2*MyConst::READLEN - MyConst::KMERLEN + 1), ref.kmerTable.size());
-    ASSERT_EQ(2*(2*MyConst::READLEN - MyConst::KMERLEN + 1), ref.strandTable.size());
+    ASSERT_EQ(2*(2*MyConst::READLEN - MyConst::KMERLEN - 1), ref.kmerTable.size());
+    ASSERT_EQ(2*(2*MyConst::READLEN - MyConst::KMERLEN - 1), ref.strandTable.size());
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
@@ -130,73 +130,111 @@ TEST(RefGenome_test, simple1)
 
 
 
-// // Test with N before and after CpG
-// TEST(RefGenome_test, simpleWithN)
-// {
-//
-//     // set up sequence container
-//     std::string seq = "ATGTTGCCTNATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGANTCCTAGTCAATTTAT";
-//     // sequence with reduced alphabet
-//     std::string redSeq = "ATGTTGTTTNATTTTATTATTTAGGGTTATATGTTTGGAATATTTTAGGANTTTTAGTTAATTTAT";
-//     // reverse sequence
-//     std::string revSeq = "ATAAATTGACTAGGANTCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATNAGGCAACAT";
-//     std::string redRevSeq = "ATAAATTGATTAGGANTTTTAGAATATTTTAGGTGTATAATTTTGAATAGTGAAATNAGGTAATAT";
-//     std::vector<char> seqV (seq.begin(), seq.end());
-//     std::vector<std::vector<char> > genSeq;
-//     genSeq.push_back(seqV);
-//
-//     // set up CpG container
-//     std::vector<struct CpG> cpgTab;
-//     cpgTab.emplace_back(0, 3);
-//
-//     std::vector<struct CpG> cpgStart;
-//
-//     RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
-//
-//     // index to handle collisions in test
-//     // position i safes how many times we already accessed corresponding struct in kmerTable
-//     std::vector<unsigned int> kmerInd (ref.kmerTable.size(), 0);
-//
-//     for (unsigned int i = 16; i <= (56 - MyConst::KMERLEN); ++i)
-//     {
-//
-//         uint16_t off = (2*MyConst::READLEN - 2) - i + 5 - MyConst::KMERLEN;
-//
-//         // get hash of corresponding reverse kmer
-//         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-//         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-//         // lookup if kmer is present in hash table
-//         ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
-//         KMER::kmer kRev = ref.kmerTable[hash % ref.kmerTable.size()][index];
-//         ASSERT_EQ(0, KMER::getCpG(kRev));
-//         ASSERT_EQ(0, KMER::isForward(kRev));
-//         ASSERT_EQ(off, KMER::getOffset(kRev));
-//     }
-//
-//     for (unsigned int i = 10; i <= (50 - MyConst::KMERLEN); ++i)
-//     {
-//
-//         uint16_t off = i - 3;
-//         // get hash of corresponding kmer
-//         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
-//         // lookup if kmer is present in hash table
-//         unsigned int index = kmerInd[hash % kmerInd.size()]++;
-//         ASSERT_LE(index + 1, ref.kmerTable[hash % ref.kmerTable.size()].size());
-//         KMER::kmer k = ref.kmerTable[hash % ref.kmerTable.size()][index];
-//         ASSERT_EQ(0, KMER::getCpG(k));
-//         ASSERT_EQ(1, KMER::isForward(k));
-//         ASSERT_EQ(off, KMER::getOffset(k));
-//     }
-//
-//     // test if nothing else was hashed
-//     for (unsigned int i = 0; i < ref.kmerTable.size(); ++i)
-//     {
-//
-//         ASSERT_EQ(kmerInd[i], ref.kmerTable[i].size());
-//
-//     }
-// }
-//
+// Test with N before and after CpG
+TEST(RefGenome_test, simpleWithN)
+{
+
+    // set up sequence container
+    std::string seq = "ATGTTGCCTNATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGANTCCTAGTCAATTTAT";
+    // sequence with reduced alphabet
+    std::string redSeq = "ATGTTGTTTNATTTTATTATTTAGGGTTATATGTTTGGAATATTTTAGGANTTTTAGTTAATTTAT";
+    // reverse sequence
+    std::string revSeq = "ATAAATTGACTAGGANTCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATNAGGCAACAT";
+    std::string redRevSeq = "ATAAATTGATTAGGANTTTTAGAATATTTTAGGTGTATAATTTTGAATAGTGAAATNAGGTAATAT";
+    std::vector<char> seqV (seq.begin(), seq.end());
+    std::vector<std::vector<char> > genSeq;
+    genSeq.push_back(seqV);
+
+    // set up CpG container
+    std::vector<struct CpG> cpgTab;
+    cpgTab.emplace_back(0, 3);
+
+    std::vector<struct CpG> cpgStart;
+
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
+
+
+
+    // test if metaCpG is constructed correctly
+    ASSERT_EQ(0, ref.metaStartCpGs.size());
+    ASSERT_EQ(1, ref.metaCpGs.size());
+    ASSERT_EQ(0, ref.metaCpGs[0].start);
+    ASSERT_EQ(0, ref.metaCpGs[0].end);
+
+    // test if hashTable is initialized correctly
+    ASSERT_EQ(2*21, ref.kmerTable.size());
+    ASSERT_EQ(2*21, ref.strandTable.size());
+
+    // index to handle collisions in test
+    // position i safes how many times we already accessed corresponding struct in kmerTable
+    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+
+    // count the hashes
+    for (unsigned int i = 16; i <= (56 - MyConst::KMERLEN); ++i)
+    {
+
+
+        // get hash of corresponding reverse kmer
+        uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
+        ++kmerInd[hash % kmerInd.size()];
+    }
+    for (unsigned int i = 10; i <= (50 - MyConst::KMERLEN); ++i)
+    {
+
+        // get hash of corresponding kmer
+        uint64_t hash = ntHash::NTP64(redSeq.data() + i);
+        ++kmerInd[hash % kmerInd.size()];
+    }
+
+    unsigned long sum = 0;
+    // test if hash offsets are correct
+    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    {
+
+        sum += kmerInd[i];
+        kmerInd[i] = sum;
+
+    }
+
+    // test if everything is placed correctly
+    for (unsigned int i = 16; i <= (56 - MyConst::KMERLEN); ++i)
+    {
+
+        uint32_t off = (2*MyConst::READLEN - 2) - i + 5 - MyConst::KMERLEN;
+
+        // get hash of corresponding reverse kmer
+        uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
+        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        // lookup if kmer is present in hash table
+        bool strand = ref.strandTable[index];
+        ASSERT_EQ(0, strand);
+        KMER::kmer kRev = ref.kmerTable[index];
+        ASSERT_EQ(0, KMER::getMetaCpG(kRev));
+        ASSERT_EQ(off, KMER::getOffset(kRev));
+    }
+
+    for (unsigned int i = 10; i <= (50 - MyConst::KMERLEN); ++i)
+    {
+
+        uint32_t off = i - 3;
+        // get hash of corresponding kmer
+        uint64_t hash = ntHash::NTP64(redSeq.data() + i);
+        // lookup if kmer is present in hash table
+        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        KMER::kmer k = ref.kmerTable[index];
+        ASSERT_EQ(0, KMER::getMetaCpG(k));
+        ASSERT_EQ(off, KMER::getOffset(k));
+        bool strand = ref.strandTable[index];
+        ASSERT_EQ(1, strand);
+    }
+    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    {
+
+        ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
+
+    }
+}
+
 //
 // // Test with N before and after CpG such that there is no kmer
 // TEST(RefGenome_test, simpleTooShort)
