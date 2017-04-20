@@ -160,6 +160,7 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
 
                 ntHashChunk(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgTable[cpgInd].pos, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
 
+
             } else {
 
                 ntHashLast(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgStartTable[cpgInd].pos, remainderBps, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
