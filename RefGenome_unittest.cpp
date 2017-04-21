@@ -474,12 +474,10 @@ TEST(RefGenome_test, multiCpGOverlap)
     for (unsigned int i = 6; i <= (64 - MyConst::KMERLEN); ++i)
     {
 
-        std::cout << i << std::endl;
         uint32_t off = (2*MyConst::READLEN - 2) - i + 6 - MyConst::KMERLEN;
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        std::cout << std::string(redRevSeq.data() + i, MyConst::KMERLEN) << "   " << hash << std::endl;
         unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
         // lookup if kmer is present in hash table
         KMER::kmer kRev = ref.kmerTable[index];
@@ -503,10 +501,11 @@ TEST(RefGenome_test, multiCpGOverlap)
         ASSERT_EQ(1, strand);
     }
 
-    for (unsigned int i = 10; i < 6; ++i)
+
+    for (unsigned int i = 0; i < 6; ++i)
     {
 
-        uint32_t off = 5 + (2*MyConst::READLEN - 2) - i - MyConst::KMERLEN;
+        uint32_t off = 6 + (2*MyConst::READLEN - 2) - i - MyConst::KMERLEN;
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
@@ -518,13 +517,12 @@ TEST(RefGenome_test, multiCpGOverlap)
         ASSERT_EQ(0, KMER::getMetaCpG(kRev));
         ASSERT_EQ(off, KMER::getOffset(kRev));
     }
-    for (unsigned int i = (62 - MyConst::KMERLEN); i <= (66 - MyConst::KMERLEN); ++i)
+    for (unsigned int i = (62 - MyConst::KMERLEN); i <= (67 - MyConst::KMERLEN); ++i)
     {
 
         uint32_t off = i - 3;
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
-        // lookup if kmer is present in hash table
         unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));

@@ -137,7 +137,7 @@ class RefGenome
 
                 ++lasN;
                 end = seq.begin();
-                std::advance(end, pos + skipKmer);
+                std::advance(end, pos + skipKmer - 1);
             }
             // move over second half in reverse order
             // reassign start to final position
@@ -192,8 +192,8 @@ class RefGenome
                 return;
             }
 
-            char* seqStart = redSeq.data() + lasN;
-            char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
+            const char* seqStart = redSeq.data() + lasN;
+            const char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
 
             // initial hash backward
             uint64_t rhVal = ntHash::NTP64(seqStartRev);
@@ -210,11 +210,9 @@ class RefGenome
             {
                 --kPosRev;
                 ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-                std::cout << std::string(seqStartRev + i + 1, MyConst::KMERLEN) << "   " << rhVal << "\n\n";
                 // update kmer table
                 kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
                 strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
-
             }
 
             // initial hash forward
@@ -228,7 +226,6 @@ class RefGenome
             // hash kmers of forward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
             {
-
                 ++kPos;
                 ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
                 // update kmer table
@@ -310,7 +307,7 @@ class RefGenome
             } else {
 
                 end = seq.begin();
-                std::advance(end, pos + skipKmer);
+                std::advance(end, pos + skipKmer - 1);
             }
             // move to one after last N/ one after last hashed kmer
             ++lasN;
@@ -321,7 +318,7 @@ class RefGenome
 
             // reassign current position
             j = 2*MyConst::READLEN - 3;
-            // offset where the first N after the CpG is
+            // offset where the first N after the CpG start is
             int off = 2*MyConst::READLEN - 2;
             for ( ; start != end; --start, --j)
             {
@@ -359,7 +356,7 @@ class RefGenome
 
             }
 
-            // length of the context around the CpG without Ns
+            // length of the context around the CpG that should be hashed
             unsigned int contextLen = off - lasN;
             // if we don't have enough to read, return without hashing
             if (contextLen < MyConst::KMERLEN)
@@ -367,15 +364,14 @@ class RefGenome
                 return;
             }
 
-            char* seqStart = redSeq.data() + lasN;
-            char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
+            const char* seqStart = redSeq.data() + lasN;
+            const char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
 
             // initial hash backward
             uint64_t rhVal = ntHash::NTP64(seqStartRev);
 
             // update indices
             ++tabIndex[rhVal % tabIndex.size()];
-
 
             // hash kmers of backward strand
             for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
