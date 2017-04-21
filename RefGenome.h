@@ -140,12 +140,12 @@ class RefGenome
                 std::advance(end, pos + skipKmer - 1);
             }
             // move over second half in reverse order
-            // reassign start to final position
-            start = seq.begin();
-            std::advance(start, pos + 2*MyConst::READLEN - 3);
-
             // reassign current position
             j = 2*MyConst::READLEN - 3;
+            // reassign start to final position
+            start = seq.begin();
+            std::advance(start, pos + j);
+
             // offset where the first N after the CpG is
             int off = 2*MyConst::READLEN - 2;
             for ( ; start != end; --start, --j)
@@ -431,15 +431,37 @@ class RefGenome
 
                 uint32_t lastPos = 0;
 
+                // how long is the rest of the sequence after the end of last cpg in meta cpg
+                unsigned int remainderBps = genomeSeq[cpgTable[m.start].chrom].size() - (cpgTable[m.start].pos + MyConst::READLEN);
+
                 // kmers of first CpG
-                ntCountChunk(genomeSeq[chr], lastPos, cpgTable[m.start].pos);
+                if (remainderBps >= (MyConst::READLEN - 2) )
+                {
+                    ntCountChunk(genomeSeq[chr], lastPos, cpgTable[m.start].pos);
+
+                } else {
+
+                    ntCountLast(genomeSeq[chr], lastPos, cpgTable[m.start].pos, remainderBps);
+                }
 
                 // consecutive CpG kmers
                 for (uint32_t cpgInd = m.start + 1; cpgInd <= m.end; ++cpgInd)
                 {
 
-                    // count the collisions
-                    ntCountChunk(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos);
+                    remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
+                    // if we can read the full sequence breadth after the CpG
+                    if (remainderBps >= (MyConst::READLEN - 2) )
+                    {
+
+                        // count the collisions
+                        ntCountChunk(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos);
+
+                    } else {
+
+                        // count the colloisions and break
+                        ntCountLast(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos, remainderBps);
+                        break;
+                    }
                 }
 
 
@@ -467,12 +489,6 @@ class RefGenome
         const std::vector<struct CpG> cpgTable;
         const std::vector<struct CpG> cpgStartTable;
 
-        // table of strings holding chromosome code
-        // and table holding the length of the sequences
-        // convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-        // const std::vector<std::vector<char> > genomeSeq;
-        // const std::vector<std::size_t> genomeSeqLen;
-
         // table of bitstrings* holding a bit representation of genomeSeq
         // used as a perfect hash later on
         // encoding:
@@ -485,12 +501,6 @@ class RefGenome
         //
         // *own implementation of bitstrings
         std::vector<DnaBitStr> genomeBit;
-
-        // hash table of all (reduced alphabet) kmers that surround CpGs in reference,
-        // hash values are computed using nthash
-        // std::vector<colList > kmerTable;
-        // std::vector<std::vector<KMER::kmer> > kmerTable;
-        //
 
         // hash table
         // tabIndex [i] points into kmerTable where the first entry with hash value i is saved
