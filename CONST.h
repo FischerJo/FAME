@@ -20,8 +20,14 @@ constexpr unsigned int CHROMMAX = 260000000;
 constexpr unsigned int CPGMAX = 24000000;
 
 // maximum read length of the reads in bp
-constexpr unsigned int READLEN = 30;
+constexpr unsigned int READLEN = 100;
 
+// number of reads that should be read per batch
+// (note that very large values may increase the required amount of RAM drastically)
+constexpr unsigned int CHUNKSIZE = 200000;
+
+// Number of cores that this program is allowed to occupy at any given point
+#define CORENUM 8
 
 
 //  --------------------------------------
@@ -35,7 +41,7 @@ constexpr unsigned int READLEN = 30;
 
 
 // Length of a kmer in bp
-constexpr unsigned int KMERLEN = 20;
+constexpr unsigned int KMERLEN = 30;
 
 // Kmer bitmask to build reverse complement of 64bit kmer
 constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 2*KMERLEN) - 1);
@@ -48,7 +54,7 @@ constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 
 // constexpr uint32_t INDMASK = 0x80000000;
 
 // size of hash table
-constexpr unsigned int HTABSIZE = 2 << 7;
+constexpr unsigned int HTABSIZE = 1 << 30;
 
 
 // window length for meta CpGs

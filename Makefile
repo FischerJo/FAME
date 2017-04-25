@@ -1,9 +1,9 @@
 
-OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o main.o
+OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o main.o ReadQueue.o Read.o
 PROGNAME=Metal
 CXX=g++
 
-CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3
+CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3 -fopenmp
 
 .PHONY: all clean profile
 

@@ -117,10 +117,10 @@ namespace KMER {
     }
 
     // constructs a kmer according to its definition
-    inline KMER::kmer constructKmer(uint64_t isStart, uint32_t metacpg, uint32_t off)
+    inline KMER::kmer constructKmer(uint64_t isStart, uint64_t metacpg, uint64_t off)
     {
 
-        return  (isStart << 63) | ((uint64_t)metacpg << 32) | off;
+        return  (isStart << 63) | (metacpg << 32) | off;
     }
 }
 
