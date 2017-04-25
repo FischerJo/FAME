@@ -24,7 +24,7 @@ class RefGenome
         RefGenome() = delete;
 
         // Ctor
-        // Arguments: ( see class members for full information )
+        // ARGUMENTS: ( see class members for full information )
         //      cpgTab      table of all CpGs in reference genome except for the ones near the start of a sequence (i.e. less then READLEN away from start)
         //      cpgStartTab table of CpGs near the start
         //      genSeq      genomic sequence seperated by chromosome
@@ -33,11 +33,59 @@ class RefGenome
         ~RefGenome() = default;
 
 
+        // Returns the seeds of the reference genome for the given read
+        // A seed is a kmer match between a reference genome part and the read
+        // both hashed using nthash with the reduced alphabet
+        //
+        // ARGUMENTS:   seq     read sequence which should be hashed to obtain initial seeds of reference
+        //                      NOTE: this sequence should be with reduced alphabet
+        //
+        // RETURN:              outer vector elements i corresponds to kmers with offset i of read
+        //                      inner vector gives the seeds in the reference
+        //
+        inline std::vector<std::vector<KMER::kmer> > getSeeds(std::vector<char>& seq)
+        {
+
+            std::vector<std::vector<KMER::kmer> > seeds;
+            seeds.reserve(seq.size() - MyConst::KMERLEN + 1);
+
+            // iterators for kmertable
+            std::vector<KMER::kmer>::iterator start = kmerTable.begin();
+            std::vector<KMER::kmer>::iterator end = kmerTable.begin();
+
+            // retrieve kmers for first hash
+            uint64_t hVal = ntHash::NTP64(seq.data());
+
+            // get iterators framing subset of kmers corresponding to this hash
+            std::advance(start, tabIndex[hVal % tabIndex.size()]);
+            std::advance(end, tabIndex[(hVal % tabIndex.size()) + 1]);
+
+            // retrieve seeds
+            seeds.emplace_back(start, end);
+
+            for (unsigned int i = 0; i <= (seq.size() - MyConst::KMERLEN); ++i)
+            {
+
+                // use rolling hash
+                ntHash::NTP64(hVal, seq[i], seq[i + MyConst::KMERLEN]);
+
+                start = kmerTable.begin();
+                std::advance(start, tabIndex[hVal % tabIndex.size()]);
+                end = kmerTable.begin();
+                std::advance(end, tabIndex[(hVal % tabIndex.size()) + 1]);
+
+                seeds.emplace_back(start, end);
+            }
+
+
+
+            return seeds;
+        }
 
 
 
     // TODO: make this private once its tested
-    // private:
+    private:
 
         // simple max inline functions
         inline int max(int x, int y) {return x > y ? x : y;}
@@ -458,7 +506,7 @@ class RefGenome
 
                     } else {
 
-                        // count the colloisions and break
+                        // count the collisions and break
                         ntCountLast(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos, remainderBps);
                         break;
                     }
@@ -471,6 +519,7 @@ class RefGenome
             // update to sums of previous entrys
             for (unsigned int i = 0; i < tabIndex.size(); ++i)
             {
+
                 sum += tabIndex[i];
                 tabIndex[i] = sum;
             }
@@ -514,7 +563,6 @@ class RefGenome
         // meta CpG table
         std::vector<struct metaCpG> metaCpGs;
         std::vector<struct metaCpG> metaStartCpGs;
-
 
 };
 
