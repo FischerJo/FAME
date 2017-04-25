@@ -60,13 +60,58 @@ bool ReadQueue::matchReads()
 
         Read& r = readBuffer[i];
 
+        unsigned int readSize = r.seq.size();
+
         // RETRIEVE SEEDS
         //
-        std::vector<char> redSeq (r.seq.size());
-        std::vector<char> redRevSeq (r.seq.size());
+        std::vector<char> redSeq (readSize);
+        std::vector<char> redRevSeq (readSize);
 
-        ref.getSeeds(redSeq);
-        ref.getSeeds(redRevSeq);
+        // construct reduced alphabet sequence for forward and reverse strand
+        for (unsigned int pos = 0; pos < readSize; ++pos)
+        {
+            // get correct offset for reverse strand (strand orientation must be correct)
+            unsigned int revPos = readSize - 1 - pos;
+
+            switch (r.seq[pos])
+            {
+                case 'A':
+
+                    redSeq[pos] = 'A';
+                    redRevSeq[revPos] = 'T';
+                    break;
+
+                case 'C':
+
+                    redSeq[pos] = 'T';
+                    redRevSeq[revPos] = 'G';
+                    break;
+
+                case 'G':
+
+                    redSeq[pos] = 'G';
+                    redRevSeq[revPos] = 'T';
+                    break;
+
+                case 'T':
+
+                    redSeq[pos] = 'T';
+                    redRevSeq[revPos] = 'A';
+                    break;
+
+                default:
+
+                    std::cerr << "Unknown character '" << r.seq[pos] << "' in read with sequence id " << r.id << std::endl;
+            }
+        }
+
+        std::vector<std::vector<KMER::kmer> > fwdSeeds = std::move(ref.getSeeds(redSeq));
+        std::vector<std::vector<KMER::kmer> > revSeeds = std::move(ref.getSeeds(redRevSeq));
+
+
+        // FILTER SEEDS
+        bool isFwd = filterSeeds(fwdSeeds, readSize);
+        bool isRev = filterSeeds(revSeeds, readSize);
 
     }
     return true;
