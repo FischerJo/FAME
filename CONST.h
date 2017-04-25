@@ -60,6 +60,10 @@ constexpr unsigned int HTABSIZE = 1 << 30;
 // window length for meta CpGs
 constexpr unsigned int WINLEN = 1 << 14;
 
+// number of mismatches we allow
+constexpr unsigned int MISCOUNT = 1;
+
+
 }
 
 #endif /* CONST_H */
