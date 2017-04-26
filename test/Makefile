@@ -22,7 +22,7 @@ CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread
 TESTS = RefReader_unittest.o BitFunctions_unittest.o DnaBitStr_unittest.o \
 		RefGenome_unittest.o
 # files to test
-OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o
+OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o Read.o ReadQueue.o
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
