@@ -10,6 +10,7 @@
 //
 // SET READLEN TO 30
 //     KMERLEN TO 20
+//     HTABSIZE TO 2 << 17
 
 
 TEST(RefGenome_test, kmerDef)
@@ -888,3 +889,132 @@ TEST(RefGenome_test, simpleAtStart)
     }
 }
 // TODO atStartN atEndN
+
+TEST(RefGenome_test, simpleGetSeed)
+{
+    // set up sequence container
+    //                    |                           ||                           |  |                           ||                           |
+    std::string seq = "ATGTTGCCTAATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGATTCCTAGTCAATTTATGCCATTAGATACTAGCTGTGACCCTCGAGCTGCTGGGAGCTATTGCATGGGTAGT";
+    // sequence with reduced alphabet
+    std::string redSeq = "ATGTTGTTTAATTTTATTATTTAGGGTTATATGTTTGGAATATTTTAGGATTTTTAGTTAATTTATGTTATTAGATATTAGTTGTGATTTTTGAGTTGTTGGGAGTTATTGTATGGGTAGT";
+    // reverse sequence
+    //                    |                           ||                           |  |                           ||                           |
+    std::string revSeq = "ACTACCCATGCAATAGCTCCCAGCAGCTCGAGGGTCACAGCTAGTATCTAATGGCATAAATTGACTAGGAATCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATTAGGCAACAT";
+    std::string redRevSeq = "ATTATTTATGTAATAGTTTTTAGTAGTTTGAGGGTTATAGTTAGTATTTAATGGTATAAATTGATTAGGAATTTTAGAATATTTTAGGTGTATAATTTTGAATAGTGAAATTAGGTAATAT";
+    std::vector<char> seqV (seq.begin(), seq.end());
+    std::vector<std::vector<char> > genSeq;
+    genSeq.push_back(seqV);
+
+    // set up CpG container
+    std::vector<struct CpG> cpgTab;
+    cpgTab.emplace_back(0, 3);
+    cpgTab.emplace_back(0, 63);
+
+    std::vector<struct CpG> cpgStart;
+
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
+
+    // meta 0 off 3
+    // CpG: 0 off 3
+    // fwd
+    std::string read1 = "TTTAATTTTATTATTTAGGGTTATATGTTT";
+    // meta 0 off 61
+    // CpG: 1 off 1
+    // fwd
+    std::string read2 = "ATGTTATTAGATATTAGTTGTGATTTTTGA";
+
+    // meta 0 off 78
+    // CpG 1 off 18
+    // rev
+    std::string read3 = "TAATAGTTTTTAGTAGTTTGAGGGTTATAG";
+
+    // test matching first read
+    std::vector<std::vector<KMER::kmer> > kmers1;
+    std::vector<std::vector<bool> > strands1;
+    std::vector<char> read1V(read1.begin(), read1.end());
+    ref.getSeeds(read1V, kmers1, strands1);
+    // check that for each read kmer we have an entry
+    ASSERT_EQ(11, kmers1.size());
+    ASSERT_EQ(kmers1.size(), strands1.size());
+    for (unsigned int i = 0; i < kmers1.size(); ++i)
+    {
+        // check if each kmer is matched
+        ASSERT_LE(1, kmers1[i].size());
+        ASSERT_LE(1, strands1[i].size());
+
+        bool matchflag = false;
+        // check if there is one match that is the correct one
+        for (unsigned int j = 0; j < kmers1[i].size(); ++j)
+        {
+
+            // check if kmer in seeds is the same as query read
+            if (KMER::getOffset(kmers1[i][j]) == 3 + i && strands1[i][j] == true && KMER::getMetaCpG(kmers1[i][j]) == 0)
+            {
+                matchflag = true;
+            }
+        }
+        ASSERT_EQ(true, matchflag);
+    }
+
+    // test matching second read
+    std::vector<std::vector<KMER::kmer> > kmers2;
+    std::vector<std::vector<bool> > strands2;
+    std::vector<char> read2V(read2.begin(), read2.end());
+    ref.getSeeds(read2V, kmers2, strands2);
+    // check that for each read kmer we have an entry
+    ASSERT_EQ(11, kmers2.size());
+    ASSERT_EQ(kmers2.size(), strands2.size());
+    for (unsigned int i = 0; i < kmers2.size(); ++i)
+    {
+        // check if each kmer is matched
+        ASSERT_LE(1, kmers2[i].size());
+        ASSERT_LE(1, strands2[i].size());
+
+        bool matchflag = false;
+        // check if there is one match that is the correct one
+        for (unsigned int j = 0; j < kmers2[i].size(); ++j)
+        {
+
+            // check if kmer in seeds is the same as query read
+            if (KMER::getOffset(kmers2[i][j]) == 61 + i && strands2[i][j] == true && KMER::getMetaCpG(kmers2[i][j]) == 0)
+            {
+                matchflag = true;
+            }
+        }
+        ASSERT_EQ(true, matchflag);
+    }
+
+    // test matching third read
+    std::vector<std::vector<KMER::kmer> > kmers3;
+    std::vector<std::vector<bool> > strands3;
+    std::vector<char> read3V(read3.begin(), read3.end());
+    ref.getSeeds(read3V, kmers3, strands3);
+    // check that for each read kmer we have an entry
+    ASSERT_EQ(11, kmers3.size());
+    ASSERT_EQ(kmers3.size(), strands3.size());
+    for (unsigned int i = 0; i < kmers3.size(); ++i)
+    {
+        // check if each kmer is matched
+        ASSERT_LE(1, kmers3[i].size());
+        ASSERT_LE(1, strands3[i].size());
+
+        bool matchflag = false;
+        // check if there is one match that is the correct one
+        for (unsigned int j = 0; j < kmers3[i].size(); ++j)
+        {
+
+            // check if kmer in seeds is the same as query read
+            if (KMER::getOffset(kmers3[i][j]) == 78 + (10 - i) && strands3[i][j] == false && KMER::getMetaCpG(kmers3[i][j]) == 0)
+            {
+                matchflag = true;
+            }
+        }
+        ASSERT_EQ(true, matchflag);
+    }
+}
+
+
+TEST(RefGenome_test, simpleGetSeedStart)
+{
+
+}
