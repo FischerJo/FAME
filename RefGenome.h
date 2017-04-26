@@ -39,53 +39,66 @@ class RefGenome
         //
         // ARGUMENTS:   seq     read sequence which should be hashed to obtain initial seeds of reference
         //                      NOTE: this sequence should be with reduced alphabet
+        //              seedsK  empty vector - contains the kmers of all seeds on return
         //
-        // RETURN:              outer vector elements i corresponds to kmers with offset i of read
+        //              seedsS  empty vector - contains the strand info of all seeds on return
+        //
+        //                      outer vector elements i corresponds to kmers with offset i of read
         //                      inner vector gives the seeds in the reference
         //
-        inline std::vector<std::vector<KMER::kmer> > getSeeds(std::vector<char>& seq)
+        inline void getSeeds(std::vector<char>& seq, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
         {
 
-            std::vector<std::vector<KMER::kmer> > seeds;
-            seeds.reserve(seq.size() - MyConst::KMERLEN + 1);
+            seedsK.reserve(seq.size() - MyConst::KMERLEN + 1);
+            seedsS.reserve(seq.size() - MyConst::KMERLEN + 1);
 
             // iterators for kmertable
-            std::vector<KMER::kmer>::iterator start = kmerTable.begin();
-            std::vector<KMER::kmer>::iterator end = kmerTable.begin();
+            std::vector<KMER::kmer>::iterator startK = kmerTable.begin();
+            std::vector<KMER::kmer>::iterator endK = kmerTable.begin();
+            // iterators for strandtable
+            std::vector<bool>::iterator startS = strandTable.begin();
+            std::vector<bool>::iterator endS = strandTable.begin();
 
             // retrieve kmers for first hash
             uint64_t hVal = ntHash::NTP64(seq.data());
 
             // get iterators framing subset of kmers corresponding to this hash
-            std::advance(start, tabIndex[hVal % tabIndex.size()]);
-            std::advance(end, tabIndex[(hVal % tabIndex.size()) + 1]);
+            std::advance(startK, tabIndex[hVal % tabIndex.size()]);
+            std::advance(endK, tabIndex[(hVal % tabIndex.size()) + 1]);
+            std::advance(startS, tabIndex[hVal % tabIndex.size()]);
+            std::advance(endS, tabIndex[(hVal % tabIndex.size()) + 1]);
 
             // retrieve seeds
-            seeds.emplace_back(start, end);
+            seedsK.emplace_back(startK, endK);
+            seedsS.emplace_back(startS, endS);
 
-            for (unsigned int i = 0; i <= (seq.size() - MyConst::KMERLEN); ++i)
+            for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i)
             {
 
                 // use rolling hash
                 ntHash::NTP64(hVal, seq[i], seq[i + MyConst::KMERLEN]);
 
-                start = kmerTable.begin();
-                std::advance(start, tabIndex[hVal % tabIndex.size()]);
-                end = kmerTable.begin();
-                std::advance(end, tabIndex[(hVal % tabIndex.size()) + 1]);
+                startK = kmerTable.begin();
+                std::advance(startK, tabIndex[hVal % tabIndex.size()]);
+                endK = kmerTable.begin();
+                std::advance(endK, tabIndex[(hVal % tabIndex.size()) + 1]);
 
-                seeds.emplace_back(start, end);
+                startS = strandTable.begin();
+                std::advance(startS, tabIndex[hVal % tabIndex.size()]);
+                endS = strandTable.begin();
+                std::advance(endS, tabIndex[(hVal % tabIndex.size()) + 1]);
+
+                // retrieve seeds
+                seedsK.emplace_back(startK, endK);
+                seedsS.emplace_back(startS, endS);
             }
 
-
-
-            return seeds;
         }
 
 
 
     // TODO: make this private once its tested
-    private:
+    // private:
 
         // simple max inline functions
         inline int max(int x, int y) {return x > y ? x : y;}

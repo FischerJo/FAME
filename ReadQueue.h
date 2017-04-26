@@ -34,20 +34,20 @@ class ReadQueue
 
         // filters seeds according to simple counting criteria
         // #kmers of one metaCpG should be > READLEN - (KMERLEN * MISCOUNT)
-        inline bool filterSeeds(std::vector<std::vector<KMER::kmer> >& seeds, unsigned int readSize)
+        inline bool filterSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> > seedsS, unsigned int readSize)
         {
             // containing counts (second template param) on how often a specific metaCpG (index is first template param aka key)
             // is found across all kmers of this read
             std::unordered_map<uint32_t, unsigned int> counts;
 
             // count occurences of meta CpGs
-            for (unsigned int i = 0; i < seeds.size(); ++i)
+            for (unsigned int i = 0; i < seedsK.size(); ++i)
             {
 
-                for (unsigned int j = 0; j < seeds[0].size(); ++j)
+                for (unsigned int j = 0; j < seedsK[0].size(); ++j)
                 {
 
-                    auto insert = counts.emplace(KMER::getMetaCpG(seeds[i][j]), 1);
+                    auto insert = counts.emplace(KMER::getMetaCpG(seedsK[i][j]), 1);
 
                     // if insertion fails because metaCpG is already inserted, count one up
                     if (!insert.second)
@@ -62,24 +62,29 @@ class ReadQueue
 
             bool nonEmpty = false;
             // throw out rare metaCpGs
-            for (unsigned int i = 0; i < seeds.size(); ++i)
+            for (unsigned int i = 0; i < seedsK.size(); ++i)
             {
 
-                std::vector<KMER::kmer> filteredSeeds;
-                filteredSeeds.reserve(seeds[i].size());
-                for (unsigned int j = 0; j < seeds[0].size(); ++j)
+                std::vector<KMER::kmer> filteredSeedsK;
+                std::vector<bool> filteredSeedsS;
+                filteredSeedsK.reserve(seedsK[i].size());
+                filteredSeedsS.reserve(seedsK[i].size());
+                for (unsigned int j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    if (counts[KMER::getMetaCpG(seeds[i][j])] > cutoff)
+                    if (counts[KMER::getMetaCpG(seedsK[i][j])] > cutoff)
                     {
 
-                        filteredSeeds.push_back(seeds[i][j]);
+                        filteredSeedsK.push_back(seedsK[i][j]);
+                        filteredSeedsS.push_back(seedsS[i][j]);
 
                     }
                 }
-                filteredSeeds.shrink_to_fit();
-                nonEmpty = nonEmpty || !filteredSeeds.empty();
-                seeds[i] = std::move(filteredSeeds);
+                filteredSeedsK.shrink_to_fit();
+                filteredSeedsS.shrink_to_fit();
+                nonEmpty = nonEmpty || !filteredSeedsK.empty();
+                seedsK[i] = std::move(filteredSeedsK);
+                seedsS[i] = std::move(filteredSeedsS);
             }
 
             return nonEmpty;

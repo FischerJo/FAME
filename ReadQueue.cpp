@@ -53,7 +53,7 @@ bool ReadQueue::matchReads()
 {
 
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM)
+#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,10)
 #endif
     for (unsigned int i = 0; i < MyConst::CHUNKSIZE; ++i)
     {
@@ -105,13 +105,17 @@ bool ReadQueue::matchReads()
             }
         }
 
-        std::vector<std::vector<KMER::kmer> > fwdSeeds = std::move(ref.getSeeds(redSeq));
-        std::vector<std::vector<KMER::kmer> > revSeeds = std::move(ref.getSeeds(redRevSeq));
+        std::vector<std::vector<KMER::kmer> > fwdSeedsK;
+        std::vector<std::vector<bool> > fwdSeedsS;
+        ref.getSeeds(redSeq, fwdSeedsK, fwdSeedsS);
+        std::vector<std::vector<KMER::kmer> > revSeedsK;
+        std::vector<std::vector<bool> > revSeedsS;
+        ref.getSeeds(redRevSeq, revSeedsK, revSeedsS);
 
 
         // FILTER SEEDS
-        bool isFwd = filterSeeds(fwdSeeds, readSize);
-        bool isRev = filterSeeds(revSeeds, readSize);
+        bool isFwd = filterSeeds(fwdSeedsK, fwdSeedsS, readSize);
+        bool isRev = filterSeeds(revSeedsK, revSeedsS, readSize);
 
     }
     return true;
