@@ -44,6 +44,10 @@ class Read
         // The matching positions of the read
         std::vector<struct match> matches;
 
+        // flag stating if read has an N in sequence or is too small (< Kmerlength)
+        // if this is the case, it won't be processed
+        bool isInvalid;
+
 };
 
 #endif /* READ_H */
