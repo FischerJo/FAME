@@ -83,6 +83,48 @@ inline uint64_t getMask(uint64_t seq)
     return ~((x^y) << 1);
 }
 
+// return the encoding of the DNA letter c according to encoding scheme
+// reverse complement version of c with suffix 'Rev'
+// A -> 00
+// C -> 01
+// G -> 10
+// T -> 11
+//
+inline uint64_t getBitRepr(const char& c)
+{
+
+    switch (c)
+    {
+        case 'A':
+            return 0;
+        case 'C':
+            return 1;
+        case 'G':
+            return 2;
+        case 'T':
+            return 3;
+    }
+    std::cerr << "Cannot compute bit representation of letter \"" << c << "\"\n\n";
+    return 0;
+}
+inline uint64_t getBitReprRev(const char& c)
+{
+
+    switch (c)
+    {
+        case 'A':
+            return 3;
+        case 'C':
+            return 2;
+        case 'G':
+            return 1;
+        case 'T':
+            return 0;
+    }
+    std::cerr << "Cannot compute bit representation of letter \"" << c << "\"\n\n";
+    return 0;
+}
+
 } // end namespace BitFun
 
 #endif /* BITFUNCTIONS_H */
