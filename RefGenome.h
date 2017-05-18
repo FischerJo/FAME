@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 #include <list>
-#include <cstring>      // memchr()
 
 // Project includes
 #include "CONST.h"
@@ -94,6 +93,13 @@ class RefGenome
             }
 
         }
+
+        // yields the internal bit representation of the reference genome at the specified chromosome
+        // inline const DnaBitStr getBitRepr(unsigned int chr)
+        // {
+        //
+        //     return genomeBit[chr];
+        // }
 
 
 
@@ -566,9 +572,8 @@ class RefGenome
 
         // hash table
         // tabIndex [i] points into kmerTable where the first entry with hash value i is saved
-        // e.g. tabIndex[2] == 3 <=> hash(kmerTable[i]) < 3 forall i < 3
         // kmerTable holds the kmer (i.e. MetaCpg index and offset)
-        // strandTable hold the strand orientation of the corresponding kmer
+        // strandTable hold the strand orientation of the corresponding kmer (true iff forward)
         std::vector<uint64_t> tabIndex;
         std::vector<KMER::kmer> kmerTable;
         std::vector<bool> strandTable;

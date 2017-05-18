@@ -130,7 +130,8 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
 
     estimateTablesizes(genomeSeq);
 
-    // cout << "\nKmer table size: " << kmerTable.size() << endl;
+    cout << "\nKmer table size: " << kmerTable.size() << endl;
+    cout << "\nMeta CpGs: " << metaCpGs.size() << endl;
 
     // hash CpGs from the start
     uint32_t cpgCount = 0;
@@ -172,7 +173,6 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
             }
         }
     }
-
 }
 
 void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff)
