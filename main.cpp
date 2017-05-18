@@ -1,5 +1,6 @@
 #include "RefReader_istr.h"
 #include "RefGenome.h"
+#include "ReadQueue.h"
 
 // --------------- MAIN -----------------
 //
@@ -13,6 +14,9 @@ int main(int argc, char** argv) {
 
     readReference(argv[1], cpgTab, cpgStartTab, genSeq);
     RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq);
+    ReadQueue rQue(argv[2], ref);
+    rQue.parseChunk();
+    rQue.matchReads();
 }
 //
 //
