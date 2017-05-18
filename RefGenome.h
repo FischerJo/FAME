@@ -60,12 +60,22 @@ class RefGenome
 
             // retrieve kmers for first hash
             uint64_t hVal = ntHash::NTP64(seq.data());
+            uint64_t hashInd = hVal % tabIndex.size();
 
             // get iterators framing subset of kmers corresponding to this hash
-            std::advance(startK, tabIndex[hVal % tabIndex.size()]);
-            std::advance(endK, tabIndex[(hVal % tabIndex.size()) + 1]);
-            std::advance(startS, tabIndex[hVal % tabIndex.size()]);
-            std::advance(endS, tabIndex[(hVal % tabIndex.size()) + 1]);
+            std::advance(startK, tabIndex[hashInd]);
+            std::advance(startS, tabIndex[hashInd]);
+            // if we are in last table entry
+            if ( hashInd == tabIndex.size() - 1)
+            {
+                std::advance(endK, tabIndex.size());
+                std::advance(endS, tabIndex.size());
+
+            } else {
+
+                std::advance(endK, tabIndex[hashInd + 1]);
+                std::advance(endS, tabIndex[hashInd + 1]);
+            }
 
             // retrieve seeds
             seedsK.emplace_back(startK, endK);
@@ -76,16 +86,27 @@ class RefGenome
 
                 // use rolling hash
                 ntHash::NTP64(hVal, seq[i], seq[i + MyConst::KMERLEN]);
+                hashInd = hVal % tabIndex.size();
 
                 startK = kmerTable.begin();
-                std::advance(startK, tabIndex[hVal % tabIndex.size()]);
+                std::advance(startK, tabIndex[hashInd]);
                 endK = kmerTable.begin();
-                std::advance(endK, tabIndex[(hVal % tabIndex.size()) + 1]);
 
                 startS = strandTable.begin();
-                std::advance(startS, tabIndex[hVal % tabIndex.size()]);
+                std::advance(startS, tabIndex[hashInd]);
                 endS = strandTable.begin();
-                std::advance(endS, tabIndex[(hVal % tabIndex.size()) + 1]);
+                // if we are in last table entry
+                if ( hashInd == tabIndex.size() - 1)
+                {
+
+                    std::advance(endK, tabIndex.size());
+                    std::advance(endS, tabIndex.size());
+
+                } else {
+
+                    std::advance(endK, tabIndex[hashInd + 1]);
+                    std::advance(endS, tabIndex[hashInd + 1]);
+                }
 
                 // retrieve seeds
                 seedsK.emplace_back(startK, endK);
