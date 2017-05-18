@@ -27,7 +27,7 @@ constexpr unsigned int READLEN = 100;
 constexpr unsigned int CHUNKSIZE = 200000;
 
 // Number of cores that this program is allowed to occupy at any given point
-#define CORENUM 8
+#define CORENUM 1
 
 
 //  --------------------------------------
@@ -50,19 +50,18 @@ constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 
 // constexpr KPERREAD = READLEN - KMERLEN + 1;
 
 
-// bitmask to extract type of CpG used by kmer.cpg
-// constexpr uint32_t INDMASK = 0x80000000;
-
 // size of hash table
-constexpr unsigned int HTABSIZE = 1 << 30;
+constexpr unsigned int HTABSIZE = 1 << 17;
 
 
 // window length for meta CpGs
-constexpr unsigned int WINLEN = 1 << 14;
+constexpr unsigned int WINLEN = 1 << 12;
 
 // number of mismatches we allow
 constexpr unsigned int MISCOUNT = 1;
 
+// Checks the usefulness of the set parameters
+void sanityChecks();
 
 }
 
