@@ -1,5 +1,5 @@
 
-OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o main.o ReadQueue.o Read.o
+OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o main.o ReadQueue.o Read.o CONST.o
 PROGNAME=Metal
 CXX=g++
 
