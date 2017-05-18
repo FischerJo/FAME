@@ -38,7 +38,7 @@ bool ReadQueue::parseChunk()
 
         ++readCounter;
 
-        // if buffer is full, return
+        // if buffer is read completely, return
         if (readCounter >= MyConst::CHUNKSIZE)
         {
             return true;
@@ -60,7 +60,7 @@ bool ReadQueue::matchReads()
 
         Read& r = readBuffer[i];
 
-        unsigned int readSize = r.seq.size();
+        const unsigned int readSize = r.seq.size();
 
         // RETRIEVE SEEDS
         //
@@ -113,10 +113,31 @@ bool ReadQueue::matchReads()
         ref.getSeeds(redRevSeq, revSeedsK, revSeedsS);
 
 
-        // FILTER SEEDS
-        bool isFwd = filterSeeds(fwdSeedsK, fwdSeedsS, readSize);
-        bool isRev = filterSeeds(revSeedsK, revSeedsS, readSize);
+        // FILTER SEEDS BY COUNTING LEMMA
+        bool isFwd = filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
+        bool isRev = filterHeuSeeds(revSeedsK, revSeedsS, readSize);
 
+
+        // BITMASK COMPARISON ON FULL ALPHABET FOR REMAINING SEEDS
+        if (isFwd)
+        {
+            bitMatching(r, fwdSeedsK, fwdSeedsS);
+        }
+        if (isRev)
+        {
+            bitMatchingRev(r, revSeedsK, revSeedsS);
+        }
+
+        // FILTER MATCHING KMERS BY COUNTING LEMMA
+        isFwd = filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
+        isRev = filterHeuSeeds(revSeedsK, revSeedsS, readSize);
     }
     return true;
+}
+
+
+void ReadQueue::printStatistics(const std::vector<std::vector<KMER::kmer> > SeedsK)
+{
+
+
 }

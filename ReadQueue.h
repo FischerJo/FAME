@@ -33,8 +33,8 @@ class ReadQueue
     private:
 
         // filters seeds according to simple counting criteria
-        // #kmers of one metaCpG should be > READLEN - (KMERLEN * MISCOUNT)
-        inline bool filterSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> > seedsS, unsigned int readSize)
+        // #kmers of one metaCpG should be > READLEN - KMERLEN + 1 - (KMERLEN * MISCOUNT)
+        inline bool filterHeuSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
         {
             // containing counts (second template param) on how often a specific metaCpG (index is first template param aka key)
             // is found across all kmers of this read
@@ -44,21 +44,33 @@ class ReadQueue
             for (unsigned int i = 0; i < seedsK.size(); ++i)
             {
 
-                for (unsigned int j = 0; j < seedsK[0].size(); ++j)
+                // last visited id in this table entry
+                // avoid counting metaCpGs more then once per kmer
+                // note that metaCpGs are hashed in reverse order
+                uint64_t lastId = 0xffffffffffffffffULL;
+                for (unsigned int j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    auto insert = counts.emplace(KMER::getMetaCpG(seedsK[i][j]), 1);
+                    auto metaId = KMER::getMetaCpG(seedsK[i][j]);
+                    // check if we visited meta CpG before
+                    if (metaId == lastId)
+                    {
+                        continue;
+                    }
 
-                    // if insertion fails because metaCpG is already inserted, count one up
+                    lastId = metaId;
+                    auto insert = counts.emplace(metaId, 1);
+
+                    // if insertion fails because metaCpG is already inserted, count up everything
                     if (!insert.second)
                     {
-                        ++((*(insert.first)).second);
+                        ++((insert.first)->second);
                     }
                 }
             }
 
             // More than cutoff many kmers are required per metaCpG
-            const unsigned int cutoff = readSize - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            const unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT);
 
             bool nonEmpty = false;
             // throw out rare metaCpGs
@@ -72,7 +84,8 @@ class ReadQueue
                 for (unsigned int j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    if (counts[KMER::getMetaCpG(seedsK[i][j])] > cutoff)
+                    // test for strict heuristic criterias
+                    if (counts[KMER::getMetaCpG(seedsK[i][j])] > countCut)
                     {
 
                         filteredSeedsK.push_back(seedsK[i][j]);
@@ -90,6 +103,227 @@ class ReadQueue
             return nonEmpty;
         }
 
+        // Do a bitmatching between the specified seeds of the reference and the read r or the reverse complement (Rev suffix)
+        //
+        // ARGUMENTS:
+        //              r       read to match with
+        //              seedsK  list of kmer positions in reference that should be checked
+        //              seedsS  list of flags for each kmer in seedsK stating if it is from forward or reverse reference strand
+        //
+        // RETURN:
+        //              void
+        //
+        // MODIFICATIONS:
+        //              function will filter seedsK and seedsS to contain only reference kmers that match read kmer under bitmask
+        //              comparison
+        inline void bitMatching(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        {
+
+            // masking for actual kmer bits
+            constexpr uint64_t signiBits = 0xffffffffffffffffULL >> (64 - (2*MyConst::KMERLEN));
+            // bit representation of current kmer of read
+            uint64_t kmerBits = 0;
+            // generate bit representation of first kmerlen - 1 letters of read
+            for (unsigned int i = 0; i < (MyConst::KMERLEN - 1); ++i)
+            {
+
+                kmerBits = kmerBits << 2;
+                kmerBits |= BitFun::getBitRepr(r.seq[i]);
+
+            }
+
+            // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
+            std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
+            std::vector<std::vector<bool> > newSeedsS(seedsK.size());
+
+            // go over each read kmer and compare with reference seeds
+            for (unsigned int offset = 0; offset < (r.seq.size() - MyConst::KMERLEN + 1); ++offset)
+            {
+
+                std::vector<KMER::kmer>& localSeedsK = seedsK[offset];
+                std::vector<bool>& localSeedsS = seedsS[offset];
+                // reserve some space for seedlist
+                newSeedsK[offset].reserve(localSeedsK.size());
+                newSeedsS[offset].reserve(localSeedsK.size());
+
+                // update current read kmer representation
+                kmerBits = kmerBits << 2;
+                kmerBits = (kmerBits | BitFun::getBitRepr(r.seq[offset + MyConst::KMERLEN - 1])) && signiBits;
+
+                // iterate over corresponding seeds for reference
+                for (unsigned int i = 0; i < localSeedsK.size(); ++i)
+                {
+
+                    KMER::kmer& refKmer = localSeedsK[i];
+
+                    // will hold the first CpG in metaCpG after retrieving the meta CpG info
+                    uint8_t chrom;
+                    // will hold the position of the meta CpG in the genome (chromosomal region specified by chrom of the genome)
+                    uint32_t pos = 0;
+                    // retrieve reference bit representation
+                    //
+                    // First retrieve meta CpG info
+                    if (KMER::isStartCpG(refKmer))
+                    {
+
+                        uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+                        chrom = ref.cpgStartTable[cpgInd].chrom;
+
+                    } else {
+
+                        uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+                        chrom = ref.cpgTable[cpgInd].chrom;
+                        pos = ref.cpgTable[cpgInd].pos;
+
+                    }
+                    // will hold bit representation of seed
+                    uint64_t refKmerBit;
+                    // decide if forward or reverse strand of reference
+                    //
+                    // if forward
+                    if (localSeedsS[i])
+                    {
+                        // retrieve sequence in forward strand
+                        refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
+
+                    // is reverse
+                    } else {
+
+                        // retrieve sequence in forward strand
+                        refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
+                    }
+
+                    // COMPARE read kmer and seed
+                    //  matching is 0 iff full match
+                    if ( !( refKmerBit ^ (kmerBits & BitFun::getMask(refKmerBit)) ) )
+                    {
+
+                        // if we have a match, keep this kmer and strand flag in list
+                        newSeedsK[offset].emplace_back(refKmer);
+                        newSeedsS[offset].emplace_back(localSeedsS[i]);
+                    }
+                }
+                newSeedsK[offset].shrink_to_fit();
+                newSeedsS[offset].shrink_to_fit();
+
+            }
+
+            seedsK = std::move(newSeedsK);
+            seedsS = std::move(newSeedsS);
+
+        }
+        inline void bitMatchingRev(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        {
+
+            const unsigned int readSize = r.seq.size();
+            // masking for actual kmer bits
+            constexpr uint64_t signiBits = 0xffffffffffffffffULL >> (64 - (2*MyConst::KMERLEN));
+            // bit representation of current kmer of read
+            uint64_t kmerBits = 0;
+            // generate bit representation of first kmerlen - 1 letters of reverse complement of read
+            // Not that we start reading from right
+            for (unsigned int i = readSize - 1; i > readSize - MyConst::KMERLEN; --i)
+            {
+
+                kmerBits = kmerBits << 2;
+                kmerBits |= BitFun::getBitReprRev(r.seq[i]);
+
+            }
+
+            // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
+            std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
+            std::vector<std::vector<bool> > newSeedsS(seedsK.size());
+
+            // go over each read kmer and compare with reference seeds
+            for (unsigned int offset = readSize - MyConst::KMERLEN; offset >= 0; --offset)
+            {
+
+                // index for seed vector for current read kmer
+                const unsigned int kmerInd = readSize - MyConst::KMERLEN - offset;
+                std::vector<KMER::kmer>& localSeedsK = seedsK[kmerInd];
+                std::vector<bool>& localSeedsS = seedsS[kmerInd];
+                // reserve some space for seedlist
+                newSeedsK[kmerInd].reserve(localSeedsK.size());
+                newSeedsS[kmerInd].reserve(localSeedsK.size());
+
+                // update current read kmer representation
+                kmerBits = kmerBits << 2;
+                kmerBits = (kmerBits | BitFun::getBitReprRev(r.seq[offset])) && signiBits;
+
+                // iterate over corresponding seeds for reference
+                for (unsigned int i = 0; i < localSeedsK.size(); ++i)
+                {
+
+                    KMER::kmer& refKmer = localSeedsK[i];
+
+                    // will hold the chromosome index in metaCpG after retrieving the meta CpG info
+                    uint8_t chrom;
+                    // will hold the position of the meta CpG in the genome (chromosomal region specified by chrom of the genome)
+                    uint32_t pos = 0;
+                    // retrieve reference bit representation
+                    //
+                    // First retrieve meta CpG info
+                    if (KMER::isStartCpG(refKmer))
+                    {
+
+                        uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+                        chrom = ref.cpgStartTable[cpgInd].chrom;
+
+                    } else {
+
+                        uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+                        chrom = ref.cpgTable[cpgInd].chrom;
+                        pos = ref.cpgTable[cpgInd].pos;
+
+                    }
+                    // will hold bit representation of seed
+                    uint64_t refKmerBit;
+                    // decide if forward or reverse strand of reference
+                    //
+                    // if forward
+                    if (localSeedsS[i])
+                    {
+                        // retrieve sequence in forward strand
+                        refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
+
+                    // is reverse
+                    } else {
+
+                        // retrieve sequence in forward strand
+                        refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
+                    }
+
+                    // COMPARE read kmer and seed
+                    //  matching is 0 iff full match
+                    if ( !( refKmerBit ^ (kmerBits & BitFun::getMask(refKmerBit)) ) )
+                    {
+
+                        // if we have a match, keep this kmer and strand flag in list
+                        newSeedsK[offset].emplace_back(refKmer);
+                        newSeedsS[offset].emplace_back(localSeedsS[i]);
+                    }
+                }
+                newSeedsK[offset].shrink_to_fit();
+                newSeedsS[offset].shrink_to_fit();
+
+            }
+
+            seedsK = std::move(newSeedsK);
+            seedsS = std::move(newSeedsS);
+        }
+
+        // print statistics over seed set
+        //
+        // ARGUMENTS:
+        //              SeedsK      seed set
+        //
+        // RETURN:
+        //              void
+        //
+        // MODIFICATIONS:
+        //              none
+        //
+        void printStatistics(const std::vector<std::vector<KMER::kmer> > SeedsK);
 
         // input stream of file given as path to Ctor
         std::ifstream file;
