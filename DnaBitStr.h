@@ -37,9 +37,43 @@ class DnaBitStr
         DnaBitStr(const unsigned int size);
 
 
-        // Compute the bit string representation and bitmasks of seq
-        // IMPORTANT: seq should be of length "size" (member variable) o/w undefined behaviour
-        // void computeBitStr(std::string& seq);
+        // Get n letters of sequence in bit representation starting at pos
+        // Returns n/32 many vectors, comprising the sequence.
+        // if n%32 != 0 then the last element of return vector will hold n%32 * 2 bits
+        // in the less significant bits for the remainder-sequence
+        // inline std::vector<uint64_t> getBitStr(const unsigned int pos, const unsigned int n)
+        // {
+        //
+        //     // get position of first part of slice in vector
+        //     unsigned int index = pos / 32;
+        //     const unsigned int shift = 2*(pos % 32);
+        //
+        //     // reserve space for output
+        //     std::vector<uint64_t> result;
+        //     result.reserve(n/32 + 1);
+        //
+        //     // retrieve sequence
+        //     for (unsigned int i = 0; i < n/32; ++i, ++index)
+        //     {
+        //
+        //         result.emplace_back((bitSeq[index] << shift) | (bitSeq[index + 1] >> (64 - shift)));
+        //
+        //     }
+        //     // Retrieve last part of sequence
+        //     if (n % 32 > 0)
+        //     {
+        //
+        //         if (2*(n % 32) > shift)
+        //         {
+        //
+        //             result.emplace_back((bitSeq[index] << shift) >> (64 - 2*(n % 32)));
+        //
+        //         }
+        //     }
+        //
+        //
+        //     return result;
+        // }
 
 
         // Set the n-th 64 bit element of bitSeq and bitMask according to sequence part
