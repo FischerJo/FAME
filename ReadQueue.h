@@ -14,7 +14,7 @@ class ReadQueue
 
     public:
 
-        ReadQueue(std::string& filePath, RefGenome& ref);
+        ReadQueue(const char* filePath, RefGenome& ref);
 
 
         // Parses a chunk of the ifstream file
@@ -34,11 +34,11 @@ class ReadQueue
 
         // filters seeds according to simple counting criteria
         // #kmers of one metaCpG should be > READLEN - KMERLEN + 1 - (KMERLEN * MISCOUNT)
-        inline bool filterHeuSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
+        inline void filterHeuSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
         {
-            // containing counts (second template param) on how often a specific metaCpG (index is first template param aka key)
-            // is found across all kmers of this read
-            std::unordered_map<uint32_t, unsigned int> counts;
+
+            // counts on how often metaCpG has been seen
+            std::vector<unsigned int> counts (ref.metaCpGs.size(), 0);
 
             // count occurences of meta CpGs
             for (unsigned int i = 0; i < seedsK.size(); ++i)
@@ -51,7 +51,7 @@ class ReadQueue
                 for (unsigned int j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    auto metaId = KMER::getMetaCpG(seedsK[i][j]);
+                    uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
                     // check if we visited meta CpG before
                     if (metaId == lastId)
                     {
@@ -59,20 +59,15 @@ class ReadQueue
                     }
 
                     lastId = metaId;
-                    auto insert = counts.emplace(metaId, 1);
-
-                    // if insertion fails because metaCpG is already inserted, count up everything
-                    if (!insert.second)
-                    {
-                        ++((insert.first)->second);
-                    }
+                    ++counts[metaId];
                 }
             }
 
             // More than cutoff many kmers are required per metaCpG
             const unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // const unsigned int countCut = 0;
 
-            bool nonEmpty = false;
+
             // throw out rare metaCpGs
             for (unsigned int i = 0; i < seedsK.size(); ++i)
             {
@@ -85,7 +80,7 @@ class ReadQueue
                 {
 
                     // test for strict heuristic criterias
-                    if (counts[KMER::getMetaCpG(seedsK[i][j])] > countCut)
+                    if (counts[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
                     {
 
                         filteredSeedsK.push_back(seedsK[i][j]);
@@ -95,12 +90,10 @@ class ReadQueue
                 }
                 filteredSeedsK.shrink_to_fit();
                 filteredSeedsS.shrink_to_fit();
-                nonEmpty = nonEmpty || !filteredSeedsK.empty();
                 seedsK[i] = std::move(filteredSeedsK);
                 seedsS[i] = std::move(filteredSeedsS);
             }
 
-            return nonEmpty;
         }
 
         // Do a bitmatching between the specified seeds of the reference and the read r or the reverse complement (Rev suffix)
@@ -140,15 +133,16 @@ class ReadQueue
             for (unsigned int offset = 0; offset < (r.seq.size() - MyConst::KMERLEN + 1); ++offset)
             {
 
+                // retrieve seeds for current kmer
                 std::vector<KMER::kmer>& localSeedsK = seedsK[offset];
                 std::vector<bool>& localSeedsS = seedsS[offset];
-                // reserve some space for seedlist
+                // reserve some space for result seedlist
                 newSeedsK[offset].reserve(localSeedsK.size());
                 newSeedsS[offset].reserve(localSeedsK.size());
 
                 // update current read kmer representation
                 kmerBits = kmerBits << 2;
-                kmerBits = (kmerBits | BitFun::getBitRepr(r.seq[offset + MyConst::KMERLEN - 1])) && signiBits;
+                kmerBits = (kmerBits | BitFun::getBitRepr(r.seq[offset + MyConst::KMERLEN - 1])) & signiBits;
 
                 // iterate over corresponding seeds for reference
                 for (unsigned int i = 0; i < localSeedsK.size(); ++i)
@@ -166,12 +160,12 @@ class ReadQueue
                     if (KMER::isStartCpG(refKmer))
                     {
 
-                        uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+                        const uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
                         chrom = ref.cpgStartTable[cpgInd].chrom;
 
                     } else {
 
-                        uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+                        const uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
                         chrom = ref.cpgTable[cpgInd].chrom;
                         pos = ref.cpgTable[cpgInd].pos;
 
@@ -234,12 +228,12 @@ class ReadQueue
             std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
             std::vector<std::vector<bool> > newSeedsS(seedsK.size());
 
+            // index for seed vector for current read kmer
+            unsigned int kmerInd = 0;
             // go over each read kmer and compare with reference seeds
-            for (unsigned int offset = readSize - MyConst::KMERLEN; offset >= 0; --offset)
+            for (unsigned int offset = readSize - MyConst::KMERLEN; offset > 0; --offset, ++kmerInd)
             {
 
-                // index for seed vector for current read kmer
-                const unsigned int kmerInd = readSize - MyConst::KMERLEN - offset;
                 std::vector<KMER::kmer>& localSeedsK = seedsK[kmerInd];
                 std::vector<bool>& localSeedsS = seedsS[kmerInd];
                 // reserve some space for seedlist
@@ -248,7 +242,7 @@ class ReadQueue
 
                 // update current read kmer representation
                 kmerBits = kmerBits << 2;
-                kmerBits = (kmerBits | BitFun::getBitReprRev(r.seq[offset])) && signiBits;
+                kmerBits = (kmerBits | BitFun::getBitReprRev(r.seq[offset - 1])) & signiBits;
 
                 // iterate over corresponding seeds for reference
                 for (unsigned int i = 0; i < localSeedsK.size(); ++i)
@@ -299,12 +293,12 @@ class ReadQueue
                     {
 
                         // if we have a match, keep this kmer and strand flag in list
-                        newSeedsK[offset].emplace_back(refKmer);
-                        newSeedsS[offset].emplace_back(localSeedsS[i]);
+                        newSeedsK[kmerInd].emplace_back(refKmer);
+                        newSeedsS[kmerInd].emplace_back(localSeedsS[i]);
                     }
                 }
-                newSeedsK[offset].shrink_to_fit();
-                newSeedsS[offset].shrink_to_fit();
+                newSeedsK[kmerInd].shrink_to_fit();
+                newSeedsS[kmerInd].shrink_to_fit();
 
             }
 
@@ -312,10 +306,35 @@ class ReadQueue
             seedsS = std::move(newSeedsS);
         }
 
-        // print statistics over seed set
+        // print statistics over seed set to statFile and countFile
+        //
+        // statFile contains statistics over how many times (at most n) the same meta CpG appears in the seed list of one kmer
+        // blocks of 4 lines show the change before countfilter, after countfilter, after bitmatch, after second countfilter
+        //
+        // OUTPUT FORMAT (tsv):
+        // #occurences of same meta cpg   1   2   3   ...    n
+        // read 1 firstLayer
+        // read 1 secondLayer
+        // read 1 thirdlLayer
+        // read 1 fourthLayer
+        // read 2 firstLayer
+        // read 2 ...
+        //
+        //
+        // countFile contains counts on how many seeds were found for the given read, 4 columns forming the layers
+        // before countfilter, after countfilter, after bitmatch, after second countfilter
+        //
+        // OUTPUT FORMAT (tsv):
+        // Layer    1   2   3   4
+        // read1
+        // read2
+        // read3
+        // ...
+        //
+        // function called for each layer
         //
         // ARGUMENTS:
-        //              SeedsK      seed set
+        //              SeedsK      (current) seed set
         //
         // RETURN:
         //              void
@@ -323,6 +342,9 @@ class ReadQueue
         // MODIFICATIONS:
         //              none
         //
+        static constexpr unsigned int n = 400;
+        std::ofstream statFile;
+        std::ofstream countFile;
         void printStatistics(const std::vector<std::vector<KMER::kmer> > SeedsK);
 
         // input stream of file given as path to Ctor
