@@ -60,7 +60,7 @@ TEST(RefGenome_test, simple1)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 5; i <= (63 - MyConst::KMERLEN); ++i)
@@ -81,7 +81,7 @@ TEST(RefGenome_test, simple1)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -97,7 +97,7 @@ TEST(RefGenome_test, simple1)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -113,14 +113,14 @@ TEST(RefGenome_test, simple1)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
@@ -168,7 +168,7 @@ TEST(RefGenome_test, simpleWithN)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 16; i <= (56 - MyConst::KMERLEN); ++i)
@@ -189,7 +189,7 @@ TEST(RefGenome_test, simpleWithN)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -205,7 +205,7 @@ TEST(RefGenome_test, simpleWithN)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -221,14 +221,14 @@ TEST(RefGenome_test, simpleWithN)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
@@ -302,7 +302,7 @@ TEST(RefGenome_test, multiCpGNoOverlap)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 60; i <= (118 - MyConst::KMERLEN); ++i)
@@ -332,7 +332,7 @@ TEST(RefGenome_test, multiCpGNoOverlap)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -348,7 +348,7 @@ TEST(RefGenome_test, multiCpGNoOverlap)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -363,7 +363,7 @@ TEST(RefGenome_test, multiCpGNoOverlap)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
@@ -378,7 +378,7 @@ TEST(RefGenome_test, multiCpGNoOverlap)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -393,14 +393,14 @@ TEST(RefGenome_test, multiCpGNoOverlap)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
@@ -445,7 +445,7 @@ TEST(RefGenome_test, multiCpGOverlap)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 3; i <= (67 - MyConst::KMERLEN); ++i)
@@ -463,7 +463,7 @@ TEST(RefGenome_test, multiCpGOverlap)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -479,7 +479,7 @@ TEST(RefGenome_test, multiCpGOverlap)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         KMER::kmer kRev = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(kRev));
@@ -494,7 +494,7 @@ TEST(RefGenome_test, multiCpGOverlap)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
@@ -510,7 +510,7 @@ TEST(RefGenome_test, multiCpGOverlap)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -524,14 +524,14 @@ TEST(RefGenome_test, multiCpGOverlap)
         uint32_t off = i - 3;
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
@@ -578,7 +578,7 @@ TEST(RefGenome_test, multiMeta)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 5; i <= (63 - MyConst::KMERLEN); ++i)
@@ -599,7 +599,7 @@ TEST(RefGenome_test, multiMeta)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -615,7 +615,7 @@ TEST(RefGenome_test, multiMeta)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -631,7 +631,7 @@ TEST(RefGenome_test, multiMeta)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
@@ -646,7 +646,7 @@ TEST(RefGenome_test, multiMeta)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -662,14 +662,14 @@ TEST(RefGenome_test, multiMeta)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(1, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
@@ -713,7 +713,7 @@ TEST(RefGenome_test, simpleAtEnd)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 0; i <= (37 - MyConst::KMERLEN); ++i)
@@ -734,7 +734,7 @@ TEST(RefGenome_test, simpleAtEnd)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -750,7 +750,7 @@ TEST(RefGenome_test, simpleAtEnd)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -766,14 +766,14 @@ TEST(RefGenome_test, simpleAtEnd)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
@@ -819,7 +819,7 @@ TEST(RefGenome_test, simpleAtStart)
 
     // index to handle collisions in test
     // position i safes how many times we already accessed corresponding struct in kmerTable
-    std::vector<unsigned int> kmerInd (ref.tabIndex.size(), 0);
+    std::vector<unsigned int> kmerInd (MyConst::HTABSIZE, 0);
 
     // count the hashes
     for (unsigned int i = 5; i <= (45 - MyConst::KMERLEN); ++i)
@@ -840,7 +840,7 @@ TEST(RefGenome_test, simpleAtStart)
 
     unsigned long sum = 0;
     // test if hash offsets are correct
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += kmerInd[i];
@@ -856,7 +856,7 @@ TEST(RefGenome_test, simpleAtStart)
 
         // get hash of corresponding reverse kmer
         uint64_t hash = ntHash::NTP64(redRevSeq.data() + i);
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         // lookup if kmer is present in hash table
         bool strand = ref.strandTable[index];
         ASSERT_EQ(0, strand);
@@ -873,7 +873,7 @@ TEST(RefGenome_test, simpleAtStart)
         // get hash of corresponding kmer
         uint64_t hash = ntHash::NTP64(redSeq.data() + i);
         // lookup if kmer is present in hash table
-        unsigned int index = --kmerInd[hash % ref.tabIndex.size()];
+        unsigned int index = --kmerInd[hash % MyConst::HTABSIZE];
         KMER::kmer k = ref.kmerTable[index];
         ASSERT_EQ(0, KMER::getMetaCpG(k));
         ASSERT_EQ(off, KMER::getOffset(k));
@@ -881,7 +881,7 @@ TEST(RefGenome_test, simpleAtStart)
         bool strand = ref.strandTable[index];
         ASSERT_EQ(1, strand);
     }
-    for (unsigned int i = 0; i < ref.tabIndex.size(); ++i)
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         ASSERT_EQ(kmerInd[i], ref.tabIndex[i]);
