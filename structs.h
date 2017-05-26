@@ -55,12 +55,12 @@ namespace KMER {
 
 
     // return the offset of given kmer inside its cpg
-    inline uint32_t getOffset(KMER::kmer& k)
+    inline uint64_t getOffset(KMER::kmer& k)
     {
         return k & 0x00000000ffffffffULL;
     }
 
-    inline uint32_t getMetaCpG(KMER::kmer& k)
+    inline uint64_t getMetaCpG(KMER::kmer& k)
     {
         return (k & 0x7fffffff00000000ULL) >> 32;
     }
