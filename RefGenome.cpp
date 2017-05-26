@@ -308,8 +308,8 @@ void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const uns
     uint64_t kPosRev = off - MyConst::KMERLEN;
 
     // update kmer table
-    kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-    strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
+    kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
+    strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
 
 
     // hash kmers of backward strand
@@ -318,8 +318,8 @@ void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const uns
         --kPosRev;
         ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
         // update kmer table
-        kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-        strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
+        kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
+        strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
     }
 
     // initial hash forward
@@ -327,8 +327,8 @@ void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const uns
     uint64_t kPos = lasN;
 
     // update kmer table
-    kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-    strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
+    kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
+    strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
@@ -336,8 +336,8 @@ void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const uns
         ++kPos;
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         // update kmer table
-        kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-        strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
+        kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
+        strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
     }
 }
 
@@ -474,8 +474,8 @@ void RefGenome::ntHashFirst(const vector<char>& seq, uint32_t& lastPos, const un
     uint64_t kPosRev = off - MyConst::KMERLEN;
 
     // update kmer table
-    kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
-    strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
+    kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
+    strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
 
 
     // hash kmers of backward strand
@@ -484,8 +484,8 @@ void RefGenome::ntHashFirst(const vector<char>& seq, uint32_t& lastPos, const un
         --kPosRev;
         ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
         // update kmer table
-        kmerTable[--tabIndex[rhVal % tabIndex.size()]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
-        strandTable[tabIndex[rhVal % tabIndex.size()]] = false;
+        kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
+        strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
     }
 
     // initial hash forward
@@ -493,8 +493,8 @@ void RefGenome::ntHashFirst(const vector<char>& seq, uint32_t& lastPos, const un
     uint64_t kPos = lasN;
 
     // update kmer table
-    kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(1, metacpg, kPos));
-    strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
+    kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
+    strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
@@ -502,8 +502,8 @@ void RefGenome::ntHashFirst(const vector<char>& seq, uint32_t& lastPos, const un
         ++kPos;
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         // update kmer table
-        kmerTable[--tabIndex[fhVal % tabIndex.size()]] = std::move(KMER::constructKmer(1, metacpg, kPos));
-        strandTable[tabIndex[fhVal % tabIndex.size()]] = true;
+        kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
+        strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
     }
     lastPos = off - MyConst::KMERLEN + 1;
 
@@ -640,26 +640,26 @@ void RefGenome::ntCountFirst(vector<char>& seq, uint32_t& lastPos, const unsigne
     uint64_t rhVal = ntHash::NTP64(seqStartRev);
 
     // update kmer table
-    ++tabIndex[rhVal % tabIndex.size()];
+    ++tabIndex[rhVal % MyConst::HTABSIZE];
 
 
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-        ++tabIndex[rhVal % tabIndex.size()];
+        ++tabIndex[rhVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
     uint64_t fhVal = ntHash::NTP64(seqStart);
 
-    ++tabIndex[fhVal % tabIndex.size()];
+    ++tabIndex[fhVal % MyConst::HTABSIZE];
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-        ++tabIndex[fhVal % tabIndex.size()];
+        ++tabIndex[fhVal % MyConst::HTABSIZE];
     }
     lastPos = off - MyConst::KMERLEN + 1;
 
@@ -795,7 +795,7 @@ void RefGenome::ntCountLast(vector<char>& seq, uint32_t& lastPos, const unsigned
     uint64_t rhVal = ntHash::NTP64(seqStartRev);
 
     // update indices
-    ++tabIndex[rhVal % tabIndex.size()];
+    ++tabIndex[rhVal % MyConst::HTABSIZE];
 
 
     // hash kmers of backward strand
@@ -803,20 +803,100 @@ void RefGenome::ntCountLast(vector<char>& seq, uint32_t& lastPos, const unsigned
     {
         ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
         // update indices
-        ++tabIndex[rhVal % tabIndex.size()];
+        ++tabIndex[rhVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
     uint64_t fhVal = ntHash::NTP64(seqStart);
 
     // update indices
-    ++tabIndex[fhVal % tabIndex.size()];
+    ++tabIndex[fhVal % MyConst::HTABSIZE];
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
         // update indices
-        ++tabIndex[fhVal % tabIndex.size()];
+        ++tabIndex[fhVal % MyConst::HTABSIZE];
     }
+}
+
+
+void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
+{
+
+    // count start CpG kmers
+    for (metaCpG& m : metaStartCpGs)
+    {
+
+        // we know that all of the CpGs at start will overlap
+        const uint8_t chr = cpgStartTable[m.start].chrom;
+
+        uint32_t lastPos = 0;
+
+        for (uint32_t cpgInd = m.start; cpgInd <= m.end; ++cpgInd)
+        {
+            ntCountFirst(genomeSeq[chr], lastPos, cpgStartTable[cpgInd].pos);
+
+        }
+    }
+    // count normal CpG kmers
+    for (metaCpG& m : metaCpGs)
+    {
+
+        const uint8_t chr = cpgTable[m.start].chrom;
+
+        uint32_t lastPos = 0;
+
+        // how long is the rest of the sequence after the end of last cpg in meta cpg
+        unsigned int remainderBps = genomeSeq[cpgTable[m.start].chrom].size() - (cpgTable[m.start].pos + MyConst::READLEN);
+
+        // kmers of first CpG
+        if (remainderBps >= (MyConst::READLEN - 2) )
+        {
+            ntCountChunk(genomeSeq[chr], lastPos, cpgTable[m.start].pos);
+
+        } else {
+
+            ntCountLast(genomeSeq[chr], lastPos, cpgTable[m.start].pos, remainderBps);
+        }
+
+        // consecutive CpG kmers
+        for (uint32_t cpgInd = m.start + 1; cpgInd <= m.end; ++cpgInd)
+        {
+
+            remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
+            // if we can read the full sequence breadth after the CpG
+            if (remainderBps >= (MyConst::READLEN - 2) )
+            {
+
+                // count the collisions
+                ntCountChunk(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos);
+
+            } else {
+
+                // count the collisions and break
+                ntCountLast(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos, remainderBps);
+                break;
+            }
+        }
+
+
+    }
+
+    unsigned long sum = 0;
+    // update to sums of previous entrys
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
+    {
+
+        sum += tabIndex[i];
+        tabIndex[i] = sum;
+    }
+
+    // resize table to number of kmers that have to be hashed
+    kmerTable.resize(sum);
+    strandTable.resize(sum);
+
+    // fill dummy value
+    tabIndex[MyConst::HTABSIZE] = sum;
 }
