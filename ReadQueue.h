@@ -18,16 +18,19 @@ class ReadQueue
 
 
         // Parses a chunk of the ifstream file
-        // Reads MyConst::CHUNKSIZE many reads and saves them
+        // Reads up to MyConst::CHUNKSIZE many reads and saves them
+        // ARGUMENT:
+        //          procReads   will contain number of reads that have been read into buffer
         // returns true if neither read error nor EOF occured, false otherwise
-        bool parseChunk();
+        bool parseChunk(unsigned int& procReads);
 
         // Match all reads in readBuffer to reference genome
+        // ARGUMENT:
+        //          procReads   number of reads to match
         // First retrieve seeds using getSeeds(...)
         // Filter seeds using filterHeuSeeds(...) according to simple heuristic
         // Extend remaining seeds with BitMatch(...)
-        // Filter result with filterHeuRes(...) according to cumulative sum heuristic
-        bool matchReads();
+        bool matchReads(const unsigned int& procReads);
 
 
     private:

@@ -11,13 +11,11 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
     ,   countFile("seedCounts.tsv")
     ,   file(filePath)
     ,   ref(reference)
-    ,   readBuffer()
+    ,   readBuffer(MyConst::CHUNKSIZE)
 {
-    // reserve space for the buffer object according to user parameter
-    readBuffer.reserve(MyConst::CHUNKSIZE);
 }
 
-bool ReadQueue::parseChunk()
+bool ReadQueue::parseChunk(unsigned int& procReads)
 {
 
     std::string id;
@@ -33,7 +31,7 @@ bool ReadQueue::parseChunk()
         std::string seq;
         std::getline(file, seq);
         // construct read and push it to buffer
-        readBuffer.emplace_back(seq, id);
+        readBuffer[readCounter] = std::move(Read(seq, id));
         // read the rest of read (aka +'SEQID' and quality score sequence)
         std::getline(file,id);
         std::getline(file,seq);
@@ -43,21 +41,23 @@ bool ReadQueue::parseChunk()
         // if buffer is read completely, return
         if (readCounter >= MyConst::CHUNKSIZE)
         {
+            procReads = MyConst::CHUNKSIZE;
             return true;
 
         }
     }
 
+    procReads = readCounter;
     return false;
 }
 
-bool ReadQueue::matchReads()
+bool ReadQueue::matchReads(const unsigned int& procReads)
 {
 
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,10)
 #endif
-    for (unsigned int i = 0; i < MyConst::CHUNKSIZE; ++i)
+    for (unsigned int i = 0; i < procReads; ++i)
     {
 
 
@@ -207,7 +207,7 @@ void ReadQueue::printStatistics(std::vector<std::vector<KMER::kmer> > seedsK)
     }
 
     // print everything
-    for (unsigned int i = 0; i <= metaRep.size(); ++i)
+    for (unsigned int i = 0; i < metaRep.size(); ++i)
     {
         statFile << metaRep[i] << "\t";
     }
