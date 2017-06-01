@@ -12,7 +12,12 @@ class Read
 
     public:
 
+        // ---- Ctors ----
+        //
+        Read();
         Read(std::string& seq, std::string& id);
+
+        // ---------------
 
         // print the matching info of this read to ofs
         // FORMAT:
