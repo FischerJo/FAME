@@ -9,6 +9,7 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
         cpgTable(cpgTab)
     ,   cpgStartTable(cpgStartTab)
     ,   genomeBit()
+    ,   fullSeq(std::move(genomeSeq))
     ,   tabIndex(MyConst::HTABSIZE, 0)
     ,   kmerTable()
     ,   strandTable()
@@ -27,11 +28,17 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     // fill meta table
     generateMetaCpGs();
     // generate encoding of genome
-    generateBitStrings(genomeSeq);
+    generateBitStrings(fullSeq);
     cout << "Done generating Genome bit representation" << endl;
     // hash all kmers of reduced alphabet
-    generateHashes(genomeSeq);
+    generateHashes(fullSeq);
     cout << "Done hashing CpGs" << endl;
+    // filter out highly repetitive sequences
+    vector<array<char, MyConst::KMERLEN> > bl;
+    // blacklist(bl);
+    // filterHashTable(bl);
+
+    cout << "Done filtering Hash table" << endl;
 }
 
 void RefGenome::generateMetaCpGs()
@@ -899,4 +906,112 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 
     // fill dummy value
     tabIndex[MyConst::HTABSIZE] = sum;
+}
+
+
+void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, unordered_map<uint64_t, unsigned int>& bl)
+{
+
+    // iterate over kmerTable in the specified range
+    for (unsigned int i = KSliceStart; i < KSliceEnd; ++i)
+    {
+
+        // get the kmer at that position
+        KMER::kmer& k = kmerTable[i];
+
+        array<char, MyConst::KMERLEN> kSeq;
+        // reproduce kmer sequence
+        if (KMER::isStartCpG(k))
+        {
+
+            // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+            const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
+
+            // retrieve sequence
+            //
+            // get iterator to sequence start
+            auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
+            // copy sequence
+            copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
+
+        } else {
+
+            // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+            const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+
+            // retrieve sequence
+            //
+            // get iterator to sequence start
+            auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
+            // copy sequence
+            copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
+
+        }
+
+        // try to put sequence in map - if already in, count up
+        // NOTE:    hash function is perfect. No implicit collisions before putting it into hashmap
+        uint64_t kHash = hashKmersPerfect(kSeq);
+        auto insertion = bl.find(kHash);
+        if (insertion == bl.end())
+        {
+
+            bl[kHash] = 1;
+
+        } else {
+
+            insertion->second += 1;
+        }
+    }
+}
+
+
+void RefGenome::filterHashTable()
+{
+
+    // reserve new hashing structure vectors
+    std::vector<KMER::kmer> kmerTableNew;
+    kmerTableNew.reserve(kmerTable.size());
+    std::vector<bool> strandTableNew;
+    // NOTE:    kmerTable and strandTable have same size per definition. This way we increase the chance of cache hits
+    strandTableNew.reserve(kmerTable.size());
+
+    // will hold the counts of individual kmers for each hash table cell
+    unordered_map<uint64_t, unsigned int> kmerCount;
+    // iterate over hashTable
+    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
+    {
+
+        // clear container from previous round
+        kmerCount.clear();
+
+        // check if this slice contains enough elements - if not, do not make blacklist and copy all
+        if ( (tabIndex[i+1] - tabIndex[i]) < MyConst::KMERCUTOFF)
+        {
+
+            const unsigned int prevSizeK = kmerTableNew.size();
+            // just copy over the old kmer slice
+            kmerTableNew.insert(kmerTableNew.end(), kmerTable.begin() + tabIndex[i], kmerTable.begin() + tabIndex[i+1]);
+            strandTableNew.insert(strandTableNew.end(), strandTable.begin() + tabIndex[i], strandTable.begin() + tabIndex[i+1]);
+
+            // update the indexing structure for collisions
+            tabIndex[i] = prevSizeK;
+
+        // if there are enough elements for potential kick outs, start a blacklisting
+        } else {
+
+            // TODO blacklist
+        }
+    }
+
+    // update dummy value used for efficient indexing
+    tabIndex[MyConst::HTABSIZE] = kmerTableNew.size();
+
+    // shrink to new size
+    kmerTableNew.shrink_to_fit();
+    strandTableNew.shrink_to_fit();
+
+    // overwrite internal hash table structure
+    kmerTable = move(kmerTableNew);
+    strandTable = move(strandTableNew);
+
 }

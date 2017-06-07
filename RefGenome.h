@@ -5,7 +5,8 @@
 #include <istream>
 #include <string>
 #include <vector>
-#include <list>
+#include <array>
+#include <unordered_map>
 
 // Project includes
 #include "CONST.h"
@@ -108,7 +109,7 @@ class RefGenome
     // TODO: make this private once its tested
     // private:
 
-        // simple max inline functions
+        // simple maximum inline function
         inline int max(int x, int y) {return x > y ? x : y;}
 
         // produces all struct Meta CpGs
@@ -476,6 +477,51 @@ class RefGenome
         // to initialize tabIndex and kmerTable
         void estimateTablesizes(std::vector<std::vector<char> >& genomeSeq);
 
+        static uint64_t hashKmersPerfect(std::array<char, MyConst::KMERLEN> kmer)
+        {
+            size_t hash = 0;
+            for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+            {
+                hash = hash << 2;
+
+                switch (kmer[i])
+                {
+
+                    // we don't need case A since it is 0
+                    case 'C':
+                        hash += 1;
+                        break;
+
+                    case 'G':
+                        hash += 2;
+                        break;
+
+                    case 'T':
+                        hash += 3;
+                        break;
+
+                }
+            }
+
+            return hash;
+        }
+
+        // blacklist all k-mers that appear more then KMERCUTOFF times in the specified kmerTable slice
+        // returns a list of k-mer sequences (as bitstrings) that are blacklisted through argument
+        //
+        // ARGUMENTS:
+        //              KSliceStart Start index where to start blacklisting in KmerTable
+        //              KSliceEnd   End index where to stop blacklisting (excluding this index)
+        //
+        //              blt         map of k-mer strings that are blacklisted
+        //                          THIS WILL BE FILLED DURING CALL
+        inline void blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, std::unordered_map<uint64_t, unsigned int>& bl);
+
+        // filter the current hash table according to the given blacklist
+        // overwrites the internal kmerTable and strandTable structure, as well as tabIndex
+        //
+        void filterHashTable();
+
 
 
         // table of all CpGs in reference genome
@@ -494,6 +540,8 @@ class RefGenome
         //
         // *own implementation of bitstrings
         std::vector<DnaBitStr> genomeBit;
+        // full sequence
+        std::vector<std::vector<char> > fullSeq;
 
         // hash table
         // tabIndex [i] points into kmerTable where the first entry with hash value i is saved
