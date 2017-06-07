@@ -20,11 +20,14 @@ constexpr unsigned int CHROMMAX = 260000000;
 constexpr unsigned int CPGMAX = 24000000;
 
 // maximum read length of the reads in bp
-constexpr unsigned int READLEN = 100;
+constexpr unsigned int READLEN = 110;
 
 // number of reads that should be read per batch
 // (note that very large values may increase the required amount of RAM drastically)
-constexpr unsigned int CHUNKSIZE = 200000;
+constexpr unsigned int CHUNKSIZE = 100000;
+
+// maximum number of times a k-mer is allowed to occur in the whole genome
+constexpr unsigned int KMERCUTOFF = 100000;
 
 // Number of cores that this program is allowed to occupy at any given point
 #define CORENUM 1
@@ -51,11 +54,11 @@ constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 
 
 
 // size of hash table
-constexpr unsigned int HTABSIZE = 1 << 17;
+constexpr unsigned int HTABSIZE = 1 << 30;
 
 
 // window length for meta CpGs
-constexpr unsigned int WINLEN = 1 << 12;
+constexpr unsigned int WINLEN = 1 << 10;
 
 // number of mismatches we allow
 constexpr unsigned int MISCOUNT = 1;
