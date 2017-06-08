@@ -10,7 +10,7 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     ,   cpgStartTable(cpgStartTab)
     ,   genomeBit()
     ,   fullSeq(std::move(genomeSeq))
-    ,   tabIndex(MyConst::HTABSIZE, 0)
+    ,   tabIndex(MyConst::HTABSIZE + 1, 0)
     ,   kmerTable()
     ,   strandTable()
     ,   metaCpGs()
@@ -918,12 +918,13 @@ void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned int& K
 
         // get the kmer at that position
         KMER::kmer& k = kmerTable[i];
+        bool sFlag = strandTable[i];
 
         array<char, MyConst::KMERLEN> kSeq;
-        reproduceKmerSeq(k, kSeq);
+        reproduceKmerSeq(k, sFlag, kSeq);
 
         // try to put sequence in map - if already in, count up
-        // NOTE:    hash function is perfect. No implicit collisions before putting it into hashmap
+        // NOTE:    hash function is perfect, hence no implicit collisions before putting it into hashmap
         uint64_t kHash = hashKmersPerfect(kSeq);
         auto insertion = bl.find(kHash);
         if (insertion == bl.end())
@@ -983,7 +984,7 @@ void RefGenome::filterHashTable()
                 array<char, MyConst::KMERLEN> kSeq;
 
                 // get kmer sequence
-                reproduceKmerSeq(kmerTable[j], kSeq);
+                reproduceKmerSeq(kmerTable[j], strandTable[j], kSeq);
 
                 // hash it
                 uint64_t kHash = hashKmersPerfect(kSeq);
