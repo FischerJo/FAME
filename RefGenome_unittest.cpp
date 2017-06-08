@@ -1065,6 +1065,7 @@ TEST(RefGenome_test, simpleGetSeedStart)
     }
 }
 
+// test for retrieving the sequence of a kmer in a start meta cpg
 TEST(RefGenome_test, simpleRetrieveKSeqStart)
 {
 
@@ -1099,7 +1100,7 @@ TEST(RefGenome_test, simpleRetrieveKSeqStart)
     ASSERT_EQ(realKSeq, kSeq);
 }
 
-
+// test for retrieving the sequence of a kmer in a normal cpg
 TEST(RefGenome_test, simpleRetrieveKSeqNormal)
 {
 
@@ -1130,8 +1131,49 @@ TEST(RefGenome_test, simpleRetrieveKSeqNormal)
 
     ASSERT_EQ(realKSeq, kSeq);
 
+    // check reverse strand
     copy(revSeq.begin() + 43, revSeq.begin() + 43 + MyConst::KMERLEN, realKSeq.begin());
     ref.reproduceKmerSeq(k, false, kSeq);
 
     ASSERT_EQ(realKSeq, kSeq);
+}
+
+// test for generating a blacklist (aka sequence appearence counts) for the complete table
+TEST(RefGenome_test, simpleBlacklistFull)
+{
+    std::string seq = "ATGTTGCCTAATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGATTCCTAGTCAATTTAT";
+    // reverse sequence
+    //                                                               |                  |
+    std::string revSeq = "ATAAATTGACTAGGAATCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATTAGGCAACAT";
+    std::vector<char> seqV (seq.begin(), seq.end());
+    std::vector<std::vector<char> > genSeq;
+    genSeq.push_back(seqV);
+
+    // set up CpG container
+    std::vector<struct CpG> cpgTab;
+    cpgTab.emplace_back(0, 3);
+
+    std::vector<struct CpG> cpgStart;
+
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
+
+
+    std::unordered_map<uint64_t, unsigned int> bl;
+
+    ref.blacklist(0, ref.kmerTable.size(), bl);
+
+
+    for (unsigned int i = 0; i < (MyConst::READLEN - MyConst::KMERLEN); ++i)
+    {
+        std::array<char, MyConst::KMERLEN> kSeq;
+
+        copy(seq.begin() + 3 + i, seq.begin() + 3 + i + MyConst::KMERLEN, kSeq.begin());
+
+        ASSERT_EQ(1, bl[ref.hashKmersPerfect(kSeq)]);
+
+        copy(revSeq.begin() + 43 - i, revSeq.begin() + 43 - i + MyConst::KMERLEN, kSeq.begin());
+
+        ASSERT_EQ(1, bl[ref.hashKmersPerfect(kSeq)]);
+    }
+
 }
