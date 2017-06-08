@@ -888,7 +888,6 @@ TEST(RefGenome_test, simpleAtStart)
 
     }
 }
-// TODO atStartN atEndN
 
 TEST(RefGenome_test, simpleGetSeed)
 {
@@ -1064,4 +1063,75 @@ TEST(RefGenome_test, simpleGetSeedStart)
         }
         ASSERT_EQ(true, matchflag);
     }
+}
+
+TEST(RefGenome_test, simpleRetrieveKSeqStart)
+{
+
+    std::string seq = "CAGGGTTATACGCCTGGAATATTCTAGGATTCCTAGTCAATTTAT";
+    // reverse sequence
+    std::string revSeq = "ATAAATTGACTAGGAATCCTAGAATATTCCAGGCGTATAACCCTG";
+    std::vector<char> seqV (seq.begin(), seq.end());
+    std::vector<std::vector<char> > genSeq;
+    genSeq.push_back(seqV);
+
+    // set up CpG container
+    std::vector<struct CpG> cpgTab;
+
+    std::vector<struct CpG> cpgStart;
+    cpgStart.emplace_back(0, 10);
+
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
+
+    KMER::kmer k = KMER::constructKmer(1, 0, 0);
+    // check forward strand
+    std::array<char, MyConst::KMERLEN> kSeq;
+    std::array<char, MyConst::KMERLEN> realKSeq;
+
+    copy(seq.begin(), seq.begin() + MyConst::KMERLEN, realKSeq.begin());
+    ref.reproduceKmerSeq(k, true, kSeq);
+
+    ASSERT_EQ(realKSeq, kSeq);
+
+    copy(revSeq.end() - MyConst::KMERLEN, revSeq.end(), realKSeq.begin());
+    ref.reproduceKmerSeq(k, false, kSeq);
+
+    ASSERT_EQ(realKSeq, kSeq);
+}
+
+
+TEST(RefGenome_test, simpleRetrieveKSeqNormal)
+{
+
+    std::string seq = "ATGTTGCCTAATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGATTCCTAGTCAATTTAT";
+    // reverse sequence
+    //                                                               |                  |
+    std::string revSeq = "ATAAATTGACTAGGAATCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATTAGGCAACAT";
+    std::vector<char> seqV (seq.begin(), seq.end());
+    std::vector<std::vector<char> > genSeq;
+    genSeq.push_back(seqV);
+
+    // set up CpG container
+    std::vector<struct CpG> cpgTab;
+    cpgTab.emplace_back(0, 3);
+
+    std::vector<struct CpG> cpgStart;
+
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
+
+
+    KMER::kmer k = KMER::constructKmer(0, 0, 0);
+    // check forward strand
+    std::array<char, MyConst::KMERLEN> kSeq;
+    std::array<char, MyConst::KMERLEN> realKSeq;
+
+    copy(seq.begin() + 3, seq.begin() + 3 + MyConst::KMERLEN, realKSeq.begin());
+    ref.reproduceKmerSeq(k, true, kSeq);
+
+    ASSERT_EQ(realKSeq, kSeq);
+
+    copy(revSeq.begin() + 43, revSeq.begin() + 43 + MyConst::KMERLEN, realKSeq.begin());
+    ref.reproduceKmerSeq(k, false, kSeq);
+
+    ASSERT_EQ(realKSeq, kSeq);
 }
