@@ -517,6 +517,44 @@ class RefGenome
         //                          THIS WILL BE FILLED DURING CALL
         inline void blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, std::unordered_map<uint64_t, unsigned int>& bl);
 
+        // reproduce the k-mer sequence of a given kmer by looking up the position in the reference genome
+        //
+        // ARGUMENTS:
+        //              k       k-mer
+        //              kSeq    empty fixed length array to be filled with the kmer sequence
+        inline void reproduceKmerSeq(KMER::kmer& k, std::array<char, MyConst::KMERLEN>& kSeq)
+        {
+
+            // reproduce kmer sequence
+            if (KMER::isStartCpG(k))
+            {
+
+                // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+                const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
+
+                // retrieve sequence
+                //
+                // get iterator to sequence start
+                auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
+                // copy sequence
+                copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
+
+            } else {
+
+                // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+                const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+
+                // retrieve sequence
+                //
+                // get iterator to sequence start
+                auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
+                // copy sequence
+                copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
+
+            }
+
+        }
+
         // filter the current hash table according to the given blacklist
         // overwrites the internal kmerTable and strandTable structure, as well as tabIndex
         //

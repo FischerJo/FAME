@@ -920,33 +920,7 @@ void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned int& K
         KMER::kmer& k = kmerTable[i];
 
         array<char, MyConst::KMERLEN> kSeq;
-        // reproduce kmer sequence
-        if (KMER::isStartCpG(k))
-        {
-
-            // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
-            const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
-
-            // retrieve sequence
-            //
-            // get iterator to sequence start
-            auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
-            // copy sequence
-            copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
-
-        } else {
-
-            // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
-            const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
-
-            // retrieve sequence
-            //
-            // get iterator to sequence start
-            auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
-            // copy sequence
-            copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
-
-        }
+        reproduceKmerSeq(k, kSeq);
 
         // try to put sequence in map - if already in, count up
         // NOTE:    hash function is perfect. No implicit collisions before putting it into hashmap
@@ -972,8 +946,7 @@ void RefGenome::filterHashTable()
     std::vector<KMER::kmer> kmerTableNew;
     kmerTableNew.reserve(kmerTable.size());
     std::vector<bool> strandTableNew;
-    // NOTE:    kmerTable and strandTable have same size per definition. This way we increase the chance of cache hits
-    strandTableNew.reserve(kmerTable.size());
+    strandTableNew.reserve(strandTable.size());
 
     // will hold the counts of individual kmers for each hash table cell
     unordered_map<uint64_t, unsigned int> kmerCount;
@@ -999,7 +972,34 @@ void RefGenome::filterHashTable()
         // if there are enough elements for potential kick outs, start a blacklisting
         } else {
 
-            // TODO blacklist
+            const unsigned int prevSizeK = kmerTableNew.size();
+            // generate blacklist
+            blacklist(tabIndex[i], tabIndex[i+1], kmerCount);
+
+            // iterate through vector elements
+            for (unsigned int j = tabIndex[i]; j < tabIndex[i+1]; ++j)
+            {
+
+                array<char, MyConst::KMERLEN> kSeq;
+
+                // get kmer sequence
+                reproduceKmerSeq(kmerTable[j], kSeq);
+
+                // hash it
+                uint64_t kHash = hashKmersPerfect(kSeq);
+
+                // retrieve count how often it occurs
+                if (kmerCount[kHash] < MyConst::KMERCUTOFF)
+                {
+                    // if it occurs not too often, copy
+                    kmerTableNew.emplace_back(kmerTable[j]);
+                    strandTableNew.emplace_back(strandTable[j]);
+
+                }
+            }
+
+            // update the indexing structure for collisions
+            tabIndex[i] = prevSizeK;
         }
     }
 
