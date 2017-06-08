@@ -34,9 +34,7 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     generateHashes(fullSeq);
     cout << "Done hashing CpGs" << endl;
     // filter out highly repetitive sequences
-    vector<array<char, MyConst::KMERLEN> > bl;
-    // blacklist(bl);
-    // filterHashTable(bl);
+    filterHashTable();
 
     cout << "Done filtering Hash table" << endl;
 }
@@ -909,40 +907,10 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 }
 
 
-void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, unordered_map<uint64_t, unsigned int>& bl)
-{
-
-    // iterate over kmerTable in the specified range
-    for (unsigned int i = KSliceStart; i < KSliceEnd; ++i)
-    {
-
-        // get the kmer at that position
-        KMER::kmer& k = kmerTable[i];
-        bool sFlag = strandTable[i];
-
-        array<char, MyConst::KMERLEN> kSeq;
-        reproduceKmerSeq(k, sFlag, kSeq);
-
-        // try to put sequence in map - if already in, count up
-        // NOTE:    hash function is perfect, hence no implicit collisions before putting it into hashmap
-        uint64_t kHash = hashKmersPerfect(kSeq);
-        auto insertion = bl.find(kHash);
-        if (insertion == bl.end())
-        {
-
-            bl[kHash] = 1;
-
-        } else {
-
-            insertion->second += 1;
-        }
-    }
-}
-
-
 void RefGenome::filterHashTable()
 {
 
+    cout << "\nHash table size before filter: " << kmerTable.size() << endl;
     // reserve new hashing structure vectors
     std::vector<KMER::kmer> kmerTableNew;
     kmerTableNew.reserve(kmerTable.size());
@@ -954,9 +922,6 @@ void RefGenome::filterHashTable()
     // iterate over hashTable
     for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
-
-        // clear container from previous round
-        kmerCount.clear();
 
         // check if this slice contains enough elements - if not, do not make blacklist and copy all
         if ( (tabIndex[i+1] - tabIndex[i]) < MyConst::KMERCUTOFF)
@@ -972,6 +937,9 @@ void RefGenome::filterHashTable()
 
         // if there are enough elements for potential kick outs, start a blacklisting
         } else {
+
+            // clear container from previous round
+            kmerCount.clear();
 
             const unsigned int prevSizeK = kmerTableNew.size();
             // generate blacklist
@@ -1015,4 +983,5 @@ void RefGenome::filterHashTable()
     kmerTable = move(kmerTableNew);
     strandTable = move(strandTableNew);
 
+    cout << "Hash table size after filter: " << kmerTable.size() << "\n\n";
 }

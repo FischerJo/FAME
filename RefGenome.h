@@ -515,7 +515,35 @@ class RefGenome
         //
         //              blt         map of k-mer strings that are blacklisted
         //                          THIS WILL BE FILLED DURING CALL
-        inline void blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, std::unordered_map<uint64_t, unsigned int>& bl);
+        inline void blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, std::unordered_map<uint64_t, unsigned int>& bl)
+        {
+
+            // iterate over kmerTable in the specified range
+            for (unsigned int i = KSliceStart; i < KSliceEnd; ++i)
+            {
+
+                // get the kmer at that position
+                KMER::kmer& k = kmerTable[i];
+                bool sFlag = strandTable[i];
+
+                std::array<char, MyConst::KMERLEN> kSeq;
+                reproduceKmerSeq(k, sFlag, kSeq);
+
+                // try to put sequence in map - if already in, count up
+                // NOTE:    hash function is perfect, hence no implicit collisions before putting it into hashmap
+                uint64_t kHash = hashKmersPerfect(kSeq);
+                auto insertion = bl.find(kHash);
+                if (insertion == bl.end())
+                {
+
+                    bl[kHash] = 1;
+
+                } else {
+
+                    insertion->second += 1;
+                }
+            }
+        }
 
         // reproduce the k-mer sequence of a given kmer by looking up the position in the reference genome
         //
