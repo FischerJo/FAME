@@ -521,36 +521,75 @@ class RefGenome
         //
         // ARGUMENTS:
         //              k       k-mer
+        //              sFlag   flag stating if kmer is of forward (true) or reverse (false) strand
         //              kSeq    empty fixed length array to be filled with the kmer sequence
-        inline void reproduceKmerSeq(KMER::kmer& k, std::array<char, MyConst::KMERLEN>& kSeq)
+        inline void reproduceKmerSeq(KMER::kmer& k, bool sFlag,std::array<char, MyConst::KMERLEN>& kSeq)
         {
 
+            uint32_t pos = 0;
+            uint8_t chrom;
             // reproduce kmer sequence
             if (KMER::isStartCpG(k))
             {
 
                 // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
                 const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
-
-                // retrieve sequence
-                //
-                // get iterator to sequence start
-                auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
-                // copy sequence
-                copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
+                chrom = startCpG.chrom;
 
             } else {
 
                 // get the start position and chromosome of surrounding meta cpg wrapped into a CpG
                 const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+                pos = startCpG.pos;
+                chrom = startCpG.chrom;
 
-                // retrieve sequence
-                //
-                // get iterator to sequence start
-                auto seqStart = fullSeq[startCpG.chrom].begin() + KMER::getOffset(k) + startCpG.pos;
-                // copy sequence
+            }
+
+            // retrieve sequence
+            //
+            // get iterator to sequence start
+            auto seqStart = fullSeq[chrom].begin() + KMER::getOffset(k) + pos;
+
+            // if from forward strand, just copy sequence
+            if (sFlag)
+            {
+
                 copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
 
+            // otherwise, build reverse complement
+            } else {
+
+                for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+                {
+
+                    switch (seqStart[i])
+                    {
+
+                        case 'A':
+
+                            kSeq[MyConst::KMERLEN - i - 1] = 'T';
+                            break;
+
+                        case 'T':
+
+                            kSeq[MyConst::KMERLEN - i - 1] = 'A';
+                            break;
+
+                        case 'C':
+
+                            kSeq[MyConst::KMERLEN - i - 1] = 'G';
+                            break;
+
+                        case 'G':
+
+                            kSeq[MyConst::KMERLEN - i - 1] = 'C';
+                            break;
+
+                    // end switch
+                    }
+
+                // end forloop over sequence
+                }
             }
 
         }
