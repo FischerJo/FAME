@@ -1085,17 +1085,16 @@ TEST(RefGenome_test, simpleRetrieveKSeqStart)
     RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
     KMER::kmer k = KMER::constructKmer(1, 0, 0);
-    // check forward strand
-    std::array<char, MyConst::KMERLEN> kSeq;
-    std::array<char, MyConst::KMERLEN> realKSeq;
 
-    copy(seq.begin(), seq.begin() + MyConst::KMERLEN, realKSeq.begin());
-    ref.reproduceKmerSeq(k, true, kSeq);
+    // check forward strand
+
+    uint64_t realKSeq = 0x0000004abcc65e83ULL;
+    uint64_t kSeq = ref.reproduceKmerSeq(k, true);
 
     ASSERT_EQ(realKSeq, kSeq);
 
-    copy(revSeq.end() - MyConst::KMERLEN, revSeq.end(), realKSeq.begin());
-    ref.reproduceKmerSeq(k, false, kSeq);
+    realKSeq = 0x0000003d4a6cc15eULL;
+    kSeq = ref.reproduceKmerSeq(k, false);
 
     ASSERT_EQ(realKSeq, kSeq);
 }
@@ -1106,7 +1105,6 @@ TEST(RefGenome_test, simpleRetrieveKSeqNormal)
 
     std::string seq = "ATGTTGCCTAATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGATTCCTAGTCAATTTAT";
     // reverse sequence
-    //                                                               |                  |
     std::string revSeq = "ATAAATTGACTAGGAATCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATTAGGCAACAT";
     std::vector<char> seqV (seq.begin(), seq.end());
     std::vector<std::vector<char> > genSeq;
@@ -1122,29 +1120,27 @@ TEST(RefGenome_test, simpleRetrieveKSeqNormal)
 
 
     KMER::kmer k = KMER::constructKmer(0, 0, 0);
-    // check forward strand
-    std::array<char, MyConst::KMERLEN> kSeq;
-    std::array<char, MyConst::KMERLEN> realKSeq;
 
-    copy(seq.begin() + 3, seq.begin() + 3 + MyConst::KMERLEN, realKSeq.begin());
-    ref.reproduceKmerSeq(k, true, kSeq);
+    // check forward strand
+
+    uint64_t realKSeq = 0x000000f970fd1cf4ULL;
+    uint64_t kSeq = ref.reproduceKmerSeq(k, true);
 
     ASSERT_EQ(realKSeq, kSeq);
 
     // check reverse strand
-    copy(revSeq.begin() + 43, revSeq.begin() + 43 + MyConst::KMERLEN, realKSeq.begin());
-    ref.reproduceKmerSeq(k, false, kSeq);
+    realKSeq = 0x000000e0cb80f290ULL;
+    kSeq = ref.reproduceKmerSeq(k, false);
 
     ASSERT_EQ(realKSeq, kSeq);
 }
 
 // test for generating a blacklist (aka sequence appearence counts) for the complete table
+// SOFT test - just look if everything is hashed (exactly once, none further upcounted)
 TEST(RefGenome_test, simpleBlacklistFull)
 {
     std::string seq = "ATGTTGCCTAATTTCACTATTCAGGGTTATACGCCTGGAATATTCTAGGATTCCTAGTCAATTTAT";
     // reverse sequence
-    //                                                               |                  |
-    std::string revSeq = "ATAAATTGACTAGGAATCCTAGAATATTCCAGGCGTATAACCCTGAATAGTGAAATTAGGCAACAT";
     std::vector<char> seqV (seq.begin(), seq.end());
     std::vector<std::vector<char> > genSeq;
     genSeq.push_back(seqV);
@@ -1162,18 +1158,39 @@ TEST(RefGenome_test, simpleBlacklistFull)
 
     ref.blacklist(0, ref.kmerTable.size(), bl);
 
+    ASSERT_EQ(( 2 * MyConst::READLEN - MyConst::KMERLEN - 1) * 2, bl.size());
 
-    for (unsigned int i = 0; i < (MyConst::READLEN - MyConst::KMERLEN); ++i)
-    {
-        std::array<char, MyConst::KMERLEN> kSeq;
+}
 
-        copy(seq.begin() + 3 + i, seq.begin() + 3 + i + MyConst::KMERLEN, kSeq.begin());
 
-        ASSERT_EQ(1, bl[ref.hashKmersPerfect(kSeq)]);
+// test for generating a blacklist with repetitive kmer
+TEST(RefGenome_test, simpleBlacklistSame)
+{
 
-        copy(revSeq.begin() + 43 - i, revSeq.begin() + 43 - i + MyConst::KMERLEN, kSeq.begin());
+    std::string seq = "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCGTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT";
+    // reverse sequence
+    std::vector<char> seqV (seq.begin(), seq.end());
+    std::vector<std::vector<char> > genSeq;
+    genSeq.push_back(seqV);
 
-        ASSERT_EQ(1, bl[ref.hashKmersPerfect(kSeq)]);
-    }
+    // set up CpG container
+    std::vector<struct CpG> cpgTab;
+    cpgTab.emplace_back(0, 2);
+
+    std::vector<struct CpG> cpgStart;
+
+    RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
+
+
+    std::unordered_map<uint64_t, unsigned int> bl;
+
+    ref.blacklist(0, ref.kmerTable.size(), bl);
+
+    uint64_t aKmer = 0;
+    uint64_t tKmer = 0x000000ffffffffffULL;
+    // check count of Ts and As
+    ASSERT_EQ(18, bl[tKmer]);
+    ASSERT_EQ(18, bl[aKmer]);
+    ASSERT_EQ(44, bl.size());
 
 }
