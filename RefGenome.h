@@ -5,7 +5,6 @@
 #include <istream>
 #include <string>
 #include <vector>
-#include <array>
 #include <unordered_map>
 
 // Project includes
@@ -477,34 +476,6 @@ class RefGenome
         // to initialize tabIndex and kmerTable
         void estimateTablesizes(std::vector<std::vector<char> >& genomeSeq);
 
-        static uint64_t hashKmersPerfect(std::array<char, MyConst::KMERLEN> kmer)
-        {
-            size_t hash = 0;
-            for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
-            {
-                hash = hash << 2;
-
-                switch (kmer[i])
-                {
-
-                    // we don't need case A since it is 0
-                    case 'C':
-                        hash += 1;
-                        break;
-
-                    case 'G':
-                        hash += 2;
-                        break;
-
-                    case 'T':
-                        hash += 3;
-                        break;
-
-                }
-            }
-
-            return hash;
-        }
 
         // blacklist all k-mers that appear more then KMERCUTOFF times in the specified kmerTable slice
         // returns a list of k-mer sequences (as bitstrings) that are blacklisted through argument
@@ -526,12 +497,10 @@ class RefGenome
                 KMER::kmer& k = kmerTable[i];
                 bool sFlag = strandTable[i];
 
-                std::array<char, MyConst::KMERLEN> kSeq;
-                reproduceKmerSeq(k, sFlag, kSeq);
+                uint64_t kHash = reproduceKmerSeq(k, sFlag);
 
                 // try to put sequence in map - if already in, count up
                 // NOTE:    hash function is perfect, hence no implicit collisions before putting it into hashmap
-                uint64_t kHash = hashKmersPerfect(kSeq);
                 auto insertion = bl.find(kHash);
                 if (insertion == bl.end())
                 {
@@ -546,12 +515,13 @@ class RefGenome
         }
 
         // reproduce the k-mer sequence of a given kmer by looking up the position in the reference genome
+        // the sequence will be returned as a bitstring
         //
         // ARGUMENTS:
         //              k       k-mer
         //              sFlag   flag stating if kmer is of forward (true) or reverse (false) strand
         //              kSeq    empty fixed length array to be filled with the kmer sequence
-        inline void reproduceKmerSeq(KMER::kmer& k, bool sFlag,std::array<char, MyConst::KMERLEN>& kSeq)
+        inline uint64_t reproduceKmerSeq(KMER::kmer& k, bool sFlag)
         {
 
             uint32_t pos = 0;
@@ -577,40 +547,63 @@ class RefGenome
             //
             // get iterator to sequence start
             auto seqStart = fullSeq[chrom].begin() + KMER::getOffset(k) + pos;
+            uint64_t kSeq = 0;
 
-            // if from forward strand, just copy sequence
+            // if from forward strand, just translate
             if (sFlag)
             {
 
-                copy(seqStart, seqStart + MyConst::KMERLEN, kSeq.begin());
-
-            // otherwise, build reverse complement
-            } else {
-
                 for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
                 {
+                    kSeq = kSeq << 2;
 
                     switch (seqStart[i])
                     {
 
-                        case 'A':
-
-                            kSeq[MyConst::KMERLEN - i - 1] = 'T';
-                            break;
-
                         case 'T':
 
-                            kSeq[MyConst::KMERLEN - i - 1] = 'A';
+                            kSeq += 3;
                             break;
 
                         case 'C':
 
-                            kSeq[MyConst::KMERLEN - i - 1] = 'G';
+                            kSeq += 1;
                             break;
 
                         case 'G':
 
-                            kSeq[MyConst::KMERLEN - i - 1] = 'C';
+                            kSeq += 2;
+                            break;
+
+                    // end switch
+                    }
+
+                // end forloop over sequence
+                }
+
+            // otherwise, build reverse complement
+            } else {
+
+                for (unsigned int i = MyConst::KMERLEN; i > 0; --i)
+                {
+                    kSeq = kSeq << 2;
+
+                    switch (seqStart[i - 1])
+                    {
+
+                        case 'A':
+
+                            kSeq += 3;
+                            break;
+
+                        case 'G':
+
+                            kSeq += 1;
+                            break;
+
+                        case 'C':
+
+                            kSeq += 2;
                             break;
 
                     // end switch
@@ -619,6 +612,8 @@ class RefGenome
                 // end forloop over sequence
                 }
             }
+
+            return kSeq;
 
         }
 

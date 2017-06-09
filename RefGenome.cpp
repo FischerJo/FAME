@@ -949,13 +949,7 @@ void RefGenome::filterHashTable()
             for (unsigned int j = tabIndex[i]; j < tabIndex[i+1]; ++j)
             {
 
-                array<char, MyConst::KMERLEN> kSeq;
-
-                // get kmer sequence
-                reproduceKmerSeq(kmerTable[j], strandTable[j], kSeq);
-
-                // hash it
-                uint64_t kHash = hashKmersPerfect(kSeq);
+                uint64_t kHash = reproduceKmerSeq(kmerTable[j], strandTable[j]);
 
                 // retrieve count how often it occurs
                 if (kmerCount[kHash] < MyConst::KMERCUTOFF)
