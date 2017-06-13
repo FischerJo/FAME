@@ -497,7 +497,7 @@ class RefGenome
                 KMER::kmer& k = kmerTable[i];
                 bool sFlag = strandTable[i];
 
-                uint64_t kHash = reproduceKmerSeq(k, sFlag);
+                const uint64_t kHash = reproduceKmerSeq(k, sFlag);
 
                 // try to put sequence in map - if already in, count up
                 // NOTE:    hash function is perfect, hence no implicit collisions before putting it into hashmap
