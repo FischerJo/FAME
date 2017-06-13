@@ -4,6 +4,11 @@
 #include <string>
 #include <fstream>
 #include <unordered_map>
+#include <array>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #include "CONST.h"
 #include "RefGenome.h"
@@ -40,8 +45,9 @@ class ReadQueue
         inline void filterHeuSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
         {
 
-            // counts on how often metaCpG has been seen
-            std::vector<unsigned int> counts (ref.metaCpGs.size(), 0);
+            std::vector<unsigned int>& threadCount = counts[omp_get_thread_num()];
+            // fill with zeroes
+            threadCount.assign(ref.metaCpGs.size(), 0);
 
             // count occurences of meta CpGs
             for (unsigned int i = 0; i < seedsK.size(); ++i)
@@ -62,14 +68,14 @@ class ReadQueue
                     }
 
                     lastId = metaId;
-                    ++counts[metaId];
+                    ++threadCount[metaId];
                 }
             }
 
             // More than cutoff many kmers are required per metaCpG
             const unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            // const unsigned int countCut = 0;
 
+            // TODO: dummy values instead of reallocations
 
             // throw out rare metaCpGs
             for (unsigned int i = 0; i < seedsK.size(); ++i)
@@ -83,7 +89,7 @@ class ReadQueue
                 {
 
                     // test for strict heuristic criterias
-                    if (counts[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
+                    if (threadCount[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
                     {
 
                         filteredSeedsK.push_back(seedsK[i][j]);
@@ -359,6 +365,9 @@ class ReadQueue
         // buffer holding MyConst::CHUNKSIZE many reads
         std::vector<Read> readBuffer;
 
+
+        // holds counts for each thread for counting heuristic
+        std::array<std::vector<unsigned int>, CORENUM> counts;
 };
 
 #endif /* READQUEUE_H */
