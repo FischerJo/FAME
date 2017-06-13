@@ -45,9 +45,11 @@ class ReadQueue
         inline void filterHeuSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
         {
 
-            std::vector<unsigned int>& threadCount = counts[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
             // fill with zeroes
-            threadCount.assign(ref.metaCpGs.size(), 0);
+            threadCountFwd.assign(ref.metaCpGs.size(), 0);
+            threadCountRev.assign(ref.metaCpGs.size(), 0);
 
             // count occurences of meta CpGs
             for (unsigned int i = 0; i < seedsK.size(); ++i)
@@ -57,18 +59,31 @@ class ReadQueue
                 // avoid counting metaCpGs more then once per kmer
                 // note that metaCpGs are hashed in reverse order
                 uint64_t lastId = 0xffffffffffffffffULL;
-                for (unsigned int j = 0; j < seedsK[i].size(); ++j)
+                // strand of last visited id (true iff forward strand)
+                bool lastStrand = false;
+
+                for (size_t j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
+                    const uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
+                    const bool metaStrand = seedsS[i][j];
                     // check if we visited meta CpG before
-                    if (metaId == lastId)
+                    if (metaId == lastId && metaStrand == lastStrand)
                     {
                         continue;
                     }
 
                     lastId = metaId;
-                    ++threadCount[metaId];
+                    lastStrand = metaStrand;
+                    if (lastStrand)
+                    {
+                        ++threadCountFwd[metaId];
+
+                    } else {
+
+                        ++threadCountRev[metaId];
+
+                    }
                 }
             }
 
@@ -78,22 +93,39 @@ class ReadQueue
             // TODO: dummy values instead of reallocations
 
             // throw out rare metaCpGs
-            for (unsigned int i = 0; i < seedsK.size(); ++i)
+            for (size_t i = 0; i < seedsK.size(); ++i)
             {
 
                 std::vector<KMER::kmer> filteredSeedsK;
                 std::vector<bool> filteredSeedsS;
                 filteredSeedsK.reserve(seedsK[i].size());
                 filteredSeedsS.reserve(seedsK[i].size());
-                for (unsigned int j = 0; j < seedsK[i].size(); ++j)
+                for (size_t j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    // test for strict heuristic criterias
-                    if (threadCount[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
+                    // check strand
+                    if (seedsS[i][j])
                     {
+                        // test for strict heuristic criterias
+                        if (threadCountFwd[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
+                        {
 
-                        filteredSeedsK.push_back(seedsK[i][j]);
-                        filteredSeedsS.push_back(seedsS[i][j]);
+                            filteredSeedsK.push_back(seedsK[i][j]);
+                            filteredSeedsS.push_back(seedsS[i][j]);
+
+                        }
+
+                    } else {
+
+                        // test for strict heuristic criterias
+                        if (threadCountRev[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
+                        {
+
+                            filteredSeedsK.push_back(seedsK[i][j]);
+                            filteredSeedsS.push_back(seedsS[i][j]);
+
+                        }
+
 
                     }
                 }
@@ -367,7 +399,9 @@ class ReadQueue
 
 
         // holds counts for each thread for counting heuristic
-        std::array<std::vector<unsigned int>, CORENUM> counts;
+        // for forward and reverse strand metaCpGs, respectively
+        std::array<std::vector<uint16_t>, CORENUM> countsFwd;
+        std::array<std::vector<uint16_t>, CORENUM> countsRev;
 };
 
 #endif /* READQUEUE_H */

@@ -14,7 +14,8 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
     for (int i = 0; i < CORENUM; ++i)
     {
 
-        counts[i] = std::vector<unsigned int>();
+        countsFwd[i] = std::vector<uint16_t>();
+        countsRev[i] = std::vector<uint16_t>();
     }
 }
 
