@@ -1,9 +1,5 @@
 #include <iostream>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 #include "ReadQueue.h"
 
 ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
@@ -13,6 +9,13 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
     ,   ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
 {
+
+    // fill counting structure for parallelization
+    for (int i = 0; i < CORENUM; ++i)
+    {
+
+        counts[i] = std::vector<unsigned int>();
+    }
 }
 
 bool ReadQueue::parseChunk(unsigned int& procReads)
@@ -55,7 +58,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 {
 
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,10)
+#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,100)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
