@@ -1,4 +1,5 @@
 
+#include <chrono>
 
 #include "RefGenome.h"
 
@@ -889,7 +890,7 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 
     }
 
-    unsigned long sum = 0;
+    uint64_t sum = 0;
     // update to sums of previous entrys
     for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
     {
@@ -911,6 +912,7 @@ void RefGenome::filterHashTable()
 {
 
     cout << "\nHash table size before filter: " << kmerTable.size() << endl;
+    chrono::high_resolution_clock::time_point filterStartTime = chrono::high_resolution_clock::now();
     // reserve new hashing structure vectors
     std::vector<KMER::kmer> kmerTableNew;
     kmerTableNew.reserve(kmerTable.size());
@@ -920,14 +922,16 @@ void RefGenome::filterHashTable()
     // will hold the counts of individual kmers for each hash table cell
     unordered_map<uint64_t, unsigned int> kmerCount;
     // iterate over hashTable
-    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
+    for (uint64_t i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
+        const uint64_t prevSizeK = kmerTableNew.size();
+
+        // TODO: make this deep copy only once
         // check if this slice contains enough elements - if not, do not make blacklist and copy all
         if ( (tabIndex[i+1] - tabIndex[i]) < MyConst::KMERCUTOFF)
         {
 
-            const unsigned int prevSizeK = kmerTableNew.size();
             // just copy over the old kmer slice
             kmerTableNew.insert(kmerTableNew.end(), kmerTable.begin() + tabIndex[i], kmerTable.begin() + tabIndex[i+1]);
             strandTableNew.insert(strandTableNew.end(), strandTable.begin() + tabIndex[i], strandTable.begin() + tabIndex[i+1]);
@@ -941,22 +945,21 @@ void RefGenome::filterHashTable()
             // clear container from previous round
             kmerCount.clear();
 
-            const unsigned int prevSizeK = kmerTableNew.size();
             // generate blacklist
             blacklist(tabIndex[i], tabIndex[i+1], kmerCount);
 
             // iterate through vector elements
-            for (unsigned int j = tabIndex[i]; j < tabIndex[i+1]; ++j)
+            for (uint64_t j = tabIndex[i]; j < tabIndex[i+1]; ++j)
             {
 
-                uint64_t kHash = reproduceKmerSeq(kmerTable[j], strandTable[j]);
+                const uint64_t kHash = reproduceKmerSeq(kmerTable[j], strandTable[j]);
 
                 // retrieve count how often it occurs
                 if (kmerCount[kHash] < MyConst::KMERCUTOFF)
                 {
                     // if it occurs not too often, copy
-                    kmerTableNew.emplace_back(kmerTable[j]);
-                    strandTableNew.emplace_back(strandTable[j]);
+                    kmerTableNew.push_back(kmerTable[j]);
+                    strandTableNew.push_back(strandTable[j]);
 
                 }
             }
@@ -971,11 +974,19 @@ void RefGenome::filterHashTable()
 
     // shrink to new size
     kmerTableNew.shrink_to_fit();
-    strandTableNew.shrink_to_fit();
+    // strandTableNew.shrink_to_fit();
 
     // overwrite internal hash table structure
     kmerTable = move(kmerTableNew);
+    // clear strandTable beforehand as otherwise assignment allocates additional memory
+    // (Move assignment different for vector bool spezialisation due to different underlying bitvector representations?)
+    // strandTable.clear();
     strandTable = move(strandTableNew);
 
-    cout << "Hash table size after filter: " << kmerTable.size() << "\n\n";
+    chrono::high_resolution_clock::time_point filterEndTime = chrono::high_resolution_clock::now();
+
+    auto runtime = chrono::duration_cast<chrono::seconds>(filterEndTime - filterStartTime).count();
+
+
+    cout << "Hash table size after filter (running " << runtime << "s): " << kmerTable.size() << "\n\n";
 }
