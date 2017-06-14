@@ -96,11 +96,21 @@ class ReadQueue
             for (size_t i = 0; i < seedsK.size(); ++i)
             {
 
-                std::vector<KMER::kmer> filteredSeedsK;
-                std::vector<bool> filteredSeedsS;
-                filteredSeedsK.reserve(seedsK[i].size());
-                filteredSeedsS.reserve(seedsK[i].size());
-                for (size_t j = 0; j < seedsK[i].size(); ++j)
+                // std::vector<KMER::kmer> filteredSeedsK;
+                // std::vector<bool> filteredSeedsS;
+                // filteredSeedsK.reserve(seedsK[i].size());
+                // filteredSeedsS.reserve(seedsK[i].size());
+                //
+                //
+                //
+                // iterator to the element that we process
+                auto srcItK = seedsK[i].begin();
+                auto srcItS = seedsS[i].begin();
+                // iterator to the position one of the last inserted FILTERED element, always at most as far as srcIt
+                auto filterItK = seedsK[i].begin();
+                auto filterItS = seedsS[i].begin();
+
+                for (size_t j = 0; j < seedsK[i].size(); ++j, ++srcItK, ++srcItS)
                 {
 
                     // check strand
@@ -110,8 +120,12 @@ class ReadQueue
                         if (threadCountFwd[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
                         {
 
-                            filteredSeedsK.push_back(seedsK[i][j]);
-                            filteredSeedsS.push_back(seedsS[i][j]);
+                            // filteredSeedsK.push_back(seedsK[i][j]);
+                            // filteredSeedsS.push_back(seedsS[i][j]);
+                            *filterItK = *srcItK;
+                            *filterItS = *srcItS;
+                            ++filterItK;
+                            ++filterItS;
 
                         }
 
@@ -121,18 +135,24 @@ class ReadQueue
                         if (threadCountRev[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
                         {
 
-                            filteredSeedsK.push_back(seedsK[i][j]);
-                            filteredSeedsS.push_back(seedsS[i][j]);
+                            // filteredSeedsK.push_back(seedsK[i][j]);
+                            // filteredSeedsS.push_back(seedsS[i][j]);
+                            *filterItK = *srcItK;
+                            *filterItS = *srcItS;
+                            ++filterItK;
+                            ++filterItS;
 
                         }
 
 
                     }
                 }
-                filteredSeedsK.shrink_to_fit();
-                filteredSeedsS.shrink_to_fit();
-                seedsK[i] = std::move(filteredSeedsK);
-                seedsS[i] = std::move(filteredSeedsS);
+                // filteredSeedsK.shrink_to_fit();
+                // filteredSeedsS.shrink_to_fit();
+                // seedsK[i] = std::move(filteredSeedsK);
+                // seedsS[i] = std::move(filteredSeedsS);
+                seedsK[i].resize(filterItK - seedsK[i].begin());
+                seedsS[i].resize(filterItK - seedsK[i].begin());
             }
 
         }
