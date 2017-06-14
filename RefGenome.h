@@ -14,6 +14,7 @@
 #include "ntHash-1.0.2/nthash.hpp"
 
 
+// TODO: Maybe save reduced sequence also, to speed up the hashing process?
 // Class representing the reference genome
 class RefGenome
 {
@@ -51,22 +52,17 @@ class RefGenome
             seedsK.reserve(seq.size() - MyConst::KMERLEN + 1);
             seedsS.reserve(seq.size() - MyConst::KMERLEN + 1);
 
-            // iterators for kmertable
-            std::vector<KMER::kmer>::iterator startK = kmerTable.begin();
-            std::vector<KMER::kmer>::iterator endK = kmerTable.begin();
-            // iterators for strandtable
-            std::vector<bool>::iterator startS = strandTable.begin();
-            std::vector<bool>::iterator endS = strandTable.begin();
 
             // retrieve kmers for first hash
             uint64_t hVal = ntHash::NTP64(seq.data());
             uint64_t hashInd = hVal % MyConst::HTABSIZE;
 
-            // get iterators framing subset of kmers corresponding to this hash
-            std::advance(startK, tabIndex[hashInd]);
-            std::advance(endK, tabIndex[hashInd + 1]);
-            std::advance(startS, tabIndex[hashInd]);
-            std::advance(endS, tabIndex[hashInd + 1]);
+            // iterators for kmertable
+            std::vector<KMER::kmer>::iterator startK = kmerTable.begin() + tabIndex[hashInd];
+            std::vector<KMER::kmer>::iterator endK = kmerTable.begin() + tabIndex[hashInd + 1];
+            // iterators for strandtable
+            std::vector<bool>::iterator startS = strandTable.begin() + tabIndex[hashInd];
+            std::vector<bool>::iterator endS = strandTable.begin() + tabIndex[hashInd + 1];
 
             // retrieve seeds
             seedsK.emplace_back(startK, endK);
@@ -79,15 +75,11 @@ class RefGenome
                 ntHash::NTP64(hVal, seq[i], seq[i + MyConst::KMERLEN]);
                 hashInd = hVal % MyConst::HTABSIZE;
 
-                startK = kmerTable.begin();
-                std::advance(startK, tabIndex[hashInd]);
-                endK = kmerTable.begin();
-                std::advance(endK, tabIndex[hashInd + 1]);
+                startK = kmerTable.begin() + tabIndex[hashInd];
+                endK = kmerTable.begin() + tabIndex[hashInd + 1];
 
-                startS = strandTable.begin();
-                std::advance(startS, tabIndex[hashInd]);
-                endS = strandTable.begin();
-                std::advance(endS, tabIndex[hashInd + 1]);
+                startS = strandTable.begin() + tabIndex[hashInd];
+                endS = strandTable.begin() + tabIndex[hashInd + 1];
 
                 // retrieve seeds
                 seedsK.emplace_back(startK, endK);
