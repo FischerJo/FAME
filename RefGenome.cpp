@@ -36,8 +36,8 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     cout << "Done hashing CpGs" << endl;
     // filter out highly repetitive sequences
     filterHashTable();
-
-    cout << "Done filtering Hash table" << endl;
+    //
+    // cout << "Done filtering Hash table" << endl;
 }
 
 void RefGenome::generateMetaCpGs()
@@ -992,6 +992,8 @@ void RefGenome::filterHashTable()
     tabIndex[MyConst::HTABSIZE] = filterItK - kmerTable.begin();
 
     // shrink to new size
+    kmerTable.resize(filterItK - kmerTable.begin());
+    strandTable.resize(filterItK - kmerTable.begin());
     // kmerTableNew.shrink_to_fit();
     // strandTableNew.shrink_to_fit();
 
