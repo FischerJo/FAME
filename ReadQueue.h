@@ -417,6 +417,12 @@ class ReadQueue
         // buffer holding MyConst::CHUNKSIZE many reads
         std::vector<Read> readBuffer;
 
+        // mapping of letters to array indices for shift and algorithm
+        // 'A' -> 0
+        // 'C' -> 1
+        // 'G' -> 2
+        // 'T' -> 3
+        std::array<uint8_t, 256> lmap;
 
         // holds counts for each thread for counting heuristic
         // for forward and reverse strand metaCpGs, respectively

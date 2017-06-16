@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "ReadQueue.h"
+#include "ShiftAnd.h"
 
 ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
         statFile("seedStats.tsv")
@@ -17,6 +18,11 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
         countsFwd[i] = std::vector<uint16_t>();
         countsRev[i] = std::vector<uint16_t>();
     }
+    // fill array mapping - locale specific filling
+    lmap['A'] = 0;
+    lmap['C'] = 1;
+    lmap['G'] = 2;
+    lmap['T'] = 3;
 }
 
 bool ReadQueue::parseChunk(unsigned int& procReads)
@@ -148,6 +154,9 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // FILTER SEEDS BY COUNTING LEMMA
         filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
         filterHeuSeeds(revSeedsK, revSeedsS, readSize);
+
+        ShiftAnd<MyConst::MISCOUNT> saFwd = ShiftAnd<MyConst::MISCOUNT>(r.seq, lmap);
+        // TODO: make same for reverse comp of read
 
         // printStatistics(fwdSeedsK);
 
