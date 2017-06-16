@@ -45,8 +45,8 @@ class ShiftAnd
         //              end     iterator to end of sequence to query
         //
         // RETURN:
-        //              vector of offsets (relative to start iterator) were matchings start
-        inline std::vector<unsigned int> querySeq(std::vector<char>::iterator& start, std::vector<char>::iterator& end);
+        //              vector of offsets (relative to start iterator) were matchings end(!!!)
+        inline std::vector<unsigned int> querySeq(std::string::iterator start, std::string::iterator end);
 
 
         // TODO make this private once its tested
@@ -58,6 +58,9 @@ class ShiftAnd
 
         // query a single letter to the automaton
         inline void queryLetter(const char& c);
+
+        // test if we have reached an accepting state
+        inline bool isMatch();
 
         // load the bitmasks for the given sequences
         inline void loadBitmasks(std::string& seq);
@@ -90,17 +93,24 @@ ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
 
 
 template<size_t E>
-inline std::vector<unsigned int> ShiftAnd<E>::querySeq(std::vector<char>::iterator& start, std::vector<char>::iterator& end)
+inline std::vector<unsigned int> ShiftAnd<E>::querySeq(std::string::iterator start, std::string::iterator end)
 {
 
     reset();
 
     std::vector<unsigned int> matches;
 
-    for (auto it = start; it != end; )
+    for (auto it = start; it != end; ++it)
     {
 
         queryLetter(*it);
+
+        if (isMatch())
+        {
+
+            matches.emplace_back(it - start);
+
+        }
 
     }
     return matches;
@@ -161,6 +171,25 @@ inline void ShiftAnd<E>::queryLetter(const char& c)
 
 
 template<size_t E>
+inline bool ShiftAnd<E>::isMatch()
+{
+    // go through layers
+    for (size_t i = E + 1; i > 0; )
+    {
+
+        --i;
+        // test if this layer is match
+        if ((active[i].B_0 & accepted.B_0) | (active[i].B_1 & accepted.B_1))
+        {
+            return true;
+        }
+
+    }
+    return false;
+}
+
+
+template<size_t E>
 inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 {
 
@@ -176,6 +205,8 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
     if (seqLen < 64)
     {
 
+        accepted.B_1 = 0;
+        accepted.B_0 = 1 << seqLen;
         // save masks for second part of sequence
         // dummy bitmask to propagate states to the end
         masks[0].B_1 = maskA;
@@ -232,6 +263,8 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 
     } else if (seqLen < 128) {
 
+        accepted.B_0 = 0;
+        accepted.B_1 = 1 << (seqLen - 64);
         // laod second part of sequence
         for (unsigned int i = seqLen - 1; i > 62; --i)
         {
@@ -326,6 +359,8 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 
     } else {
 
+        accepted.B_0 = 0;
+        accepted.B_1 = 0x8000000000000000ULL;
         // load second part of sequence
         for (unsigned int i = 127; i > 62; --i)
         {
