@@ -913,11 +913,6 @@ void RefGenome::filterHashTable()
 
     cout << "\nHash table size before filter: " << kmerTable.size() << endl;
     chrono::high_resolution_clock::time_point filterStartTime = chrono::high_resolution_clock::now();
-    // reserve new hashing structure vectors
-    // std::vector<KMER::kmer> kmerTableNew;
-    // kmerTableNew.reserve(kmerTable.size());
-    // std::vector<bool> strandTableNew;
-    // strandTableNew.reserve(strandTable.size());
 
     // will hold the counts of individual kmers for each hash table cell
     unordered_map<uint64_t, unsigned int> kmerCount;
@@ -947,8 +942,6 @@ void RefGenome::filterHashTable()
                 *filterItS = *srcItS;
 
             }
-            // kmerTableNew.insert(kmerTableNew.end(), kmerTable.begin() + tabIndex[i], kmerTable.begin() + tabIndex[i+1]);
-            // strandTableNew.insert(strandTableNew.end(), strandTable.begin() + tabIndex[i], strandTable.begin() + tabIndex[i+1]);
 
             // update the indexing structure for collisions
             tabIndex[i] = prevSizeK;
@@ -973,8 +966,6 @@ void RefGenome::filterHashTable()
                 if (kmerCount[kHash] < MyConst::KMERCUTOFF)
                 {
                     // if it occurs not too often, copy
-                    // kmerTableNew.push_back(kmerTable[j]);
-                    // strandTableNew.push_back(strandTable[j]);
                     *filterItK = *srcItK;
                     *filterItS = *srcItS;
                     ++filterItK;
@@ -994,14 +985,6 @@ void RefGenome::filterHashTable()
     // shrink to new size
     kmerTable.resize(filterItK - kmerTable.begin());
     strandTable.resize(filterItK - kmerTable.begin());
-    // kmerTableNew.shrink_to_fit();
-    // strandTableNew.shrink_to_fit();
-
-    // overwrite internal hash table structure
-    // kmerTable = move(kmerTableNew);
-    // (Move assignment different for vector bool spezialisation due to different underlying bitvector representations?)
-    // strandTable.clear();
-    // strandTable = move(strandTableNew);
 
     chrono::high_resolution_clock::time_point filterEndTime = chrono::high_resolution_clock::now();
 
