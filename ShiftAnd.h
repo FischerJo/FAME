@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 
+#include "CONST.h"
+
 // Implementation of the approximate shift and algorithm with maximum E errors allowed
 template<size_t E>
 class ShiftAnd
@@ -32,7 +34,7 @@ class ShiftAnd
         //              seq     sequence of characters for which the bitmasks should be
         //                      initialized
         //              lMap    array that maps letters to mask indices
-        ShiftAnd(std::vector<char>& seq, std::array<uint8_t, 256>& lMap);
+        ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap);
 
         // -------------------
 
@@ -44,17 +46,21 @@ class ShiftAnd
         //
         // RETURN:
         //              vector of offsets (relative to start iterator) were matchings start
-        std::vector<unsigned int> querySeq(std::vector<char>::iterator& start, std::vector<char>::iterator& end);
+        inline std::vector<unsigned int> querySeq(std::vector<char>::iterator& start, std::vector<char>::iterator& end);
 
 
-    private:
+        // TODO make this private once its tested
+    // private:
 
         // Reset to initial state
         // is called by querySeq
-        void reset();
+        inline void reset();
+
+        // query a single letter to the automaton
+        inline void queryLetter(const char& c);
 
         // load the bitmasks for the given sequences
-        void loadBitmasks(std::vector<char>& seq);
+        inline void loadBitmasks(std::string& seq);
 
         // Bitvector data structure holding the set of active states indicated by a 1
         // initial state is least significant bit of active[0].B_0 (dummy state),
@@ -69,10 +75,420 @@ class ShiftAnd
 
 
         // maps characters 'A', 'C', 'G', 'T' to their index
-        // // TODO: init this in ReadQueue
         std::array<uint8_t, 256>& lmap;
 
 
 };
+
+
+template<size_t E>
+ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
+        lmap(lMap)
+{
+    loadBitmasks(seq);
+}
+
+
+template<size_t E>
+inline std::vector<unsigned int> ShiftAnd<E>::querySeq(std::vector<char>::iterator& start, std::vector<char>::iterator& end)
+{
+
+    reset();
+
+    std::vector<unsigned int> matches;
+
+    for (auto it = start; it != end; )
+    {
+
+        queryLetter(*it);
+
+    }
+    return matches;
+}
+
+
+template<size_t E>
+inline void ShiftAnd<E>::reset()
+{
+    for (size_t i = 0; i <= E; ++i)
+    {
+
+        // set all initial states (with respect to epsilon transitions) active
+        active[i].B_0 = (1 << (i+1)) - 1;
+        active[i].B_1 = 0;
+
+    }
+}
+
+
+// TODO: make template spezialisations for this for E=1,2
+//          OR use loop unrolling with templates (see bottom of file)
+template<size_t E>
+inline void ShiftAnd<E>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c]];
+
+    // Bottom up update part for old values of previous iteration
+    for (unsigned int i = E; i > 0; --i)
+    {
+
+        // Update first part of pattern states
+        //
+        //                          Match                           Insertion               Substitution
+        active[i].B_0 = ((active[i].B_0 << 1 | 1) & mask.B_0) | (active[i-1].B_0) | (active[i-1].B_0 << 1);
+
+        // Update second part of pattern states
+        //
+        //                                  Match                                       Insertion                       Substitution
+        active[i].B_1 = ((active[i].B_1 << 1 | active[i].B_0 >> 63) & mask.B_1) | (active[i-1].B_1) | (active[i-1].B_1 << 1 | active[i-1].B_0 >> 63);
+
+
+    }
+    // update zero error layer (at the top)
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    //
+    // Top down update for values of this iteration
+    for (unsigned int i = 1; i <= E; ++i)
+    {
+
+        active[i].B_0 |= active[i-1].B_0 << 1;
+        active[i].B_1 |= active[i-1].B_1 << 1 | active[i-1].B_0 >> 63;
+
+    }
+}
+
+
+template<size_t E>
+inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
+{
+
+    // retrieve length of the sequence
+    const size_t seqLen = seq.size();
+
+    // load full mask for trailing 1s for sequences that are shorter than pLen
+    uint64_t maskA = 0xffffffffffffffffULL;
+    uint64_t maskC = 0xffffffffffffffffULL;
+    uint64_t maskG = 0xffffffffffffffffULL;
+    uint64_t maskT = 0xffffffffffffffffULL;
+
+    if (seqLen < 64)
+    {
+
+        // save masks for second part of sequence
+        // dummy bitmask to propagate states to the end
+        masks[0].B_1 = maskA;
+        masks[1].B_1 = maskA;
+        masks[2].B_1 = maskA;
+        masks[3].B_1 = maskA;
+
+        for (unsigned int i = seqLen; i > 0; )
+        {
+
+            // shift to make space for next letter
+            maskA = maskA << 1;
+            maskC = maskC << 1;
+            maskG = maskG << 1;
+            maskT = maskT << 1;
+
+            switch (seq[--i])
+            {
+                case ('A'):
+
+                    maskA |= 1;
+                    break;
+
+                case ('C'):
+
+                    maskC |= 1;
+                    break;
+
+                case ('G'):
+
+                    maskG |= 1;
+                    break;
+
+                case ('T'):
+
+                    maskT |= 1;
+                    maskC |= 1;
+
+            }
+
+        }
+        // load initial state
+        maskA = (maskA << 1) | 1;
+        maskC = (maskC << 1) | 1;
+        maskG = (maskG << 1) | 1;
+        maskT = (maskT << 1) | 1;
+        // save masks
+        masks[lmap['A']].B_0 = maskA;
+        masks[lmap['C']].B_0 = maskC;
+        masks[lmap['G']].B_0 = maskG;
+        masks[lmap['T']].B_0 = maskT;
+
+
+
+    } else if (seqLen < 128) {
+
+        // laod second part of sequence
+        for (unsigned int i = seqLen - 1; i > 62; --i)
+        {
+
+            // shift to make space for next letter
+            maskA = maskA << 1;
+            maskC = maskC << 1;
+            maskG = maskG << 1;
+            maskT = maskT << 1;
+
+            switch (seq[i])
+            {
+                case ('A'):
+
+                    maskA |= 1;
+                    break;
+
+                case ('C'):
+
+                    maskC |= 1;
+                    break;
+
+                case ('G'):
+
+                    maskG |= 1;
+                    break;
+
+                case ('T'):
+
+                    maskT |= 1;
+                    maskC |= 1;
+
+            }
+
+        }
+        // save masks
+        masks[lmap['A']].B_1 = maskA;
+        masks[lmap['C']].B_1 = maskC;
+        masks[lmap['G']].B_1 = maskG;
+        masks[lmap['T']].B_1 = maskT;
+
+        // reset mask buffer
+        maskA = 0xffffffffffffffffULL;
+        maskC = 0xffffffffffffffffULL;
+        maskG = 0xffffffffffffffffULL;
+        maskT = 0xffffffffffffffffULL;
+
+        // load first part of sequence
+        for (unsigned int i = 63; i > 0; )
+        {
+            // shift to make space for next letter
+            maskA = maskA << 1;
+            maskC = maskC << 1;
+            maskG = maskG << 1;
+            maskT = maskT << 1;
+
+            switch (seq[--i])
+            {
+                case ('A'):
+
+                    maskA |= 1;
+                    break;
+
+                case ('C'):
+
+                    maskC |= 1;
+                    break;
+
+                case ('G'):
+
+                    maskG |= 1;
+                    break;
+
+                case ('T'):
+
+                    maskT |= 1;
+                    maskC |= 1;
+
+            }
+
+        }
+        // load initial state
+        maskA = (maskA << 1) | 1;
+        maskC = (maskC << 1) | 1;
+        maskG = (maskG << 1) | 1;
+        maskT = (maskT << 1) | 1;
+        // save masks
+        masks[lmap['A']].B_0 = maskA;
+        masks[lmap['C']].B_0 = maskC;
+        masks[lmap['G']].B_0 = maskG;
+        masks[lmap['T']].B_0 = maskT;
+
+    } else {
+
+        // load second part of sequence
+        for (unsigned int i = 127; i > 62; --i)
+        {
+
+            // shift to make space for next letter
+            maskA = maskA << 1;
+            maskC = maskC << 1;
+            maskG = maskG << 1;
+            maskT = maskT << 1;
+
+            switch (seq[i])
+            {
+                case ('A'):
+
+                    maskA |= 1;
+                    break;
+
+                case ('C'):
+
+                    maskC |= 1;
+                    break;
+
+                case ('G'):
+
+                    maskG |= 1;
+                    break;
+
+                case ('T'):
+
+                    maskT |= 1;
+                    maskC |= 1;
+
+            }
+
+        }
+        // save masks
+        masks[lmap['A']].B_1 = maskA;
+        masks[lmap['C']].B_1 = maskC;
+        masks[lmap['G']].B_1 = maskG;
+        masks[lmap['T']].B_1 = maskT;
+
+        // reset mask buffer
+        maskA = 0xffffffffffffffffULL;
+        maskC = 0xffffffffffffffffULL;
+        maskG = 0xffffffffffffffffULL;
+        maskT = 0xffffffffffffffffULL;
+
+        // load first part of sequence
+        for (unsigned int i = 63; i > 0; )
+        {
+
+            // shift to make space for next letter
+            maskA = maskA << 1;
+            maskC = maskC << 1;
+            maskG = maskG << 1;
+            maskT = maskT << 1;
+            switch (seq[--i])
+            {
+                case ('A'):
+
+                    maskA |= 1;
+                    break;
+
+                case ('C'):
+
+                    maskC |= 1;
+                    break;
+
+                case ('G'):
+
+                    maskG |= 1;
+                    break;
+
+                case ('T'):
+
+                    maskT |= 1;
+                    maskC |= 1;
+
+            }
+
+        }
+        // load initial state
+        maskA = (maskA << 1) | 1;
+        maskC = (maskC << 1) | 1;
+        maskG = (maskG << 1) | 1;
+        maskT = (maskT << 1) | 1;
+        // save masks
+        masks[lmap['A']].B_0 = maskA;
+        masks[lmap['C']].B_0 = maskC;
+        masks[lmap['G']].B_0 = maskG;
+        masks[lmap['T']].B_0 = maskT;
+    }
+
+}
+
+
+// COMPILE TIME loop structure to unroll loops for bit updates
+
+
+// Calling example:
+//
+// ForLoop<MyConst::MISCOUNT>::iterate<BottomUpChanges>()
+// template<size_t loopCounter>
+// struct ForLoop
+// {
+//     template<template <size_t> class function>
+//     static void iterate(ShiftAnd<MyConst::MISCOUNT> sa)
+//     {
+//         function<loopCounter>::apply(sa);
+//         ForLoop<loopCounter - 1>::template iterate<function>(sa);
+//     }
+// };
+//
+// template<>
+// struct ForLoop<1>
+// {
+//     template<template <size_t> class function>
+//     static void iterate(ShiftAnd<MyConst::MISCOUNT> sa)
+//     {
+//         function<1>::apply(sa);
+//     }
+// };
+//
+// // function should only be applied to error leayers - this is edge case
+// // for zero mismatch program executions
+// template<>
+// struct ForLoop<0>
+// {
+//
+//     template<template <size_t> class function>
+//     static void iterate(ShiftAnd<MyConst::MISCOUNT> sa)
+//     {
+//     }
+// };
+//
+// template <size_t layer>
+// struct BotomUpChanges
+// {
+//     // TODO: pass mask
+//     static void apply(ShiftAnd<MyConst::MISCOUNT> sa, struct states mask)
+//     {
+//
+//         // Update first part of pattern states
+//         //
+//         //                                      Match                           Insertion           Substitution
+//         sa.active[layer].B_0 = ((sa.active[layer].B_0 << 1 | 1) & mask.B_0) | (sa.active[layer-1].B_0) | (sa.active[layer-1].B_0 << 1);
+//
+//         // Update second part of pattern states
+//         //
+//         //                                      Match                                             Insertion                       Substitution
+//         sa.active[layer].B_1 = ((sa.active[layer].B_1 << 1 | sa.active[layer].B_0 >> 63) & mask.B_1) | (sa.active[layer-1].B_1) | (sa.active[layer-1].B_1 << 1 | sa.active[layer-1].B_0 >> 63);
+//     }
+// };
+//
+// template <size_t layer>
+// struct TopDownChanges
+// {
+//
+//     static void apply(ShiftAnd<MyConst::MISCOUNT> sa)
+//     {
+//
+//     }
+// };
+
 
 #endif /* SHIFTAND_H */
