@@ -16,11 +16,11 @@ USER_DIR = ..
 CPPFLAGS += -isystem $(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread
+CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread -fopenmp
 
 # All tests produced by this Makefile.  ADD TESTS HERE
 TESTS = RefReader_unittest.o BitFunctions_unittest.o DnaBitStr_unittest.o \
-		RefGenome_unittest.o
+		RefGenome_unittest.o ShiftAnd_unittest.o
 # files to test
 OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o Read.o ReadQueue.o
 
