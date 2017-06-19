@@ -18,7 +18,7 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     ,   metaStartCpGs()
 {
     // find out genome size
-    unsigned int gensize = 0;
+    size_t gensize = 0;
     for (vector<char> chr : genomeSeq)
     {
         gensize += chr.size();
@@ -36,8 +36,7 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     cout << "Done hashing CpGs" << endl;
     // filter out highly repetitive sequences
     filterHashTable();
-    //
-    // cout << "Done filtering Hash table" << endl;
+    cout << "Done filtering Hash table" << endl;
 }
 
 void RefGenome::generateMetaCpGs()
