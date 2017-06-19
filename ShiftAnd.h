@@ -46,7 +46,7 @@ class ShiftAnd
         //
         // RETURN:
         //              vector of offsets (relative to start iterator) were matchings end(!!!)
-        inline std::vector<unsigned int> querySeq(std::string::iterator start, std::string::iterator end);
+        inline std::vector<size_t> querySeq(std::string::iterator start, std::string::iterator end);
 
 
         // TODO make this private once its tested
@@ -76,6 +76,9 @@ class ShiftAnd
         // masks to filter out accepting states
         bitMasks accepted;
 
+        // length of the sequence that is represented by the automata
+        const uint64_t pLen;
+
 
         // maps characters 'A', 'C', 'G', 'T' to their index
         std::array<uint8_t, 256>& lmap;
@@ -86,19 +89,20 @@ class ShiftAnd
 
 template<size_t E>
 ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
-        lmap(lMap)
+        pLen(seq.size())
+    ,   lmap(lMap)
 {
     loadBitmasks(seq);
 }
 
 
 template<size_t E>
-inline std::vector<unsigned int> ShiftAnd<E>::querySeq(std::string::iterator start, std::string::iterator end)
+inline std::vector<size_t> ShiftAnd<E>::querySeq(std::string::iterator start, std::string::iterator end)
 {
 
     reset();
 
-    std::vector<unsigned int> matches;
+    std::vector<size_t> matches;
 
     for (auto it = start; it != end; ++it)
     {
@@ -124,7 +128,7 @@ inline void ShiftAnd<E>::reset()
     {
 
         // set all initial states (with respect to epsilon transitions) active
-        active[i].B_0 = (1 << (i+1)) - 1;
+        active[i].B_0 = (static_cast<uint64_t>(1) << (i+1)) - 1;
         active[i].B_1 = 0;
 
     }
@@ -140,7 +144,7 @@ inline void ShiftAnd<E>::queryLetter(const char& c)
     const bitMasks& mask = masks[lmap[c]];
 
     // Bottom up update part for old values of previous iteration
-    for (unsigned int i = E; i > 0; --i)
+    for (size_t i = E; i > 0; --i)
     {
 
         // Update first part of pattern states
@@ -160,7 +164,7 @@ inline void ShiftAnd<E>::queryLetter(const char& c)
     active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
     //
     // Top down update for values of this iteration
-    for (unsigned int i = 1; i <= E; ++i)
+    for (size_t i = 1; i <= E; ++i)
     {
 
         active[i].B_0 |= active[i-1].B_0 << 1;
@@ -206,7 +210,7 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
     {
 
         accepted.B_1 = 0;
-        accepted.B_0 = 1 << seqLen;
+        accepted.B_0 = static_cast<uint64_t>(1) << seqLen;
         // save masks for second part of sequence
         // dummy bitmask to propagate states to the end
         masks[0].B_1 = maskA;
@@ -214,7 +218,7 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         masks[2].B_1 = maskA;
         masks[3].B_1 = maskA;
 
-        for (unsigned int i = seqLen; i > 0; )
+        for (size_t i = seqLen; i > 0; )
         {
 
             // shift to make space for next letter
@@ -261,12 +265,13 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 
 
 
-    } else if (seqLen < 128) {
+    } else if (seqLen <= 127) {
 
         accepted.B_0 = 0;
-        accepted.B_1 = 1 << (seqLen - 64);
-        // laod second part of sequence
-        for (unsigned int i = seqLen - 1; i > 62; --i)
+        accepted.B_1 = static_cast<uint64_t>(1) << (seqLen - 64);
+
+        // load second part of sequence
+        for (size_t i = seqLen - 1; i > 62; --i)
         {
 
             // shift to make space for next letter
@@ -313,7 +318,7 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         maskT = 0xffffffffffffffffULL;
 
         // load first part of sequence
-        for (unsigned int i = 63; i > 0; )
+        for (size_t i = 63; i > 0; )
         {
             // shift to make space for next letter
             maskA = maskA << 1;
@@ -362,7 +367,7 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         accepted.B_0 = 0;
         accepted.B_1 = 0x8000000000000000ULL;
         // load second part of sequence
-        for (unsigned int i = 127; i > 62; --i)
+        for (size_t i = 127; i > 62; --i)
         {
 
             // shift to make space for next letter
@@ -409,7 +414,7 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         maskT = 0xffffffffffffffffULL;
 
         // load first part of sequence
-        for (unsigned int i = 63; i > 0; )
+        for (size_t i = 63; i > 0; )
         {
 
             // shift to make space for next letter
