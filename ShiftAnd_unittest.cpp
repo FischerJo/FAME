@@ -205,14 +205,15 @@ TEST_F(ShiftAnd_test, matching_same)
     seq = seq + seq + seq;
     seq += seq;
     seq += "TTTTTTT";
+    std::vector<char> t (seq.begin(), seq.end());
     // don't allow errors
     ShiftAnd<0> sa0(seq, lmap);
     // allow single error
     ShiftAnd<1> sa1(seq, lmap);
 
     // query sequence
-    std::vector<size_t> matchings0 = sa0.querySeq(seq.begin(), seq.end());
-    std::vector<size_t> matchings1 = sa1.querySeq(seq.begin(), seq.end());
+    std::vector<size_t> matchings0 = sa0.querySeq(t.begin(), t.end());
+    std::vector<size_t> matchings1 = sa1.querySeq(t.begin(), t.end());
 
     // check the accepting masks
     ASSERT_EQ(0, sa0.accepted.B_0);
@@ -228,10 +229,10 @@ TEST_F(ShiftAnd_test, matching_same)
     ASSERT_EQ(126, matchings1[1]);
 
     // Exchange a letter to produce mismatch
-    seq[5] = 'C';
+    t[5] = 'C';
 
-    matchings0 = sa0.querySeq(seq.begin(), seq.end());
-    matchings1 = sa1.querySeq(seq.begin(), seq.end());
+    matchings0 = sa0.querySeq(t.begin(), t.end());
+    matchings1 = sa1.querySeq(t.begin(), t.end());
 
     ASSERT_EQ(0, matchings0.size());
     ASSERT_EQ(1, matchings1.size());
@@ -248,7 +249,8 @@ TEST_F(ShiftAnd_test, matching_smaller)
 
     // init pattern and text
     std::string p = "AGGCGAGGC";
-    std::string t = "AGGCGAGGCGAAGCGAGGC";
+    std::string tSeq = "AGGCGAGGCGAAGCGAGGC";
+    std::vector<char> t (tSeq.begin(), tSeq.end());
 
     // allow single error
     ShiftAnd<1> sa1(p, lmap);
@@ -281,7 +283,8 @@ TEST_F(ShiftAnd_test, matching_bisulfite)
 {
 
     std::string p = "AGGTTATTC";
-    std::string t = "AGGTCACCCAAT";
+    std::string tSeq = "AGGTCACCCAAT";
+    std::vector<char> t (tSeq.begin(), tSeq.end());
 
     ShiftAnd<1> sa1(p, lmap);
 

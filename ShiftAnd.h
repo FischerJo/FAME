@@ -46,7 +46,10 @@ class ShiftAnd
         //
         // RETURN:
         //              vector of offsets (relative to start iterator) were matchings end(!!!)
-        inline std::vector<size_t> querySeq(std::string::iterator start, std::string::iterator end);
+        inline std::vector<size_t> querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end);
+
+        // returns the size of the represented pattern sequence
+        inline uint64_t size() { return pLen; }
 
 
         // TODO make this private once its tested
@@ -97,7 +100,7 @@ ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
 
 
 template<size_t E>
-inline std::vector<size_t> ShiftAnd<E>::querySeq(std::string::iterator start, std::string::iterator end)
+inline std::vector<size_t> ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end)
 {
 
     reset();
