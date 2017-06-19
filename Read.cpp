@@ -4,7 +4,7 @@
 Read::Read() :
         id()
     ,   seq()
-    ,   matches()
+    // ,   matches()
     ,   isInvalid(true)
 {
 }
@@ -12,7 +12,7 @@ Read::Read() :
 Read::Read(std::string& sequence, std::string& identifier) :
         id(identifier)
     ,   seq(sequence)
-    ,   matches()
+    // ,   matches()
     ,   isInvalid(false)
 {
 }
