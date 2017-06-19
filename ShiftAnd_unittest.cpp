@@ -274,3 +274,32 @@ TEST_F(ShiftAnd_test, matching_smaller)
 
     ASSERT_EQ(7, matchings[0]);
 }
+
+
+// simple matching test for pattern with Ts against text with Cs
+TEST_F(ShiftAnd_test, matching_bisulfite)
+{
+
+    std::string p = "AGGTTATTC";
+    std::string t = "AGGTCACCCAAT";
+
+    ShiftAnd<1> sa1(p, lmap);
+
+    std::vector<size_t> matchings = sa1.querySeq(t.begin(), t.end());
+
+    ASSERT_EQ(3, matchings.size());
+
+    ASSERT_EQ(7, matchings[0]);
+    ASSERT_EQ(8, matchings[1]);
+    ASSERT_EQ(9, matchings[2]);
+
+    // introduce a substitution error
+    t[4]= 'G';
+
+    matchings = sa1.querySeq(t.begin(), t.end());
+
+    ASSERT_EQ(1, matchings.size());
+
+    ASSERT_EQ(8, matchings[0]);
+
+}
