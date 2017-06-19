@@ -196,6 +196,7 @@ TEST_F(ShiftAnd_test, bitmaskBisulfite)
 
 // simple matching test with
 // same sequence for text as for pattern
+// and with one substitution
 TEST_F(ShiftAnd_test, matching_same)
 {
 
@@ -206,16 +207,27 @@ TEST_F(ShiftAnd_test, matching_same)
     seq += "TTTTTTT";
     // don't allow errors
     ShiftAnd<0> sa0(seq, lmap);
+    // allow single error
     ShiftAnd<1> sa1(seq, lmap);
 
-    std::vector<unsigned int> matchings0 = sa0.querySeq(seq.begin(), seq.end());
-    std::vector<unsigned int> matchings1 = sa1.querySeq(seq.begin(), seq.end());
+    // query sequence
+    std::vector<size_t> matchings0 = sa0.querySeq(seq.begin(), seq.end());
+    std::vector<size_t> matchings1 = sa1.querySeq(seq.begin(), seq.end());
 
+    // check the accepting masks
+    ASSERT_EQ(0, sa0.accepted.B_0);
+    ASSERT_EQ(0, sa1.accepted.B_0);
+    ASSERT_EQ(0x8000000000000000ULL, sa0.accepted.B_1);
+    ASSERT_EQ(0x8000000000000000ULL, sa1.accepted.B_1);
+
+    // check size of matchings
     ASSERT_EQ(1, matchings0.size());
-    ASSERT_EQ(1, matchings1.size());
-    ASSERT_EQ(127, matchings0[0]);
-    ASSERT_EQ(127, matchings1[0]);
+    ASSERT_EQ(2, matchings1.size());
+    ASSERT_EQ(126, matchings0[0]);
+    ASSERT_EQ(125, matchings1[0]);
+    ASSERT_EQ(126, matchings1[1]);
 
+    // Exchange a letter to produce mismatch
     seq[5] = 'C';
 
     matchings0 = sa0.querySeq(seq.begin(), seq.end());
@@ -223,6 +235,42 @@ TEST_F(ShiftAnd_test, matching_same)
 
     ASSERT_EQ(0, matchings0.size());
     ASSERT_EQ(1, matchings1.size());
-    ASSERT_EQ(127, matchings1[0]);
+    ASSERT_EQ(126, matchings1[0]);
 
+}
+
+
+// simple matching test of small pattern in larger sequence
+// p = AGGCGAGGC
+// t = AGGCGAGGCGAAGCGAGGC
+TEST_F(ShiftAnd_test, matching_smaller)
+{
+
+    // init pattern and text
+    std::string p = "AGGCGAGGC";
+    std::string t = "AGGCGAGGCGAAGCGAGGC";
+
+    // allow single error
+    ShiftAnd<1> sa1(p, lmap);
+
+    // query the text to automata
+    std::vector<size_t> matchings = sa1.querySeq(t.begin(), t.end());
+
+
+    // we should have one full match at pos 8, one with deletion at pos 7,
+    // one with insertion at pos 9,
+    // one with substitution 13,
+    // another one with deletion at 18
+    ASSERT_EQ(5, matchings.size());
+
+    ASSERT_EQ(7, matchings[0]);
+    ASSERT_EQ(8, matchings[1]);
+    ASSERT_EQ(9, matchings[2]);
+    ASSERT_EQ(13, matchings[3]);
+    ASSERT_EQ(18, matchings[4]);
+
+    // query only last part
+    matchings = sa1.querySeq(t.begin() + 11, t.end());
+
+    ASSERT_EQ(7, matchings[0]);
 }
