@@ -19,6 +19,7 @@ struct idPos {
 
 
 struct CpG {
+
     // position where this CpG is present in genome
     const uint8_t chrom;
     // convention: pos points to position of start of context of CpG (C position - READLEN + 2)
@@ -31,6 +32,7 @@ struct CpG {
 
 
 struct metaCpG {
+
     // index of first CpG of this meta CpG
     uint32_t start;
     // start of this meta CpG is cpgTable[start].pos
