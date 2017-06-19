@@ -13,6 +13,7 @@
 #include "CONST.h"
 #include "RefGenome.h"
 #include "Read.h"
+#include "ShiftAnd.h"
 
 class ReadQueue
 {
@@ -350,6 +351,91 @@ class ReadQueue
             seedsK = std::move(newSeedsK);
             seedsS = std::move(newSeedsS);
         }
+
+
+        // query seeds to a given shift-and automaton
+        //
+        // ARGUMENTS:
+        //              sa          shift-and automaton
+        //              seedsK      k-mer representation of seeds
+        //              seedsS      strandedness of seeds
+        //
+        // RETURN:
+        //              true        iff exactly one unique best match
+        //              false       otherwise
+        //
+        // MODIFICATIONS:
+        //              updates the matches field of the read set
+        //
+        inline void saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        {
+
+            // use counters to flag what has been processed so far
+            // 0 if not processed at all
+            // 1 if start metaCpG has been processed before
+            // 2 if metaCpG this index has been proc. before
+            // 3 if both
+            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+
+            // fill with zeroes
+            threadCountFwd.assign(ref.metaCpGs.size(), 0);
+            threadCountRev.assign(ref.metaCpGs.size(), 0);
+
+            // go over all meta CpGs (of forward strand)
+            for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
+            {
+
+                for (size_t innerNdx = 0; innerNdx < seedsK[0].size(); ++innerNdx)
+                {
+
+                    // retrieve kmer
+                    KMER::kmer& k = seedsK[outerNdx][innerNdx];
+
+                    // retrieve meta CpG
+                    const uint64_t m = KMER::getMetaCpG(k);
+
+                    // retrieve if start meta CpG
+                    const bool isStart = KMER::isStartCpG(k);
+
+                    // retrieve strand
+                    const bool isFwd = seedsS[outerNdx][innerNdx];
+
+                    if (isStart)
+                    {
+
+                        if (isFwd)
+                        {
+                            // check if we queried it before
+                            if (threadCountFwd[m] == 1 || threadCountFwd[m] == 3)
+                            {
+                                continue;
+
+                            } else {
+
+                                // TODO query
+                            }
+
+                        // is not forward strand meta CpG
+                        } else {
+
+
+
+                        }
+
+                    // is not start metaCpG
+                    } else {
+
+
+                    }
+
+
+                }
+
+            }
+
+        }
+
 
         // print statistics over seed set to statFile and countFile
         //

@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "ReadQueue.h"
-#include "ShiftAnd.h"
 
 ReadQueue::ReadQueue(const char* filePath, RefGenome& reference) :
         statFile("seedStats.tsv")
@@ -93,6 +92,10 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // get correct offset for reverse strand (strand orientation must be correct)
         unsigned int revPos = readSize - 1;
 
+        // string containing reverse complement (under FULL alphabet)
+        std::string revSeq;
+        revSeq.resize(r.seq.size());
+
         // construct reduced alphabet sequence for forward and reverse strand
         for (unsigned int pos = 0; pos < readSize; ++pos, --revPos)
         {
@@ -103,24 +106,28 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
                     redSeq[pos] = 'A';
                     redRevSeq[revPos] = 'T';
+                    revSeq[revPos] = 'T';
                     break;
 
                 case 'C':
 
                     redSeq[pos] = 'T';
                     redRevSeq[revPos] = 'G';
+                    revSeq[revPos] = 'G';
                     break;
 
                 case 'G':
 
                     redSeq[pos] = 'G';
                     redRevSeq[revPos] = 'T';
+                    revSeq[revPos] = 'C';
                     break;
 
                 case 'T':
 
                     redSeq[pos] = 'T';
                     redRevSeq[revPos] = 'A';
+                    revSeq[revPos] = 'A';
                     break;
 
                 case 'N':
@@ -152,28 +159,39 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // printStatistics(fwdSeedsK);
 
         // FILTER SEEDS BY COUNTING LEMMA
+        // TODO: return set of metaCpGs here!
         filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
         filterHeuSeeds(revSeedsK, revSeedsS, readSize);
 
-        ShiftAnd<MyConst::MISCOUNT> saFwd = ShiftAnd<MyConst::MISCOUNT>(r.seq, lmap);
-        // TODO: make same for reverse comp of read
+        // produce shift-and automaton for forward and reverse sequence of this read
+        ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
+        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
+
+        // query seeds to shift-and automaton
+        // TODO: pass set of metaCpGs here
+        // saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS);
+        // saQuerySeedSet(saRev, revSeedsK, revSeedsS);
 
         // printStatistics(fwdSeedsK);
 
         // BITMASK COMPARISON ON FULL ALPHABET FOR REMAINING SEEDS
-        bitMatching(r, fwdSeedsK, fwdSeedsS);
-        bitMatchingRev(r, revSeedsK, revSeedsS);
+        // bitMatching(r, fwdSeedsK, fwdSeedsS);
+        // bitMatchingRev(r, revSeedsK, revSeedsS);
 
         // printStatistics(fwdSeedsK);
         // FILTER MATCHING KMERS BY COUNTING LEMMA
-        filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
-        filterHeuSeeds(revSeedsK, revSeedsS, readSize);
+        // filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
+        // filterHeuSeeds(revSeedsK, revSeedsS, readSize);
 
         // printStatistics(fwdSeedsK);
 
         // finish line for this read in counter file
         countFile << "\n";
+
+
     }
+
+    // TODO: Go over read set once and register the CpG matchings
     return true;
 }
 
