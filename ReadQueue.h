@@ -90,19 +90,11 @@ class ReadQueue
             // More than cutoff many kmers are required per metaCpG
             const unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT);
 
-            // TODO: dummy values instead of reallocations
 
             // throw out rare metaCpGs
             for (size_t i = 0; i < seedsK.size(); ++i)
             {
 
-                // std::vector<KMER::kmer> filteredSeedsK;
-                // std::vector<bool> filteredSeedsS;
-                // filteredSeedsK.reserve(seedsK[i].size());
-                // filteredSeedsS.reserve(seedsK[i].size());
-                //
-                //
-                //
                 // iterator to the element that we process
                 auto srcItK = seedsK[i].begin();
                 auto srcItS = seedsS[i].begin();
@@ -120,8 +112,6 @@ class ReadQueue
                         if (threadCountFwd[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
                         {
 
-                            // filteredSeedsK.push_back(seedsK[i][j]);
-                            // filteredSeedsS.push_back(seedsS[i][j]);
                             *filterItK = *srcItK;
                             *filterItS = *srcItS;
                             ++filterItK;
@@ -135,8 +125,6 @@ class ReadQueue
                         if (threadCountRev[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
                         {
 
-                            // filteredSeedsK.push_back(seedsK[i][j]);
-                            // filteredSeedsS.push_back(seedsS[i][j]);
                             *filterItK = *srcItK;
                             *filterItS = *srcItS;
                             ++filterItK;
@@ -147,10 +135,6 @@ class ReadQueue
 
                     }
                 }
-                // filteredSeedsK.shrink_to_fit();
-                // filteredSeedsS.shrink_to_fit();
-                // seedsK[i] = std::move(filteredSeedsK);
-                // seedsS[i] = std::move(filteredSeedsS);
                 seedsK[i].resize(filterItK - seedsK[i].begin());
                 seedsS[i].resize(filterItK - seedsK[i].begin());
             }
