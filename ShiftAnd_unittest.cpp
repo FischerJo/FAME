@@ -212,8 +212,12 @@ TEST_F(ShiftAnd_test, matching_same)
     ShiftAnd<1> sa1(seq, lmap);
 
     // query sequence
-    std::vector<size_t> matchings0 = sa0.querySeq(t.begin(), t.end());
-    std::vector<size_t> matchings1 = sa1.querySeq(t.begin(), t.end());
+    std::vector<size_t> matchings0;
+    std::vector<uint16_t> errors0;
+    sa0.querySeq(t.begin(), t.end(), matchings0, errors0);
+    std::vector<size_t> matchings1;
+    std::vector<uint16_t> errors1;
+    sa1.querySeq(t.begin(), t.end(), matchings1, errors1);
 
     // check the accepting masks
     ASSERT_EQ(0, sa0.accepted.B_0);
@@ -228,15 +232,28 @@ TEST_F(ShiftAnd_test, matching_same)
     ASSERT_EQ(125, matchings1[0]);
     ASSERT_EQ(126, matchings1[1]);
 
+    // check the mismatches
+    ASSERT_EQ(1, errors0.size());
+    ASSERT_EQ(2, errors1.size());
+    ASSERT_EQ(0, errors0[0]);
+    ASSERT_EQ(1, errors1[0]);
+    ASSERT_EQ(0, errors1[1]);
+
     // Exchange a letter to produce mismatch
     t[5] = 'C';
 
-    matchings0 = sa0.querySeq(t.begin(), t.end());
-    matchings1 = sa1.querySeq(t.begin(), t.end());
+    matchings0.clear();
+    matchings1.clear();
+    errors0.clear();
+    errors1.clear();
+    sa0.querySeq(t.begin(), t.end(), matchings0, errors0);
+    sa1.querySeq(t.begin(), t.end(), matchings1, errors1);
 
     ASSERT_EQ(0, matchings0.size());
     ASSERT_EQ(1, matchings1.size());
     ASSERT_EQ(126, matchings1[0]);
+
+    ASSERT_EQ(1, errors1[0]);
 
 }
 
@@ -256,7 +273,9 @@ TEST_F(ShiftAnd_test, matching_smaller)
     ShiftAnd<1> sa1(p, lmap);
 
     // query the text to automata
-    std::vector<size_t> matchings = sa1.querySeq(t.begin(), t.end());
+    std::vector<size_t> matchings;
+    std::vector<uint16_t> errors;
+    sa1.querySeq(t.begin(), t.end(), matchings, errors);
 
 
     // we should have one full match at pos 8, one with deletion at pos 7,
@@ -264,17 +283,26 @@ TEST_F(ShiftAnd_test, matching_smaller)
     // one with substitution 13,
     // another one with deletion at 18
     ASSERT_EQ(5, matchings.size());
+    ASSERT_EQ(5, errors.size());
 
     ASSERT_EQ(7, matchings[0]);
+    ASSERT_EQ(1, errors[0]);
     ASSERT_EQ(8, matchings[1]);
+    ASSERT_EQ(0, errors[1]);
     ASSERT_EQ(9, matchings[2]);
+    ASSERT_EQ(1, errors[2]);
     ASSERT_EQ(13, matchings[3]);
+    ASSERT_EQ(1, errors[3]);
     ASSERT_EQ(18, matchings[4]);
+    ASSERT_EQ(1, errors[4]);
 
     // query only last part
-    matchings = sa1.querySeq(t.begin() + 11, t.end());
+    matchings.clear();
+    errors.clear();
+    sa1.querySeq(t.begin() + 11, t.end(), matchings, errors);
 
     ASSERT_EQ(7, matchings[0]);
+    ASSERT_EQ(1, errors[0]);
 }
 
 
@@ -288,21 +316,31 @@ TEST_F(ShiftAnd_test, matching_bisulfite)
 
     ShiftAnd<1> sa1(p, lmap);
 
-    std::vector<size_t> matchings = sa1.querySeq(t.begin(), t.end());
+    std::vector<size_t> matchings;
+    std::vector<uint16_t> errors;
+    sa1.querySeq(t.begin(), t.end(), matchings, errors);
 
     ASSERT_EQ(3, matchings.size());
+    ASSERT_EQ(3, errors.size());
 
     ASSERT_EQ(7, matchings[0]);
+    ASSERT_EQ(1, errors[0]);
     ASSERT_EQ(8, matchings[1]);
+    ASSERT_EQ(0, errors[1]);
     ASSERT_EQ(9, matchings[2]);
+    ASSERT_EQ(1, errors[2]);
 
     // introduce a substitution error
     t[4]= 'G';
 
-    matchings = sa1.querySeq(t.begin(), t.end());
+    matchings.clear();
+    errors.clear();
+    sa1.querySeq(t.begin(), t.end(), matchings, errors);
 
     ASSERT_EQ(1, matchings.size());
+    ASSERT_EQ(1, errors.size());
 
     ASSERT_EQ(8, matchings[0]);
+    ASSERT_EQ(1, errors[0]);
 
 }

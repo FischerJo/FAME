@@ -38,15 +38,15 @@ class ShiftAnd
 
         // -------------------
 
-        // Query the sequence slice comprised by [start,end) to the internal automata
+        // Query the sequence slice framed by [start,end) to the internal automata
         //
         // ARGUMENTS:
-        //              start   iterator to start of sequence to query
-        //              end     iterator to end of sequence to query
+        //              start       iterator to start of sequence to query
+        //              end         iterator to end of sequence to query
+        //              matches     will contain the matchings as offset relative to the start iterator (the end of the match)
+        //              errors      same size as matches; will contain number of errors for each match
         //
-        // RETURN:
-        //              vector of offsets (relative to start iterator) were matchings end(!!!)
-        inline std::vector<size_t> querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end);
+        inline void querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<size_t>& matches, std::vector<uint16_t>& errors);
 
         // returns the size of the represented pattern sequence
         inline uint64_t size() { return pLen; }
@@ -63,7 +63,13 @@ class ShiftAnd
         inline void queryLetter(const char& c);
 
         // test if we have reached an accepting state
-        inline bool isMatch();
+        //
+        // ARGUMENTS:
+        //          errNum      will contain number of errors produced by current match
+        //
+        // RETURN:
+        //          true iff we have a match
+        inline bool isMatch(uint16_t& errNum);
 
         // load the bitmasks for the given sequences
         inline void loadBitmasks(std::string& seq);
@@ -100,27 +106,26 @@ ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
 
 
 template<size_t E>
-inline std::vector<size_t> ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end)
+inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<size_t>& matches, std::vector<uint16_t>& errors)
 {
 
     reset();
-
-    std::vector<size_t> matches;
 
     for (auto it = start; it != end; ++it)
     {
 
         queryLetter(*it);
 
-        if (isMatch())
+        uint16_t errNum;
+        if (isMatch(errNum))
         {
 
             matches.emplace_back(it - start);
+            errors.emplace_back(errNum);
 
         }
 
     }
-    return matches;
 }
 
 
@@ -178,16 +183,16 @@ inline void ShiftAnd<E>::queryLetter(const char& c)
 
 
 template<size_t E>
-inline bool ShiftAnd<E>::isMatch()
+inline bool ShiftAnd<E>::isMatch(uint16_t& errNum)
 {
     // go through layers
-    for (size_t i = E + 1; i > 0; )
+    for (size_t i = 0; i <= E; ++i)
     {
 
-        --i;
         // test if this layer is match
         if ((active[i].B_0 & accepted.B_0) | (active[i].B_1 & accepted.B_1))
         {
+            errNum = i;
             return true;
         }
 
