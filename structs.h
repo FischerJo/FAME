@@ -27,7 +27,7 @@ struct CpG {
     const uint32_t pos;
 
     // Ctor for emplace_back
-    CpG(uint8_t chromC, unsigned int posC) : chrom(chromC), pos(posC) {}
+    CpG(uint8_t chromC, uint32_t posC) : chrom(chromC), pos(posC) {}
 };
 
 
@@ -75,11 +75,40 @@ namespace KMER {
     // constructs a kmer according to its definition
     inline KMER::kmer constructKmer(uint64_t isStart, uint64_t metacpg, uint64_t off)
     {
-
         return  (isStart << 63) | (metacpg << 32) | off;
     }
 } // end namespace KMER
 
 
+namespace MATCH {
+
+    // MATCH DEFINITION
+    //
+    // 32 lower (least significant) bit hold offset where the match ends in the sequence
+    // 8 next higher bits hold the chromosome index
+    // most significant bit holds strand flag which is 1 iff match is on forward strand
+    typedef uint64_t match;
+
+    // return the offset of given match
+    inline uint64_t getOffset(MATCH::match m)
+    {
+        return m & 0x00000000ffffffffULL;
+    }
+
+    inline uint8_t getChrom(MATCH::match m)
+    {
+        return (m & 0x000000ff00000000ULL) >> 32;
+    }
+
+    inline bool isFwd(MATCH::match m)
+    {
+        return (m & 0x8000000000000000ULL);
+    }
+
+    inline MATCH::match constructMatch(uint64_t off, uint64_t chrom, uint64_t isFwd)
+    {
+        return (isFwd << 63) | (chrom << 32) | off;
+    }
+} // end namespace MATCH
 
 #endif /* STRUCTS_H */
