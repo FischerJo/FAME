@@ -212,10 +212,10 @@ TEST_F(ShiftAnd_test, matching_same)
     ShiftAnd<1> sa1(seq, lmap);
 
     // query sequence
-    std::vector<size_t> matchings0;
+    std::vector<uint64_t> matchings0;
     std::vector<uint16_t> errors0;
     sa0.querySeq(t.begin(), t.end(), matchings0, errors0);
-    std::vector<size_t> matchings1;
+    std::vector<uint64_t> matchings1;
     std::vector<uint16_t> errors1;
     sa1.querySeq(t.begin(), t.end(), matchings1, errors1);
 
@@ -273,7 +273,7 @@ TEST_F(ShiftAnd_test, matching_smaller)
     ShiftAnd<1> sa1(p, lmap);
 
     // query the text to automata
-    std::vector<size_t> matchings;
+    std::vector<uint64_t> matchings;
     std::vector<uint16_t> errors;
     sa1.querySeq(t.begin(), t.end(), matchings, errors);
 
@@ -316,7 +316,7 @@ TEST_F(ShiftAnd_test, matching_bisulfite)
 
     ShiftAnd<1> sa1(p, lmap);
 
-    std::vector<size_t> matchings;
+    std::vector<uint64_t> matchings;
     std::vector<uint16_t> errors;
     sa1.querySeq(t.begin(), t.end(), matchings, errors);
 
