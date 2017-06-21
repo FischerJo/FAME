@@ -359,21 +359,22 @@ class ReadQueue
         //              sa          shift-and automaton
         //              seedsK      k-mer representation of seeds
         //              seedsS      strandedness of seeds
+        //              mat         will contain a unique match if successfull (i.e. return is true)
         //
         // RETURN:
-        //              true        iff exactly one unique best match
-        //              false       otherwise
+        //              true iff unique best match found
+        //              false otherwise
         //
         // MODIFICATIONS:
         //              updates the matches field of the read set
         //
-        inline void saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        inline bool saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match mat)
         {
 
             // use counters to flag what has been processed so far
             // 0 if not processed at all
             // 1 if start metaCpG has been processed before
-            // 2 if metaCpG this index has been proc. before
+            // 2 if metaCpG with this index has been proc. before
             // 3 if both
             std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
@@ -382,7 +383,18 @@ class ReadQueue
             threadCountFwd.assign(ref.metaCpGs.size(), 0);
             threadCountRev.assign(ref.metaCpGs.size(), 0);
 
-            // go over all meta CpGs (of forward strand)
+            // flags stating if we had a match with x errors before
+            // if we had a match with i errors then the MyConst::MISCOUNT - i 'th lower most bit and all lower bits are set
+            // that is, we have the number of allowed mismatches + 1 lower bits blocked and the most significant of those
+            // indicates 0 errors. All lower bits indicate 1, 2... and so on many errors.
+            // uint64_t multiMatch = 0;
+
+            // counter for how often we had a match
+            std::vector<uint8_t> multiMatch(MyConst::MISCOUNT + 1, 0);
+
+            // will contain matches iff match is found for number of errors specified by index
+            std::vector<MATCH::match> uniqueMatches(MyConst::MISCOUNT + 1);
+
             for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
             {
 
@@ -406,34 +418,292 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            // check if we queried it before
+                            // check if we queried this meta CpG it before
                             if (threadCountFwd[m] == 1 || threadCountFwd[m] == 3)
                             {
                                 continue;
 
                             } else {
 
-                                // TODO query
+                                // state that we queried this
+                                threadCountFwd[m] += 1;
+                                // retrieve it
+                                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[m].start];
+                                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
+
+                                auto startIt = ref.fullSeq[startCpg.chrom].begin();
+                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + MyConst::READLEN;
+
+                                // check if CpG was too near to the end
+                                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                                {
+                                    // if so move end iterator appropriately
+                                    endIt = ref.fullSeq[startCpg.chrom].end();
+                                }
+
+                                // use shift and to find all matchings
+                                std::vector<uint64_t> matchings;
+                                std::vector<uint16_t> errors;
+                                sa.querySeq(startIt, endIt, matchings, errors);
+
+                                // go through matching and see if we had such a match (with that many errors) before - if so,
+                                // return to caller reporting no match
+                                for (size_t i = 0; i < matchings.size(); ++i)
+                                {
+
+                                    // check if we had a match with that many errors before
+                                    if (multiMatch[errors[i]])
+                                    {
+
+                                        // check if this is a match without errors
+                                        if (!errors[i])
+                                        {
+
+                                            // if so, return without a match
+                                            return false;
+
+                                        }
+                                        // set the number of matches with that many errors to 2
+                                        // indicating that we do not have a unique match with that many errors
+                                        multiMatch[errors[i]] = 2;
+
+
+                                    } else {
+
+                                        // we don't have such a match yet,
+                                        // so save this match at the correct position
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, 1);
+                                        ++multiMatch[errors[i]];
+                                    }
+
+
+                                }
+
                             }
 
                         // is not forward strand meta CpG
                         } else {
 
+                            // check if we queried it before
+                            if (threadCountRev[m] == 1 || threadCountRev[m] == 3)
+                            {
+                                continue;
 
+                            } else {
+
+                                threadCountRev[m] += 1;
+                                // retrieve it
+                                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[m].start];
+                                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
+
+                                auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
+                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + MyConst::READLEN - 1;
+
+                                // check if CpG was too near to the end
+                                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                                {
+                                    // if so move end iterator appropriately
+                                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                                }
+
+                                // use shift and to find all matchings
+                                std::vector<uint64_t> matchings;
+                                std::vector<uint16_t> errors;
+                                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                                // go through matching and see if we had such a match (with that many errors) before - if so,
+                                // return to caller reporting no match
+                                for (size_t i = 0; i < matchings.size(); ++i)
+                                {
+
+                                    // check if we had a match with that many errors before
+                                    if (multiMatch[errors[i]])
+                                    {
+
+                                        // check if this is a match without errors
+                                        if (!errors[i])
+                                        {
+
+                                            // if so, return without a match
+                                            return false;
+
+                                        }
+                                        // set the number of matches with that many errors to 2
+                                        // indicating that we do not have a unique match with that many errors
+                                        multiMatch[errors[i]] = 2;
+
+
+                                    } else {
+
+                                        // we don't have such a match yet,
+                                        // so save this match at the correct position
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, 1);
+                                        ++multiMatch[errors[i]];
+                                    }
+
+
+                                }
+
+                            }
 
                         }
 
-                    // is not start metaCpG
+                    // if is not start metaCpG
                     } else {
 
+                        if (isFwd)
+                        {
 
-                    }
+                            // check if we queried this meta CpG it before
+                            if (threadCountFwd[m] >= 2)
+                            {
+                                continue;
+
+                            } else {
+
+                                // state that we queried this
+                                threadCountFwd[m] += 2;
+                                // retrieve it
+                                const struct CpG& startCpg = ref.cpgTable[ref.metaStartCpGs[m].start];
+                                const struct CpG& endCpg = ref.cpgTable[ref.metaStartCpGs[m].end];
+
+                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+
+                                // check if CpG was too near to the end
+                                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                                {
+                                    // if so move end iterator appropriately
+                                    endIt = ref.fullSeq[startCpg.chrom].end();
+                                }
+
+                                // use shift and to find all matchings
+                                std::vector<uint64_t> matchings;
+                                std::vector<uint16_t> errors;
+                                sa.querySeq(startIt, endIt, matchings, errors);
+
+                                // go through matching and see if we had such a match (with that many errors) before - if so,
+                                // return to caller reporting no match
+                                for (size_t i = 0; i < matchings.size(); ++i)
+                                {
+
+                                    // check if we had a match with that many errors before
+                                    if (multiMatch[errors[i]])
+                                    {
+
+                                        // check if this is a match without errors
+                                        if (!errors[i])
+                                        {
+
+                                            // if so, return without a match
+                                            return false;
+
+                                        }
+                                        // set the number of matches with that many errors to 2
+                                        // indicating that we do not have a unique match with that many errors
+                                        multiMatch[errors[i]] = 2;
 
 
+                                    } else {
+
+                                        // we don't have such a match yet,
+                                        // so save this match at the correct position
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, 1);
+                                        ++multiMatch[errors[i]];
+                                    }
+                                }
+                            }
+
+                        // kmer is on backward strand
+                        } else {
+
+                            // check if we queried this meta CpG it before
+                            if (threadCountFwd[m] >= 2)
+                            {
+                                continue;
+
+                            } else {
+
+                                // state that we queried this
+                                threadCountFwd[m] += 2;
+                                // retrieve it
+                                const struct CpG& startCpg = ref.cpgTable[ref.metaStartCpGs[m].start];
+                                const struct CpG& endCpg = ref.cpgTable[ref.metaStartCpGs[m].end];
+
+                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
+                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+
+                                // check if CpG was too near to the end
+                                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                                {
+                                    // if so move end iterator appropriately
+                                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                                }
+
+                                // use shift and to find all matchings
+                                std::vector<uint64_t> matchings;
+                                std::vector<uint16_t> errors;
+                                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                                // go through matching and see if we had such a match (with that many errors) before - if so,
+                                // return to caller reporting no match
+                                for (size_t i = 0; i < matchings.size(); ++i)
+                                {
+
+                                    // check if we had a match with that many errors before
+                                    if (multiMatch[errors[i]])
+                                    {
+
+                                        // check if this is a match without errors
+                                        if (!errors[i])
+                                        {
+
+                                            // if so, return without a match
+                                            return false;
+
+                                        }
+                                        // set the number of matches with that many errors to 2
+                                        // indicating that we do not have a unique match with that many errors
+                                        multiMatch[errors[i]] = 2;
+
+
+                                    } else {
+
+                                        // we don't have such a match yet,
+                                        // so save this match at the correct position
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, 1);
+                                        ++multiMatch[errors[i]];
+                                    }
+                                }
+
+                            } // end else for visited meta CpG test
+                        } // end else isFwd
+                    } // end else isStart
+                } // end inner kmer loop
+            } // end outer kmer loop
+
+            // go through found matches for each [0,maxErrorNumber] and see if it is unique
+            for (size_t i = 0; i < multiMatch.size(); ++i)
+            {
+                // there is no much with that few errors, search the one with more errors
+                if (multiMatch[i] == 0)
+                {
+                    continue;
+                }
+                // if match is not unique, return unsuccessfull to caller
+                if (multiMatch[i] > 1)
+                {
+                    return false;
+
+                } else {
+
+                    mat = uniqueMatches[i];
+                    return true;
                 }
 
             }
-
+            // we have not a single match at all, return unsuccessfull to caller
+            return false;
         }
 
 
