@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <cstdint>
+#include <iostream>
 
 #include "CONST.h"
 
@@ -39,14 +40,16 @@ class ShiftAnd
         // -------------------
 
         // Query the sequence slice framed by [start,end) to the internal automata
+        // Query forward sequence to queryRevSeq to start a query of the reverse complement of the argument to the automaton
         //
         // ARGUMENTS:
-        //              start       iterator to start of sequence to query
-        //              end         iterator to end of sequence to query
+        //              start       iterator to start of sequence to query / reverse seq: iterator to last letter of seq to query
+        //              end         iterator to end of sequence to query / reverse seq: iterator one before first letter of seq to query
         //              matches     will contain the matchings as offset relative to the start iterator (the end of the match)
         //              errors      same size as matches; will contain number of errors for each match
         //
         inline void querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<size_t>& matches, std::vector<uint16_t>& errors);
+        inline void queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors);
 
         // returns the size of the represented pattern sequence
         inline uint64_t size() { return pLen; }
@@ -106,7 +109,7 @@ ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
 
 
 template<size_t E>
-inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<size_t>& matches, std::vector<uint16_t>& errors)
+inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors)
 {
 
     reset();
@@ -124,7 +127,49 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
             errors.emplace_back(errNum);
 
         }
+    }
+}
 
+
+template<size_t E>
+inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors)
+{
+
+    reset();
+
+    for (auto it = start; it != end; --it)
+    {
+
+        char c;
+        // change letter to reverse complement
+        switch (*it)
+        {
+            case 'A':
+                c = 'T';
+                break;
+            case 'C':
+                c = 'G';
+                break;
+            case 'G':
+                c = 'C';
+                break;
+            case 'T':
+                c = 'A';
+                break;
+            default:
+                std::cerr << "[ShiftAnd] Could not parse letter " << *it << "\n\n";
+                exit(1);
+        }
+        queryLetter(c);
+
+        uint16_t errNum;
+        if (isMatch(errNum))
+        {
+
+            matches.emplace_back(it - end);
+            errors.emplace_back(errNum);
+
+        }
     }
 }
 
