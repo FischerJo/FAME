@@ -159,7 +159,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // printStatistics(fwdSeedsK);
 
         // FILTER SEEDS BY COUNTING LEMMA
-        // TODO: return set of metaCpGs here!
         filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
         filterHeuSeeds(revSeedsK, revSeedsS, readSize);
 
@@ -167,11 +166,37 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
         ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
 
+        // match
+        // note that this is only used when initialized by saQuerySeedSet, based on boolean return of this function
+        MATCH::match matchFwd = 0;
+        MATCH::match matchRev = 0;
         // query seeds to shift-and automaton
-        // TODO: pass set of metaCpGs here
-        // saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS);
-        // saQuerySeedSet(saRev, revSeedsK, revSeedsS);
+        bool succQueryFwd = saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS, matchFwd);
+        bool succQueryRev = saQuerySeedSet(saRev, revSeedsK, revSeedsS, matchRev);
 
+        if (succQueryFwd && succQueryRev)
+        {
+
+            uint8_t fwdErr = MATCH::getErrNum(matchFwd);
+            uint8_t revErr = MATCH::getErrNum(matchRev);
+           if (fwdErr < revErr)
+           {
+
+               r.mat = matchFwd;
+
+           } else {
+
+               if (fwdErr > revErr)
+               {
+
+                   r.mat = matchRev;
+
+               } else {
+
+                   r.isInvalid = true;
+                }
+            }
+        }
         // printStatistics(fwdSeedsK);
 
         // BITMASK COMPARISON ON FULL ALPHABET FOR REMAINING SEEDS

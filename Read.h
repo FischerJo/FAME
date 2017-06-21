@@ -42,12 +42,8 @@ class Read
         // (DNA) sequence of the read
         std::string seq;
 
-        // struct match {
-        //     struct CpG cpg;
-        //     unsigned int offset;
-        // };
-        // // The matching positions of the read
-        // std::vector<struct match> matches;
+        // The matching positions of the read
+        MATCH::match mat;
 
         // flag stating if read has an N in sequence or is too small (< Kmerlength)
         // OR maps to multiple locations in the genome
