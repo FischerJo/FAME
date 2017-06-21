@@ -472,7 +472,7 @@ class ReadQueue
 
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, 1);
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
                                         ++multiMatch[errors[i]];
                                     }
 
@@ -537,7 +537,7 @@ class ReadQueue
 
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, 1);
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
                                         ++multiMatch[errors[i]];
                                     }
 
@@ -608,7 +608,7 @@ class ReadQueue
 
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, 1);
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
                                         ++multiMatch[errors[i]];
                                     }
                                 }
@@ -671,7 +671,7 @@ class ReadQueue
 
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, 1);
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
                                         ++multiMatch[errors[i]];
                                     }
                                 }

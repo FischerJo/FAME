@@ -86,6 +86,7 @@ namespace MATCH {
     //
     // 32 lower (least significant) bit hold offset where the match ends in the sequence
     // 8 next higher bits hold the chromosome index
+    // 8 even next higher bits hold number of errors produced by this match
     // most significant bit holds strand flag which is 1 iff match is on forward strand
     typedef uint64_t match;
 
@@ -100,14 +101,19 @@ namespace MATCH {
         return (m & 0x000000ff00000000ULL) >> 32;
     }
 
+    inline uint8_t getErrNum(MATCH::match m)
+    {
+        return (m & 0x0000ff0000000000ULL) >> 34;
+    }
+
     inline bool isFwd(MATCH::match m)
     {
         return (m & 0x8000000000000000ULL);
     }
 
-    inline MATCH::match constructMatch(uint64_t off, uint64_t chrom, uint64_t isFwd)
+    inline MATCH::match constructMatch(uint64_t off, uint64_t chrom, uint64_t errNum, uint64_t isFwd)
     {
-        return (isFwd << 63) | (chrom << 32) | off;
+        return (isFwd << 63) | (errNum << 34) | (chrom << 32) | off;
     }
 } // end namespace MATCH
 
