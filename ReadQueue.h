@@ -5,6 +5,8 @@
 #include <fstream>
 #include <unordered_map>
 #include <array>
+// TODO
+#include <assert.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -132,8 +134,6 @@ class ReadQueue
                             ++filterItS;
 
                         }
-
-
                     }
                 }
                 seedsK[i].resize(filterItK - seedsK[i].begin());
@@ -383,12 +383,6 @@ class ReadQueue
             threadCountFwd.assign(ref.metaCpGs.size(), 0);
             threadCountRev.assign(ref.metaCpGs.size(), 0);
 
-            // flags stating if we had a match with x errors before
-            // if we had a match with i errors then the MyConst::MISCOUNT - i 'th lower most bit and all lower bits are set
-            // that is, we have the number of allowed mismatches + 1 lower bits blocked and the most significant of those
-            // indicates 0 errors. All lower bits indicate 1, 2... and so on many errors.
-            // uint64_t multiMatch = 0;
-
             // counter for how often we had a match
             std::vector<uint8_t> multiMatch(MyConst::MISCOUNT + 1, 0);
 
@@ -398,7 +392,7 @@ class ReadQueue
             for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
             {
 
-                for (size_t innerNdx = 0; innerNdx < seedsK[0].size(); ++innerNdx)
+                for (size_t innerNdx = 0; innerNdx < seedsK[outerNdx].size(); ++innerNdx)
                 {
 
                     // retrieve kmer
@@ -564,8 +558,8 @@ class ReadQueue
                                 // state that we queried this
                                 threadCountFwd[m] += 2;
                                 // retrieve it
-                                const struct CpG& startCpg = ref.cpgTable[ref.metaStartCpGs[m].start];
-                                const struct CpG& endCpg = ref.cpgTable[ref.metaStartCpGs[m].end];
+                                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+                                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
 
                                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
                                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
@@ -627,8 +621,8 @@ class ReadQueue
                                 // state that we queried this
                                 threadCountFwd[m] += 2;
                                 // retrieve it
-                                const struct CpG& startCpg = ref.cpgTable[ref.metaStartCpGs[m].start];
-                                const struct CpG& endCpg = ref.cpgTable[ref.metaStartCpGs[m].end];
+                                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+                                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
 
                                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
                                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
