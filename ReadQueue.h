@@ -5,8 +5,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <array>
-// TODO
-#include <assert.h>
 
 #ifdef _OPENMP
 #include <omp.h>
