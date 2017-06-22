@@ -117,6 +117,12 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
     for (auto it = start; it != end; ++it)
     {
 
+        // we do not consider Ns for matches - restart whole automaton for next letter
+        if (*it == 'N')
+        {
+            reset();
+            continue;
+        }
         queryLetter(*it);
 
         uint16_t errNum;
@@ -156,8 +162,12 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
             case 'T':
                 c = 'A';
                 break;
+            // we do not consider Ns for matches - restart whole automaton for next letter
+            case 'N':
+                reset();
+                continue;
             default:
-                std::cerr << "[ShiftAnd] Could not parse letter " << *it << "\n\n";
+                std::cerr << "[ShiftAnd] Could not parse letter " << *it << " at offset " << it - end + 1 << "\nStopping program...\n\n";
                 exit(1);
         }
         queryLetter(c);
