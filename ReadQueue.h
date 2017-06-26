@@ -424,7 +424,7 @@ class ReadQueue
                                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
 
                                 auto startIt = ref.fullSeq[startCpg.chrom].begin();
-                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + MyConst::READLEN;
+                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
 
                                 // check if CpG was too near to the end
                                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -489,7 +489,7 @@ class ReadQueue
                                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
 
                                 auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + MyConst::READLEN - 1;
+                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
 
                                 // check if CpG was too near to the end
                                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -529,10 +529,9 @@ class ReadQueue
 
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 0);
                                         ++multiMatch[errors[i]];
                                     }
-
 
                                 }
 
@@ -663,7 +662,7 @@ class ReadQueue
 
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
+                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 0);
                                         ++multiMatch[errors[i]];
                                     }
                                 }
@@ -677,7 +676,7 @@ class ReadQueue
             // go through found matches for each [0,maxErrorNumber] and see if it is unique
             for (size_t i = 0; i < multiMatch.size(); ++i)
             {
-                // there is no much with that few errors, search the one with more errors
+                // there is no match with that few errors, search the one with more errors
                 if (multiMatch[i] == 0)
                 {
                     continue;
