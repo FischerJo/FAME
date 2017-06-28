@@ -27,7 +27,7 @@ void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, 
 
     std::ifstream ifs (filename);
 
-    std::cout << "Start reading file" << std::endl;
+    std::cout << "Start reading reference file " << filename << std::endl;
 
     // TODO
     // unsigned int counter = 0;
@@ -89,7 +89,7 @@ void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, 
 
     }
 
-    std::cout << "Done parsing file" << std::endl;
+    std::cout << "Done reading reference file" << std::endl;
 
     // if we read primary assembly previously, write it to vectors
     if (contFlag)
