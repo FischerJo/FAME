@@ -2,6 +2,10 @@
 *.swp
 *.swo
 
+# metadata
+*.txt
+*.tsv
+
 # results of stat programs
 hashstats*
 
@@ -47,3 +51,7 @@ googletest*
 # Project exe
 Metal
 test/tester
+
+# subproject folders
+Synth*
+metaCpGstats*
