@@ -2,9 +2,6 @@
 #include "DnaBitStr.h"
 
 
-using namespace std;
-
-
 DnaBitStr::DnaBitStr(const unsigned int s) :
         size(s)
     ,   bitSeq((size / 32) + 1)
@@ -15,14 +12,14 @@ DnaBitStr::DnaBitStr(const unsigned int s) :
 
 
 
-void DnaBitStr::setBitStrLast(string&& seq)
+void DnaBitStr::setBitStrLast(std::string&& seq)
 {
 
 
     uint64_t bitStr = 0;
     uint64_t bitM = 0xffffffffffffffffULL;
     uint64_t bitRevM = 0xffffffffffffffffULL;
-    for (unsigned int i = 1; i <= seq.size(); ++i)
+    for (size_t i = 1; i <= seq.size(); ++i)
     {
 
         const unsigned int shift = 64 - 2*i;

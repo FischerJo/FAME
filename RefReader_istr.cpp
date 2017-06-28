@@ -4,16 +4,14 @@
 
 #include "RefReader_istr.h"
 
-using namespace std;
 
-
-void readReference(const char* const filename, vector<struct CpG>& cpgTab, vector<struct CpG>& cpgStartTab, vector<vector<char> >& genSeq)
+void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq)
 {
 
-    string line;
+    std::string line;
 
     // stores the sequence of each chromosome
-    vector<char> seq;
+    std::vector<char> seq;
 
     genSeq.reserve(MyConst::CHROMNUM);
     seq.reserve(MyConst::CHROMMAX);
@@ -27,12 +25,20 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
     // flag stating if the last character read in the previous line was a c
     bool lastC = false;
 
-    ifstream ifs (filename);
+    std::ifstream ifs (filename);
 
-    cout << "Start reading file" << endl;
+    std::cout << "Start reading file" << std::endl;
+
+    // TODO
+    // unsigned int counter = 0;
 
     while (getline(ifs, line)) {
 
+        // if (counter >= 3121254)
+        // {
+        //     break;
+        // }
+        // ++counter;
         // Test for id tag line
         if (line.begin() != line.end() && *(line.begin()) == '>' && (line.begin() + 1) != line.end())
         {
@@ -44,7 +50,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
                 seq.shrink_to_fit();
                 genSeq.emplace_back(move(seq));
                 // reset buffer
-                seq = vector<char>();
+                seq = std::vector<char>();
                 seq.reserve(MyConst::CHROMMAX);
                 // reset flag for last c
                 lastC = false;
@@ -83,7 +89,7 @@ void readReference(const char* const filename, vector<struct CpG>& cpgTab, vecto
 
     }
 
-    cout << "Done parsing file" << endl;
+    std::cout << "Done parsing file" << std::endl;
 
     // if we read primary assembly previously, write it to vectors
     if (contFlag)
