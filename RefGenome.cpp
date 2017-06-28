@@ -4,9 +4,7 @@
 #include "RefGenome.h"
 
 
-using namespace std;
-
-RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartTab, vector<vector<char> >& genomeSeq) :
+RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genomeSeq) :
         cpgTable(cpgTab)
     ,   cpgStartTable(cpgStartTab)
     ,   genomeBit()
@@ -19,7 +17,7 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
 {
     // find out genome size
     size_t gensize = 0;
-    for (vector<char> chr : genomeSeq)
+    for (std::vector<char> chr : genomeSeq)
     {
         gensize += chr.size();
     }
@@ -29,14 +27,15 @@ RefGenome::RefGenome(vector<struct CpG>&& cpgTab, vector<struct CpG>&& cpgStartT
     // fill meta table
     generateMetaCpGs();
     // generate encoding of genome
-    generateBitStrings(fullSeq);
-    cout << "Done generating Genome bit representation" << endl;
+    // generateBitStrings(fullSeq);
+    // cout << "Done generating Genome bit representation" << endl;
+    std::cout << "Start hashing CpGs" << std::endl;
     // hash all kmers of reduced alphabet
     generateHashes(fullSeq);
-    cout << "Done hashing CpGs" << endl;
+    std::cout << "Done hashing CpGs" << std::endl;
     // filter out highly repetitive sequences
     filterHashTable();
-    cout << "Done filtering Hash table" << endl;
+    std::cout << "Done filtering Hash table" << std::endl;
 }
 
 void RefGenome::generateMetaCpGs()
@@ -104,12 +103,12 @@ void RefGenome::generateMetaCpGs()
 }
 
 
-void RefGenome::generateBitStrings(vector<vector<char> >& genomeSeq)
+void RefGenome::generateBitStrings(std::vector<std::vector<char> >& genomeSeq)
 {
 
     unsigned int genSeqIndex = 0;
     // generate genome encodings with bitmasks
-    for (vector<char>& seq : genomeSeq)
+    for (std::vector<char>& seq : genomeSeq)
     {
         const unsigned int segLen = seq.size() / 32;
         genomeBit.emplace_back(seq.size());
@@ -117,30 +116,30 @@ void RefGenome::generateBitStrings(vector<vector<char> >& genomeSeq)
         for (unsigned int i = 0; i < segLen; ++i)
         {
 
-            genomeBit[genSeqIndex].setBitStrN( string(seq.data() + (i*32), 32), i);
+            genomeBit[genSeqIndex].setBitStrN( std::string(seq.data() + (i*32), 32), i);
         }
         if ((seq.size() % 32) != 0)
         {
 
-            genomeBit[genSeqIndex].setBitStrLast( string(seq.data() + (segLen*32), seq.size() % 32));
+            genomeBit[genSeqIndex].setBitStrLast( std::string(seq.data() + (segLen*32), seq.size() % 32));
         }
         ++genSeqIndex;
     }
 
 }
 
-void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
+void RefGenome::generateHashes(std::vector<std::vector<char> >& genomeSeq)
 {
 
 
     estimateTablesizes(genomeSeq);
 
-    cout << "\nKmer table size: " << kmerTable.size() << endl;
-    cout << "\nMeta CpGs: " << metaCpGs.size() << endl;
+    std::cout << "\nKmer table size: " << kmerTable.size() << std::endl;
+    std::cout << "\nMeta CpGs: " << metaCpGs.size() << std::endl;
 
     // hash CpGs from the start
     uint32_t cpgCount = 0;
-    for (vector<struct metaCpG>::const_iterator it = metaStartCpGs.begin(); it != metaStartCpGs.end(); ++it, ++cpgCount)
+    for (std::vector<struct metaCpG>::const_iterator it = metaStartCpGs.begin(); it != metaStartCpGs.end(); ++it, ++cpgCount)
     {
 
         unsigned int lastPos = 0;
@@ -153,7 +152,7 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
 
     cpgCount = 0;
     // hash each CpG
-    for (vector<struct metaCpG>::const_iterator it = metaCpGs.begin(); it != metaCpGs.end(); ++it, ++cpgCount)
+    for (std::vector<struct metaCpG>::const_iterator it = metaCpGs.begin(); it != metaCpGs.end(); ++it, ++cpgCount)
     {
 
         unsigned int lastPos = 0;
@@ -180,7 +179,7 @@ void RefGenome::generateHashes(vector<vector<char> >& genomeSeq)
     }
 }
 
-void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff)
+void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff)
 {
     // kmers to be skipped
     const int skipKmer = max(lastPos - pos, 0);
@@ -346,7 +345,7 @@ void RefGenome::ntHashLast(const vector<char>& seq, uint32_t& lastPos, const uns
     }
 }
 
-void RefGenome::ntHashFirst(const vector<char>& seq, uint32_t& lastPos, const unsigned int& posOfCpG, const uint32_t& metacpg)
+void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& posOfCpG, const uint32_t& metacpg)
 {
     // kmers to be skipped
     const int skipKmer = lastPos;
@@ -514,7 +513,7 @@ void RefGenome::ntHashFirst(const vector<char>& seq, uint32_t& lastPos, const un
 
 }
 
-void RefGenome::ntCountFirst(vector<char>& seq, uint32_t& lastPos, const unsigned int& posOfCpG)
+void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& posOfCpG)
 {
     // kmers to be skipped
     const int skipKmer = lastPos;
@@ -669,7 +668,7 @@ void RefGenome::ntCountFirst(vector<char>& seq, uint32_t& lastPos, const unsigne
     lastPos = off - MyConst::KMERLEN + 1;
 
 }
-void RefGenome::ntCountLast(vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG)
+void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG)
 {
     // kmers to be skipped
     const int skipKmer = max(lastPos - pos, 0);
@@ -910,11 +909,11 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 void RefGenome::filterHashTable()
 {
 
-    cout << "\nHash table size before filter: " << kmerTable.size() << endl;
-    chrono::high_resolution_clock::time_point filterStartTime = chrono::high_resolution_clock::now();
+    std::cout << "\nHash table size before filter: " << kmerTable.size() << std::endl;
+    std::chrono::high_resolution_clock::time_point filterStartTime = std::chrono::high_resolution_clock::now();
 
     // will hold the counts of individual kmers for each hash table cell
-    unordered_map<uint64_t, unsigned int> kmerCount;
+    std::unordered_map<uint64_t, unsigned int> kmerCount;
 
     // iterator to the element that we process
     auto srcItK = kmerTable.begin();
@@ -985,10 +984,10 @@ void RefGenome::filterHashTable()
     kmerTable.resize(filterItK - kmerTable.begin());
     strandTable.resize(filterItK - kmerTable.begin());
 
-    chrono::high_resolution_clock::time_point filterEndTime = chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point filterEndTime = std::chrono::high_resolution_clock::now();
 
-    auto runtime = chrono::duration_cast<chrono::seconds>(filterEndTime - filterStartTime).count();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(filterEndTime - filterStartTime).count();
 
 
-    cout << "Hash table size after filter (running " << runtime << "s): " << tabIndex[MyConst::HTABSIZE] << "\n\n";
+    std::cout << "Hash table size after filter (running " << runtime << "s): " << tabIndex[MyConst::HTABSIZE] << "\n\n";
 }
