@@ -103,7 +103,7 @@ namespace MATCH {
 
     inline uint8_t getErrNum(MATCH::match m)
     {
-        return (m & 0x0000ff0000000000ULL) >> 34;
+        return (m & 0x0000ff0000000000ULL) >> 40;
     }
 
     inline bool isFwd(MATCH::match m)
@@ -113,7 +113,7 @@ namespace MATCH {
 
     inline MATCH::match constructMatch(uint64_t off, uint64_t chrom, uint64_t errNum, uint64_t isFwd)
     {
-        return (isFwd << 63) | (errNum << 34) | (chrom << 32) | off;
+        return (isFwd << 63) | (errNum << 40) | (chrom << 32) | off;
     }
 } // end namespace MATCH
 
