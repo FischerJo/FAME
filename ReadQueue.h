@@ -10,6 +10,7 @@
 #include <omp.h>
 #endif
 
+#include "gzstream/gzstream.h"
 #include "CONST.h"
 #include "RefGenome.h"
 #include "Read.h"
@@ -20,15 +21,23 @@ class ReadQueue
 
     public:
 
-        ReadQueue(const char* filePath, RefGenome& ref);
+        // Ctor -----
 
 
-        // Parses a chunk of the ifstream file
+        ReadQueue() = delete;
+
+        ReadQueue(const char* filePath, RefGenome& ref, bool isGZ);
+
+        // -----------
+
+        // Parses a chunk of the ifstream file/ igzstream file, respectively
         // Reads up to MyConst::CHUNKSIZE many reads and saves them
         // ARGUMENT:
         //          procReads   will contain number of reads that have been read into buffer
         // returns true if neither read error nor EOF occured, false otherwise
         bool parseChunk(unsigned int& procReads);
+        bool parseChunkGZ(unsigned int& procReads);
+
 
         // Match all reads in readBuffer to reference genome
         // ARGUMENT:
@@ -365,6 +374,7 @@ class ReadQueue
         //
         // MODIFICATIONS:
         //              updates the matches field of the read set
+        //              shift-and automaton is used - needs a reset (implicitly done when querying a new sequence internally)
         //
         inline bool saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match mat)
         {
@@ -382,14 +392,20 @@ class ReadQueue
             threadCountRev.assign(ref.metaCpGs.size(), 0);
 
             // counter for how often we had a match
-            std::vector<uint8_t> multiMatch(MyConst::MISCOUNT + 1, 0);
+            std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
+            multiMatch.fill(0);
 
             // will contain matches iff match is found for number of errors specified by index
-            std::vector<MATCH::match> uniqueMatches(MyConst::MISCOUNT + 1);
+            std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
+
+            // TODO
+            // size_t count = 0;
 
             for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
             {
 
+                //TODO
+                // count += seedsK[outerNdx].size();
                 for (size_t innerNdx = 0; innerNdx < seedsK[outerNdx].size(); ++innerNdx)
                 {
 
@@ -447,17 +463,31 @@ class ReadQueue
                                     if (multiMatch[errors[i]])
                                     {
 
-                                        // check if this is a match without errors
-                                        if (!errors[i])
+                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                                        // check if same k-mer (borders of meta CpGs)
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]))
                                         {
+                                            if (MATCH::isFwd(m_2))
+                                            {
+                                                continue;
+                                            }
 
-                                            // if so, return without a match
-                                            return false;
+                                        } else {
 
+                                            // check if this is a match without errors
+                                            if (!errors[i])
+                                            {
+
+                                                // if so, return without a match
+                        // TODO
+                        // of << count << "\t";
+                                                return false;
+
+                                            }
+                                            // set the number of matches with that many errors to 2
+                                            // indicating that we do not have a unique match with that many errors
+                                            multiMatch[errors[i]] = 2;
                                         }
-                                        // set the number of matches with that many errors to 2
-                                        // indicating that we do not have a unique match with that many errors
-                                        multiMatch[errors[i]] = 2;
 
 
                                     } else {
@@ -465,7 +495,7 @@ class ReadQueue
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
                                         uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
-                                        ++multiMatch[errors[i]];
+                                        multiMatch[errors[i]] = 1;
                                     }
 
 
@@ -512,17 +542,31 @@ class ReadQueue
                                     if (multiMatch[errors[i]])
                                     {
 
-                                        // check if this is a match without errors
-                                        if (!errors[i])
+                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                                        // check if same k-mer (borders of meta CpGs)
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]))
                                         {
+                                            if (!MATCH::isFwd(m_2))
+                                            {
+                                                continue;
+                                            }
 
-                                            // if so, return without a match
-                                            return false;
+                                        } else {
 
+                                            // check if this is a match without errors
+                                            if (!errors[i])
+                                            {
+
+                                                // if so, return without a match
+                        // TODO
+                        // of << count << "\t";
+                                                return false;
+
+                                            }
+                                            // set the number of matches with that many errors to 2
+                                            // indicating that we do not have a unique match with that many errors
+                                            multiMatch[errors[i]] = 2;
                                         }
-                                        // set the number of matches with that many errors to 2
-                                        // indicating that we do not have a unique match with that many errors
-                                        multiMatch[errors[i]] = 2;
 
 
                                     } else {
@@ -530,7 +574,7 @@ class ReadQueue
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
                                         uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 0);
-                                        ++multiMatch[errors[i]];
+                                        multiMatch[errors[i]] = 1;
                                     }
 
                                 }
@@ -582,17 +626,32 @@ class ReadQueue
                                     if (multiMatch[errors[i]])
                                     {
 
-                                        // check if this is a match without errors
-                                        if (!errors[i])
+                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                                        std::cout << MATCH::getOffset(m_2) << "\t";
+                                        std::cout << matchings[i] + startCpg.pos << "\n";
+                                        // check if same k-mer (borders of meta CpGs)
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos))
                                         {
+                                            if (MATCH::isFwd(m_2))
+                                            {
+                                                continue;
+                                            }
 
-                                            // if so, return without a match
-                                            return false;
+                                        } else {
+                                            // check if this is a match without errors
+                                            if (!errors[i])
+                                            {
 
+                                                // if so, return without a match
+                        // TODO
+                        // of << count << "\t";
+                                                return false;
+
+                                            }
+                                            // set the number of matches with that many errors to 2
+                                            // indicating that we do not have a unique match with that many errors
+                                            multiMatch[errors[i]] = 2;
                                         }
-                                        // set the number of matches with that many errors to 2
-                                        // indicating that we do not have a unique match with that many errors
-                                        multiMatch[errors[i]] = 2;
 
 
                                     } else {
@@ -600,7 +659,7 @@ class ReadQueue
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
                                         uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
-                                        ++multiMatch[errors[i]];
+                                        multiMatch[errors[i]] = 1;
                                     }
                                 }
                             }
@@ -609,14 +668,14 @@ class ReadQueue
                         } else {
 
                             // check if we queried this meta CpG it before
-                            if (threadCountFwd[m] >= 2)
+                            if (threadCountRev[m] >= 2)
                             {
                                 continue;
 
                             } else {
 
                                 // state that we queried this
-                                threadCountFwd[m] += 2;
+                                threadCountRev[m] += 2;
                                 // retrieve it
                                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
                                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
@@ -645,17 +704,31 @@ class ReadQueue
                                     if (multiMatch[errors[i]])
                                     {
 
-                                        // check if this is a match without errors
-                                        if (!errors[i])
+                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                                        // check if same k-mer (borders of meta CpGs)
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos))
                                         {
+                                            if (!MATCH::isFwd(m_2))
+                                            {
+                                                continue;
+                                            }
 
-                                            // if so, return without a match
-                                            return false;
+                                        } else {
 
+                                            // check if this is a match without errors
+                                            if (!errors[i])
+                                            {
+
+                                                // if so, return without a match
+                        // TODO
+                        // of << count << "\t";
+                                                return false;
+
+                                            }
+                                            // set the number of matches with that many errors to 2
+                                            // indicating that we do not have a unique match with that many errors
+                                            multiMatch[errors[i]] = 2;
                                         }
-                                        // set the number of matches with that many errors to 2
-                                        // indicating that we do not have a unique match with that many errors
-                                        multiMatch[errors[i]] = 2;
 
 
                                     } else {
@@ -663,7 +736,7 @@ class ReadQueue
                                         // we don't have such a match yet,
                                         // so save this match at the correct position
                                         uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 0);
-                                        ++multiMatch[errors[i]];
+                                        multiMatch[errors[i]] = 1;
                                     }
                                 }
 
@@ -684,15 +757,22 @@ class ReadQueue
                 // if match is not unique, return unsuccessfull to caller
                 if (multiMatch[i] > 1)
                 {
+                    // TODO
+                    // of << count << "\t";
+                    of << "multimatch" << MATCH::getOffset(uniqueMatches[i]) << "\n";
                     return false;
 
                 } else {
 
                     mat = uniqueMatches[i];
+                    // TODO
+                    // of << count << "\t";
                     return true;
                 }
 
             }
+            // TODO
+            // of << count << "\t";
             // we have not a single match at all, return unsuccessfull to caller
             return false;
         }
@@ -741,6 +821,7 @@ class ReadQueue
 
         // input stream of file given as path to Ctor
         std::ifstream file;
+        igzstream igz;
 
         // representation of the reference genome
         RefGenome& ref;
@@ -759,6 +840,8 @@ class ReadQueue
         // for forward and reverse strand metaCpGs, respectively
         std::array<std::vector<uint16_t>, CORENUM> countsFwd;
         std::array<std::vector<uint16_t>, CORENUM> countsRev;
+        // TODO
+        std::ofstream of;
 };
 
 #endif /* READQUEUE_H */
