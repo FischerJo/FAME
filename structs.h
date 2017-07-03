@@ -91,17 +91,17 @@ namespace MATCH {
     typedef uint64_t match;
 
     // return the offset of given match
-    inline uint64_t getOffset(MATCH::match m)
+    inline uint32_t getOffset(MATCH::match m)
     {
-        return m & 0x00000000ffffffffULL;
+        return static_cast<uint32_t>(m & 0x00000000ffffffffULL);
     }
 
     inline uint8_t getChrom(MATCH::match m)
     {
-        return (m & 0x000000ff00000000ULL) >> 32;
+        return static_cast<uint8_t>((m & 0x000000ff00000000ULL) >> 32);
     }
 
-    inline uint8_t getErrNum(MATCH::match m)
+    inline uint64_t getErrNum(MATCH::match m)
     {
         return (m & 0x0000ff0000000000ULL) >> 40;
     }
@@ -111,9 +111,9 @@ namespace MATCH {
         return (m & 0x8000000000000000ULL);
     }
 
-    inline MATCH::match constructMatch(uint64_t off, uint64_t chrom, uint64_t errNum, uint64_t isFwd)
+    inline MATCH::match constructMatch(uint32_t off, uint8_t chrom, uint16_t errNum, uint64_t isFwd)
     {
-        return (isFwd << 63) | (errNum << 40) | (chrom << 32) | off;
+        return (isFwd << 63) | (static_cast<uint64_t>(errNum) << 40) | (static_cast<uint64_t>(chrom) << 32) | static_cast<uint64_t>(off);
     }
 } // end namespace MATCH
 
