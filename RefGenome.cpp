@@ -34,8 +34,8 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     generateHashes(fullSeq);
     std::cout << "Done hashing CpGs" << std::endl;
     // filter out highly repetitive sequences
-    filterHashTable();
-    std::cout << "Done filtering Hash table" << std::endl;
+    // filterHashTable();
+    // std::cout << "Done filtering Hash table" << std::endl;
 }
 
 void RefGenome::generateMetaCpGs()
@@ -361,7 +361,7 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     unsigned int j;
 
     // if we need to hash kmer starting at the left of current CpG
-    if (lastPos < posOfCpG + 2 - MyConst::KMERLEN)
+    if (lastPos < static_cast<long>(posOfCpG) + 2 - MyConst::KMERLEN)
     {
         std::advance(start, skipKmer);
         std::advance(end, posOfCpG + 2);
@@ -515,6 +515,7 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
 
 void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& posOfCpG)
 {
+
     // kmers to be skipped
     const int skipKmer = lastPos;
     // construct corresponding sequence with reduced alphabet
@@ -529,7 +530,7 @@ void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const un
     unsigned int j;
 
     // if we need to hash kmer starting at the left of current CpG
-    if (lastPos < posOfCpG + 2 - MyConst::KMERLEN)
+    if (lastPos < static_cast<long>(posOfCpG) + 2 - MyConst::KMERLEN)
     {
         std::advance(start, skipKmer);
         std::advance(end, posOfCpG + 2);
