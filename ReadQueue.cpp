@@ -225,8 +225,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // printStatistics(fwdSeedsK);
 
         // FILTER SEEDS BY COUNTING LEMMA
-        // filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
-        // filterHeuSeeds(revSeedsK, revSeedsS, readSize);
+        filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
+        filterHeuSeeds(revSeedsK, revSeedsS, readSize);
 
         // produce shift-and automaton for forward and reverse sequence of this read
         ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
@@ -240,11 +240,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         startTime = std::chrono::high_resolution_clock::now();
 
         bool succQueryFwd = saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS, matchFwd);
-        //TODO
-        // count number of queried meta cpgs (approx.)
-        std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
-        std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
-
         bool succQueryRev = saQuerySeedSet(saRev, revSeedsK, revSeedsS, matchRev);
 
         //TODO
@@ -256,7 +251,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         if (succQueryFwd && succQueryRev)
         {
 
-
+            // TODO
+            // of << "\n---\n\n";
             uint8_t fwdErr = MATCH::getErrNum(matchFwd);
             uint8_t revErr = MATCH::getErrNum(matchRev);
             // check which one has fewer errors
@@ -284,6 +280,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                     } else {
 
                         ++nonUniqueMatch;
+                        // std::cout << "Nonunique match: fwd and rev with same errorcount in match\n";
                         r.isInvalid = true;
                     }
                 }
@@ -291,10 +288,14 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // no match found at all
         } else if (succQueryFwd) {
 
+            // TODO
+            // of << "\n---\n\n";
             ++succMatchFwd;
 
         } else if (succQueryRev) {
 
+            // TODO
+            // of << "\n---\n\n";
             ++succMatchRev;
 
         } else {
@@ -333,7 +334,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             // }
             // of << "\nreal seq: " << r.seq << "\n" << r.id << "\n\n";
             ++unSuccMatch;
-            // if (unSuccMatch > 10)
+            // if (unSuccMatch > 5)
             // {
             //     of.close();
             //     exit(1);

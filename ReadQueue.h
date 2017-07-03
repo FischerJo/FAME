@@ -398,14 +398,9 @@ class ReadQueue
             // will contain matches iff match is found for number of errors specified by index
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
 
-            // TODO
-            // size_t count = 0;
-
             for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
             {
 
-                //TODO
-                // count += seedsK[outerNdx].size();
                 for (size_t innerNdx = 0; innerNdx < seedsK[outerNdx].size(); ++innerNdx)
                 {
 
@@ -427,7 +422,7 @@ class ReadQueue
                         if (isFwd)
                         {
                             // check if we queried this meta CpG it before
-                            if (threadCountFwd[m] == 1 || threadCountFwd[m] == 3)
+                            if (threadCountFwd[m] == 1 || threadCountFwd[m] >= 3)
                             {
                                 continue;
 
@@ -465,12 +460,9 @@ class ReadQueue
 
                                         MATCH::match& m_2 = uniqueMatches[errors[i]];
                                         // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]))
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && (MATCH::isFwd(m_2)))
                                         {
-                                            if (MATCH::isFwd(m_2))
-                                            {
-                                                continue;
-                                            }
+                                            continue;
 
                                         } else {
 
@@ -479,8 +471,6 @@ class ReadQueue
                                             {
 
                                                 // if so, return without a match
-                        // TODO
-                        // of << count << "\t";
                                                 return false;
 
                                             }
@@ -507,7 +497,7 @@ class ReadQueue
                         } else {
 
                             // check if we queried it before
-                            if (threadCountRev[m] == 1 || threadCountRev[m] == 3)
+                            if (threadCountRev[m] == 1 || threadCountRev[m] >= 3)
                             {
                                 continue;
 
@@ -544,12 +534,9 @@ class ReadQueue
 
                                         MATCH::match& m_2 = uniqueMatches[errors[i]];
                                         // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]))
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && !(MATCH::isFwd(m_2)))
                                         {
-                                            if (!MATCH::isFwd(m_2))
-                                            {
-                                                continue;
-                                            }
+                                            continue;
 
                                         } else {
 
@@ -558,8 +545,6 @@ class ReadQueue
                                             {
 
                                                 // if so, return without a match
-                        // TODO
-                        // of << count << "\t";
                                                 return false;
 
                                             }
@@ -596,6 +581,7 @@ class ReadQueue
 
                             } else {
 
+
                                 // state that we queried this
                                 threadCountFwd[m] += 2;
                                 // retrieve it
@@ -627,24 +613,19 @@ class ReadQueue
                                     {
 
                                         MATCH::match& m_2 = uniqueMatches[errors[i]];
-                                        std::cout << MATCH::getOffset(m_2) << "\t";
-                                        std::cout << matchings[i] + startCpg.pos << "\n";
                                         // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos))
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && (MATCH::isFwd(m_2)))
                                         {
-                                            if (MATCH::isFwd(m_2))
-                                            {
-                                                continue;
-                                            }
+                                            continue;
 
                                         } else {
+
                                             // check if this is a match without errors
                                             if (!errors[i])
                                             {
 
                                                 // if so, return without a match
-                        // TODO
-                        // of << count << "\t";
+                                                // std::cout << "Nonunique no-error match\n";
                                                 return false;
 
                                             }
@@ -705,13 +686,9 @@ class ReadQueue
                                     {
 
                                         MATCH::match& m_2 = uniqueMatches[errors[i]];
-                                        // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos))
+                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && !(MATCH::isFwd(m_2)))
                                         {
-                                            if (!MATCH::isFwd(m_2))
-                                            {
-                                                continue;
-                                            }
+                                            continue;
 
                                         } else {
 
@@ -720,8 +697,6 @@ class ReadQueue
                                             {
 
                                                 // if so, return without a match
-                        // TODO
-                        // of << count << "\t";
                                                 return false;
 
                                             }
@@ -746,6 +721,7 @@ class ReadQueue
                 } // end inner kmer loop
             } // end outer kmer loop
 
+
             // go through found matches for each [0,maxErrorNumber] and see if it is unique
             for (size_t i = 0; i < multiMatch.size(); ++i)
             {
@@ -757,22 +733,15 @@ class ReadQueue
                 // if match is not unique, return unsuccessfull to caller
                 if (multiMatch[i] > 1)
                 {
-                    // TODO
-                    // of << count << "\t";
-                    of << "multimatch" << MATCH::getOffset(uniqueMatches[i]) << "\n";
                     return false;
 
                 } else {
 
                     mat = uniqueMatches[i];
-                    // TODO
-                    // of << count << "\t";
                     return true;
                 }
 
             }
-            // TODO
-            // of << count << "\t";
             // we have not a single match at all, return unsuccessfull to caller
             return false;
         }
