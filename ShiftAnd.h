@@ -48,7 +48,7 @@ class ShiftAnd
         //              matches     will contain the matchings as offset relative to the start iterator (the end of the match)
         //              errors      same size as matches; will contain number of errors for each match
         //
-        inline void querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<size_t>& matches, std::vector<uint16_t>& errors);
+        inline void querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors);
         inline void queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors);
 
         // returns the size of the represented pattern sequence
@@ -147,6 +147,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
     {
 
         char c;
+        // TODO: make constant lookup once it works
         // change letter to reverse complement
         switch (*it)
         {
@@ -176,7 +177,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
         if (isMatch(errNum))
         {
 
-            matches.emplace_back(it - end);
+            matches.emplace_back(it - end + 1);
             errors.emplace_back(errNum);
 
         }
@@ -196,10 +197,24 @@ inline void ShiftAnd<E>::reset()
 
     }
 }
+template <>
+inline void ShiftAnd<0>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+
+}
+template <>
+inline void ShiftAnd<1>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+    active[1].B_0 = 3;
+    active[1].B_1 = 0;
+
+}
 
 
-// TODO: make template spezialisations for this for E=1,2
-//          OR use loop unrolling with templates (see bottom of file)
 template<size_t E>
 inline void ShiftAnd<E>::queryLetter(const char& c)
 {
@@ -210,31 +225,68 @@ inline void ShiftAnd<E>::queryLetter(const char& c)
     for (size_t i = E; i > 0; --i)
     {
 
-        // Update first part of pattern states
-        //
-        //                          Match                           Insertion               Substitution
-        active[i].B_0 = ((active[i].B_0 << 1 | 1) & mask.B_0) | (active[i-1].B_0) | (active[i-1].B_0 << 1);
-
         // Update second part of pattern states
         //
         //                                  Match                                       Insertion                       Substitution
         active[i].B_1 = ((active[i].B_1 << 1 | active[i].B_0 >> 63) & mask.B_1) | (active[i-1].B_1) | (active[i-1].B_1 << 1 | active[i-1].B_0 >> 63);
 
+        // Update first part of pattern states
+        //
+        //                          Match                           Insertion               Substitution
+        active[i].B_0 = ((active[i].B_0 << 1 | 1) & mask.B_0) | (active[i-1].B_0) | (active[i-1].B_0 << 1);
 
     }
     // update zero error layer (at the top)
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
     active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
     //
     // Top down update for values of this iteration
     for (size_t i = 1; i <= E; ++i)
     {
 
-        active[i].B_0 |= active[i-1].B_0 << 1;
         active[i].B_1 |= active[i-1].B_1 << 1 | active[i-1].B_0 >> 63;
+        active[i].B_0 |= active[i-1].B_0 << 1;
 
     }
 }
+// template spec for 0 errors
+template<>
+inline void ShiftAnd<0>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c]];
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+}
+// template spec fo 1 error
+template<>
+inline void ShiftAnd<1>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c]];
+
+    // Bottom up update part for old values of previous iteration for bottom layer
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    //
+    // Top down update for values of this iteration
+    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
+    active[1].B_0 |= active[0].B_0 << 1;
+}
+
 
 
 template<size_t E>
@@ -245,12 +297,41 @@ inline bool ShiftAnd<E>::isMatch(uint16_t& errNum)
     {
 
         // test if this layer is match
-        if ((active[i].B_0 & accepted.B_0) | (active[i].B_1 & accepted.B_1))
+        if ((active[i].B_1 & accepted.B_1) || (active[i].B_0 & accepted.B_0))
         {
             errNum = i;
             return true;
         }
 
+    }
+    return false;
+}
+// template spec for 0 errors
+template<>
+inline bool ShiftAnd<0>::isMatch(uint16_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0))
+    {
+        errNum = 0;
+        return true;
+    }
+    return false;
+}
+// template spec for 1 errors
+template<>
+inline bool ShiftAnd<1>::isMatch(uint16_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
+    {
+        errNum = 0;
+        return true;
+    }
+    if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+    {
+        errNum = 1;
+        return true;
     }
     return false;
 }
