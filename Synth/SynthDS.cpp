@@ -34,11 +34,12 @@ SynthDS::SynthDS(const size_t refLen, const unsigned int seed) :
     std::cout << "Gerated reference sequence\n\n";
 }
 
-std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum)
+std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<size_t>& offsets)
 {
 
     // will hold the generated reads
     std::vector<std::string> readSet(readNum);
+    offsets.reserve(readNum);
 
     // range of indices allowed to be drawn for the reference
     std::uniform_int_distribution<int> toOffset (0, refFwd.size() - readLen);
@@ -67,6 +68,7 @@ std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const s
 
         }
         readSet[i] = std::move(read);
+        offsets.push_back(offset);
     }
 
     std::cout << "Generated forward strand read set\n\n";

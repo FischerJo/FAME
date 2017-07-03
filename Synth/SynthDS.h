@@ -43,10 +43,11 @@ class SynthDS
         //          readLen     length of the returned reads
         //          readNum     number of reads to be generated
         //          maxErrNum   maximum number of errors that can be introduced per read
+        //          offsets     will hold the offsets where the read stems from
         //
         // RETURN:
         //          vector of length readNum holding the generated reads
-        std::vector<std::string> genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum);
+        std::vector<std::string> genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<size_t>& offsets);
         std::vector<std::string> genReadsRevFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum);
 
         // generate set of reads with length in between specified boundaries, drawn from the reference
