@@ -111,7 +111,7 @@ namespace MATCH {
         return (m & 0x8000000000000000ULL);
     }
 
-    inline MATCH::match constructMatch(uint32_t off, uint8_t chrom, uint16_t errNum, uint64_t isFwd)
+    inline MATCH::match constructMatch(uint32_t off, uint8_t chrom, uint8_t errNum, uint64_t isFwd)
     {
         return (isFwd << 63) | (static_cast<uint64_t>(errNum) << 40) | (static_cast<uint64_t>(chrom) << 32) | static_cast<uint64_t>(off);
     }

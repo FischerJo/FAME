@@ -446,7 +446,7 @@ class ReadQueue
 
                                 // use shift and to find all matchings
                                 std::vector<uint64_t> matchings;
-                                std::vector<uint16_t> errors;
+                                std::vector<uint8_t> errors;
                                 sa.querySeq(startIt, endIt, matchings, errors);
 
                                 // go through matching and see if we had such a match (with that many errors) before - if so,
@@ -520,7 +520,7 @@ class ReadQueue
 
                                 // use shift and to find all matchings
                                 std::vector<uint64_t> matchings;
-                                std::vector<uint16_t> errors;
+                                std::vector<uint8_t> errors;
                                 sa.queryRevSeq(startIt, endIt, matchings, errors);
 
                                 // go through matching and see if we had such a match (with that many errors) before - if so,
@@ -600,7 +600,7 @@ class ReadQueue
 
                                 // use shift and to find all matchings
                                 std::vector<uint64_t> matchings;
-                                std::vector<uint16_t> errors;
+                                std::vector<uint8_t> errors;
                                 sa.querySeq(startIt, endIt, matchings, errors);
 
                                 // go through matching and see if we had such a match (with that many errors) before - if so,
@@ -673,7 +673,7 @@ class ReadQueue
 
                                 // use shift and to find all matchings
                                 std::vector<uint64_t> matchings;
-                                std::vector<uint16_t> errors;
+                                std::vector<uint8_t> errors;
                                 sa.queryRevSeq(startIt, endIt, matchings, errors);
 
                                 // go through matching and see if we had such a match (with that many errors) before - if so,
