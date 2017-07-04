@@ -48,8 +48,8 @@ class ShiftAnd
         //              matches     will contain the matchings as offset relative to the start iterator (the end of the match)
         //              errors      same size as matches; will contain number of errors for each match
         //
-        inline void querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors);
-        inline void queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors);
+        inline void querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint8_t>& errors);
+        inline void queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint8_t>& errors);
 
         // returns the size of the represented pattern sequence
         inline uint64_t size() { return pLen; }
@@ -72,7 +72,7 @@ class ShiftAnd
         //
         // RETURN:
         //          true iff we have a match
-        inline bool isMatch(uint16_t& errNum);
+        inline bool isMatch(uint8_t& errNum);
 
         // load the bitmasks for the given sequences
         inline void loadBitmasks(std::string& seq);
@@ -109,7 +109,7 @@ ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
 
 
 template<size_t E>
-inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors)
+inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint8_t>& errors)
 {
 
     reset();
@@ -125,7 +125,7 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
         }
         queryLetter(*it);
 
-        uint16_t errNum;
+        uint8_t errNum;
         if (isMatch(errNum))
         {
 
@@ -138,7 +138,7 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
 
 
 template<size_t E>
-inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint16_t>& errors)
+inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vector<char>::iterator end, std::vector<uint64_t>& matches, std::vector<uint8_t>& errors)
 {
 
     reset();
@@ -173,7 +173,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
         }
         queryLetter(c);
 
-        uint16_t errNum;
+        uint8_t errNum;
         if (isMatch(errNum))
         {
 
@@ -210,6 +210,17 @@ inline void ShiftAnd<1>::reset()
     active[0].B_0 = 1;
     active[0].B_1 = 0;
     active[1].B_0 = 3;
+    active[1].B_1 = 0;
+
+}
+template <>
+inline void ShiftAnd<2>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+    active[1].B_0 = 3;
+    active[1].B_1 = 0;
+    active[1].B_0 = 7;
     active[1].B_1 = 0;
 
 }
@@ -260,7 +271,7 @@ inline void ShiftAnd<0>::queryLetter(const char& c)
     active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
     active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
 }
-// template spec fo 1 error
+// template spec for 1 error
 template<>
 inline void ShiftAnd<1>::queryLetter(const char& c)
 {
@@ -286,11 +297,48 @@ inline void ShiftAnd<1>::queryLetter(const char& c)
     active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
     active[1].B_0 |= active[0].B_0 << 1;
 }
+// template spec for 2 errors
+template<>
+inline void ShiftAnd<2>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c]];
+
+    // Bottom up update part for old values of previous iteration for bottom layer
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    //
+    // Top down update for values of this iteration
+    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
+    active[1].B_0 |= active[0].B_0 << 1;
+    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
+    active[2].B_0 |= active[1].B_0 << 1;
+}
 
 
 
 template<size_t E>
-inline bool ShiftAnd<E>::isMatch(uint16_t& errNum)
+inline bool ShiftAnd<E>::isMatch(uint8_t& errNum)
 {
     // go through layers
     for (size_t i = 0; i <= E; ++i)
@@ -308,7 +356,7 @@ inline bool ShiftAnd<E>::isMatch(uint16_t& errNum)
 }
 // template spec for 0 errors
 template<>
-inline bool ShiftAnd<0>::isMatch(uint16_t& errNum)
+inline bool ShiftAnd<0>::isMatch(uint8_t& errNum)
 {
 
     if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0))
@@ -318,9 +366,26 @@ inline bool ShiftAnd<0>::isMatch(uint16_t& errNum)
     }
     return false;
 }
-// template spec for 1 errors
+// template spec for 1 error
 template<>
-inline bool ShiftAnd<1>::isMatch(uint16_t& errNum)
+inline bool ShiftAnd<1>::isMatch(uint8_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
+    {
+        errNum = 0;
+        return true;
+    }
+    if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+    {
+        errNum = 1;
+        return true;
+    }
+    return false;
+}
+// template spec for 2 errors
+template<>
+inline bool ShiftAnd<2>::isMatch(uint8_t& errNum)
 {
 
     if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
