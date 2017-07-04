@@ -29,13 +29,15 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     // generate encoding of genome
     // generateBitStrings(fullSeq);
     // cout << "Done generating Genome bit representation" << endl;
-    std::cout << "Start hashing CpGs" << std::endl;
+    std::cout << "\nStart hashing CpGs\n";
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
     // hash all kmers of reduced alphabet
     generateHashes(fullSeq);
-    std::cout << "Done hashing CpGs" << std::endl;
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+    std::cout << "\nDone hashing CpGs (" << runtime << "s)\n";
     // filter out highly repetitive sequences
-    // filterHashTable();
-    // std::cout << "Done filtering Hash table" << std::endl;
+    filterHashTable();
 }
 
 void RefGenome::generateMetaCpGs()
