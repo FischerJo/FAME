@@ -188,8 +188,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                     redSeq[pos] = 'T';
                     redRevSeq[revPos] = 'A';
                     revSeq[revPos] = 'A';
-                    // hadCorT = true;
-                    hadCorT = false;
+                    hadCorT = true;
                     break;
 
                 case 'N':
@@ -213,6 +212,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
         auto runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
+        of << runtime << "\t";
+        startTime = std::chrono::high_resolution_clock::now();
 
         std::vector<std::vector<KMER::kmer> > fwdSeedsK;
         std::vector<std::vector<bool> > fwdSeedsS;
@@ -221,13 +222,21 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         std::vector<std::vector<bool> > revSeedsS;
         ref.getSeeds(redRevSeq, revSeedsK, revSeedsS);
 
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
 
         // printStatistics(fwdSeedsK);
 
+        startTime = std::chrono::high_resolution_clock::now();
         // FILTER SEEDS BY COUNTING LEMMA
         filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
         filterHeuSeeds(revSeedsK, revSeedsS, readSize);
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
 
+        startTime = std::chrono::high_resolution_clock::now();
         // produce shift-and automaton for forward and reverse sequence of this read
         ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
         ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
@@ -237,7 +246,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         MATCH::match matchFwd = 0;
         MATCH::match matchRev = 0;
         // query seeds to shift-and automaton
-        startTime = std::chrono::high_resolution_clock::now();
 
         bool succQueryFwd = saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS, matchFwd);
         bool succQueryRev = saQuerySeedSet(saRev, revSeedsK, revSeedsS, matchRev);
@@ -245,7 +253,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         //TODO
         endTime = std::chrono::high_resolution_clock::now();
         runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-        // of <<  runtime << "\n";
+        of <<  runtime << "\n";
 
         // found match for fwd and rev strand
         if (succQueryFwd && succQueryRev)
@@ -276,6 +284,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                     if (MATCH::getOffset(matchFwd) == MATCH::getOffset(matchRev))
                     {
                         ++succMatchFwd;
+                        r.mat = matchFwd;
 
                     } else {
 
@@ -285,19 +294,19 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                     }
                 }
             }
-        // no match found at all
+        // unique match on forward strand
         } else if (succQueryFwd) {
 
-            // TODO
-            // of << "\n---\n\n";
             ++succMatchFwd;
+            r.mat = matchFwd;
 
+        // unique match on backward strand
         } else if (succQueryRev) {
 
-            // TODO
-            // of << "\n---\n\n";
             ++succMatchRev;
+            r.mat = matchRev;
 
+        // no match found at all
         } else {
 
             r.isInvalid = true;
