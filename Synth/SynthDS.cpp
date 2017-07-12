@@ -16,7 +16,7 @@ SynthDS::SynthDS(const size_t refLen) :
         randGen[cID] = std::mt19937(seedGen());
     }
     initReference(refLen, seedGen());
-    std::cout << "Gerated reference sequence\n\n";
+    std::cout << "Generated reference sequence\n\n";
 }
 
 SynthDS::SynthDS(const size_t refLen, const unsigned int seed) :
@@ -31,7 +31,7 @@ SynthDS::SynthDS(const size_t refLen, const unsigned int seed) :
         randGen[cID] = std::mt19937(seedGen());
     }
     initReference(refLen, seed);
-    std::cout << "Gerated reference sequence\n\n";
+    std::cout << "Generated reference sequence\n\n";
 }
 
 std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<size_t>& offsets)
