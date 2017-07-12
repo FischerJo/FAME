@@ -39,7 +39,7 @@ std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const s
 
     // will hold the generated reads
     std::vector<std::string> readSet(readNum);
-    offsets.reserve(readNum);
+    offsets.resize(readNum);
 
     // range of indices allowed to be drawn for the reference
     std::uniform_int_distribution<int> toOffset (0, refFwd.size() - readLen);
@@ -49,6 +49,9 @@ std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const s
 
     // range of errors allowed to be drawn
     std::uniform_int_distribution<int> toErr(0, maxErrNum);
+
+    // coin flip for conversion type
+    std::uniform_int_distribution<int> coin(0, 1);
 
 #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
     for (size_t i = 0; i < readNum; ++i)
@@ -67,8 +70,41 @@ std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const s
             read[toOffRead(MT)] = alphabet[toIndex(MT)];
 
         }
+        // introduce C->T  OR  G->A conversions
+        if (coin(MT))
+        {
+
+            for (size_t j = 0; j < readLen; ++j)
+            {
+                if (read[j] == 'C')
+                {
+                    // try conversion
+                    if (coin(MT))
+                    {
+                        read[j] = 'T';
+                    }
+
+                }
+            }
+
+        } else {
+
+            for (size_t j = 0; j < readLen; ++j)
+            {
+                if (read[j] == 'G')
+                {
+                    // try conversion
+                    if (coin(MT))
+                    {
+                        read[j] = 'A';
+                    }
+
+                }
+            }
+        }
+
         readSet[i] = std::move(read);
-        offsets.push_back(offset);
+        offsets[i] = offset;
     }
 
     std::cout << "Generated forward strand read set\n\n";
@@ -90,6 +126,9 @@ std::vector<std::string> SynthDS::genReadsRevFixed(const size_t readLen, const s
     // range of errors allowed to be drawn
     std::uniform_int_distribution<int> toErr(0, maxErrNum);
 
+    // coin flip for conversion type
+    std::uniform_int_distribution<int> coin(0, 1);
+
 #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
     for (size_t i = 0; i < readNum; ++i)
     {
@@ -106,6 +145,38 @@ std::vector<std::string> SynthDS::genReadsRevFixed(const size_t readLen, const s
         {
             read[toOffRead(MT)] = alphabet[toIndex(MT)];
 
+        }
+        // introduce C->T  OR  G->A conversions
+        if (coin(MT))
+        {
+
+            for (size_t j = 0; j < readLen; ++j)
+            {
+                if (read[j] == 'C')
+                {
+                    // try conversion
+                    if (coin(MT))
+                    {
+                        read[j] = 'T';
+                    }
+
+                }
+            }
+
+        } else {
+
+            for (size_t j = 0; j < readLen; ++j)
+            {
+                if (read[j] == 'G')
+                {
+                    // try conversion
+                    if (coin(MT))
+                    {
+                        read[j] = 'A';
+                    }
+
+                }
+            }
         }
         readSet[i] = std::move(read);
     }
