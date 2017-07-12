@@ -921,7 +921,7 @@ void RefGenome::filterHashTable()
     // iterator to the element that we process
     auto srcItK = kmerTable.begin();
     auto srcItS = strandTable.begin();
-    // iterator to the position one of the last inserted FILTERED element, always at most as far as srcIt
+    // iterator to the position of the last inserted FILTERED element, always at most as far as srcIt
     auto filterItK = kmerTable.begin();
     auto filterItS = strandTable.begin();
 
@@ -944,8 +944,6 @@ void RefGenome::filterHashTable()
 
             }
 
-            // update the indexing structure for collisions
-            tabIndex[i] = prevSizeK;
 
 
         // if there are enough elements for potential kick outs, start a blacklisting
@@ -975,9 +973,9 @@ void RefGenome::filterHashTable()
                 }
             }
 
-            // update the indexing structure for collisions
-            tabIndex[i] = prevSizeK;
         }
+        // update the indexing structure for collisions
+        tabIndex[i] = prevSizeK;
     }
 
     // update dummy value used for efficient indexing
