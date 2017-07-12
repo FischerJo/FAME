@@ -22,7 +22,7 @@ CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread -fopenmp
 TESTS = RefReader_unittest.o BitFunctions_unittest.o DnaBitStr_unittest.o \
 		RefGenome_unittest.o ShiftAnd_unittest.o
 # files to test
-OBJECTS=RefReader_istr.o RefGenome.o DnaBitStr.o Read.o ReadQueue.o
+OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o Read.o ReadQueue.o
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -67,6 +67,13 @@ gtest_main.a : gtest-all.o gtest_main.o
 # A test should link with either gtest.a or
 # gtest_main.a, depending on whether it defines its own main()
 # function.
+#
+# gunzip specific stuff
+gzstream.o: $(USER_DIR)/gzstream/gzstream.C $(USER_DIR)/gzstream/gzstream.h $(GTEST_HEADERS)
+	${CXX} $(CPPFLAGS) ${CXXFLAGS} -c $<
+
+ReadQueue.o: $(USER_DIR)/ReadQueue.cpp $(USER_DIR)/ReadQueue.h $(USER_DIR)/gzstream/gzstream.C
+	${CXX} $(CPPFLAGS) ${CXXFLAGS} -c $<
 
 %.o : $(USER_DIR)/%.cpp $(USER_DIR)/%.h $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $<
@@ -75,4 +82,4 @@ gtest_main.a : gtest-all.o gtest_main.o
 
 
 tester: ${TESTS} ${OBJECTS} gtest_main.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lpthread $^ -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -lz -lpthread $^ -o $@
