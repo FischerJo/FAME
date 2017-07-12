@@ -373,10 +373,10 @@ class ReadQueue
         //              false otherwise
         //
         // MODIFICATIONS:
-        //              updates the matches field of the read set
+        //              updates the match mat
         //              shift-and automaton is used - needs a reset (implicitly done when querying a new sequence internally)
         //
-        inline bool saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match mat)
+        inline bool saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
         {
 
             // use counters to flag what has been processed so far
@@ -733,6 +733,7 @@ class ReadQueue
                 // if match is not unique, return unsuccessfull to caller
                 if (multiMatch[i] > 1)
                 {
+                    // of << "Too bad, multimatch in internal\n";
                     return false;
 
                 } else {
@@ -743,6 +744,7 @@ class ReadQueue
 
             }
             // we have not a single match at all, return unsuccessfull to caller
+            // of << "No match at all\t";
             return false;
         }
 
