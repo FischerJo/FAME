@@ -177,7 +177,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
         if (isMatch(errNum))
         {
 
-            matches.emplace_back(it - end + 1);
+            matches.emplace_back(it - end + pLen - 2);
             errors.emplace_back(errNum);
 
         }
@@ -220,8 +220,8 @@ inline void ShiftAnd<2>::reset()
     active[0].B_1 = 0;
     active[1].B_0 = 3;
     active[1].B_1 = 0;
-    active[1].B_0 = 7;
-    active[1].B_1 = 0;
+    active[2].B_0 = 7;
+    active[2].B_1 = 0;
 
 }
 
