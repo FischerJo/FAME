@@ -68,23 +68,25 @@ void RefGenome::save(const std::string& filepath)
     // store NON-start CpGs
     size_t cpgNum = cpgTable.size();
     of.write(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
-    for (auto cpg : cpgTable)
-    {
-        uint8_t chr = cpg.chrom;
-        of.write(reinterpret_cast<char*>(&chr), sizeof(chr));
-        uint32_t pos = cpg.pos;
-        of.write(reinterpret_cast<char*>(&pos), sizeof(pos));
-    }
+    of.write(reinterpret_cast<char*>(&cpgTable), sizeof(cpgTable[0]) * cpgNum);
+    // for (auto cpg : cpgTable)
+    // {
+    //     uint8_t chr = cpg.chrom;
+    //     of.write(reinterpret_cast<char*>(&chr), sizeof(chr));
+    //     uint32_t pos = cpg.pos;
+    //     of.write(reinterpret_cast<char*>(&pos), sizeof(pos));
+    // }
     // store start CpGs
     cpgNum = cpgStartTable.size();
     of.write(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
-    for (auto cpg : cpgStartTable)
-    {
-        uint8_t chr = cpg.chrom;
-        of.write(reinterpret_cast<char*>(&chr), sizeof(chr));
-        uint32_t pos = cpg.pos;
-        of.write(reinterpret_cast<char*>(&pos), sizeof(pos));
-    }
+    of.write(reinterpret_cast<char*>(&cpgStartTable), sizeof(cpgStartTable[0]) * cpgNum);
+    // for (auto cpg : cpgStartTable)
+    // {
+    //     uint8_t chr = cpg.chrom;
+    //     of.write(reinterpret_cast<char*>(&chr), sizeof(chr));
+    //     uint32_t pos = cpg.pos;
+    //     of.write(reinterpret_cast<char*>(&pos), sizeof(pos));
+    // }
     // write reference sequence
     size_t chromNum = fullSeq.size();
     of.write(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
@@ -110,24 +112,26 @@ void RefGenome::save(const std::string& filepath)
     // store meta CpGs
     size_t metaCpGNum = metaCpGs.size();
     of.write(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
-    for (auto m : metaCpGs)
-    {
-        uint32_t start = m.start;
-        of.write(reinterpret_cast<char*>(&start), sizeof(start));
-        uint32_t end = m.end;
-        of.write(reinterpret_cast<char*>(&end), sizeof(end));
-    }
+    of.write(reinterpret_cast<char*>(&metaCpGs), sizeof(metaCpGs[0]) * metaCpGNum);
+    // for (auto m : metaCpGs)
+    // {
+    //     uint32_t start = m.start;
+    //     of.write(reinterpret_cast<char*>(&start), sizeof(start));
+    //     uint32_t end = m.end;
+    //     of.write(reinterpret_cast<char*>(&end), sizeof(end));
+    // }
 
     // store start meta CpGs
     metaCpGNum = metaStartCpGs.size();
     of.write(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
-    for (auto m : metaStartCpGs)
-    {
-        uint32_t start = m.start;
-        of.write(reinterpret_cast<char*>(&start), sizeof(start));
-        uint32_t end = m.end;
-        of.write(reinterpret_cast<char*>(&end), sizeof(end));
-    }
+    of.write(reinterpret_cast<char*>(&metaStartCpGs), sizeof(metaStartCpGs[0]) * metaCpGNum);
+    // for (auto m : metaStartCpGs)
+    // {
+    //     uint32_t start = m.start;
+    //     of.write(reinterpret_cast<char*>(&start), sizeof(start));
+    //     uint32_t end = m.end;
+    //     of.write(reinterpret_cast<char*>(&end), sizeof(end));
+    // }
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "Finished writing index to file in " << runtime << "s\n\n";
@@ -175,25 +179,27 @@ void RefGenome::load(const std::string& filepath)
     size_t cpgNum;
     ifs.read(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
     cpgTable.reserve(cpgNum);
-    for (size_t i = 0; i < cpgNum; ++i)
-    {
-        uint8_t chr;
-        ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
-        uint32_t pos;
-        ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
-        cpgTable.push_back({chr, pos});
-    }
+    ifs.read(reinterpret_cast<char*>(&cpgTable), sizeof(cpgTable[0]) * cpgNum);
+    // for (size_t i = 0; i < cpgNum; ++i)
+    // {
+    //     uint8_t chr;
+    //     ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
+    //     uint32_t pos;
+    //     ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
+    //     cpgTable.push_back({chr, pos});
+    // }
     // load start CpGs
     ifs.read(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
     cpgStartTable.reserve(cpgNum);
-    for (size_t i = 0; i < cpgNum; ++i)
-    {
-        uint8_t chr;
-        ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
-        uint32_t pos;
-        ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
-        cpgTable.push_back({chr, pos});
-    }
+    ifs.read(reinterpret_cast<char*>(&cpgStartTable), sizeof(cpgStartTable[0]) * cpgNum);
+    // for (size_t i = 0; i < cpgNum; ++i)
+    // {
+    //     uint8_t chr;
+    //     ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
+    //     uint32_t pos;
+    //     ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
+    //     cpgTable.push_back({chr, pos});
+    // }
     // write reference sequence
     size_t chromNum;
     ifs.read(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
@@ -225,26 +231,28 @@ void RefGenome::load(const std::string& filepath)
     size_t metaCpGNum;
     ifs.read(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
     metaCpGs.reserve(metaCpGNum);
-    for (size_t i = 0; i < metaCpGNum; ++i)
-    {
-        uint32_t start;
-        ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
-        uint32_t end;
-        ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
-        metaCpGs.push_back({start, end});
-    }
+    ifs.read(reinterpret_cast<char*>(&metaCpGs), sizeof(metaCpGs[0]) * metaCpGNum);
+    // for (size_t i = 0; i < metaCpGNum; ++i)
+    // {
+    //     uint32_t start;
+    //     ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
+    //     uint32_t end;
+    //     ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
+    //     metaCpGs.push_back({start, end});
+    // }
 
     // load start meta CpGs
     ifs.read(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
     metaStartCpGs.reserve(metaCpGNum);
-    for (size_t i = 0; i < metaCpGNum; ++i)
-    {
-        uint32_t start;
-        ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
-        uint32_t end;
-        ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
-        metaStartCpGs.push_back({start, end});
-    }
+    ifs.read(reinterpret_cast<char*>(&metaStartCpGs), sizeof(metaStartCpGs[0]) * metaCpGNum);
+    // for (size_t i = 0; i < metaCpGNum; ++i)
+    // {
+    //     uint32_t start;
+    //     ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
+    //     uint32_t end;
+    //     ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
+    //     metaStartCpGs.push_back({start, end});
+    // }
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "Finished reading index to file in " << runtime << "s\n\n";
