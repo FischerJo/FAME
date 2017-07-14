@@ -37,7 +37,217 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "\nDone hashing CpGs (" << runtime << "s)\n";
     // filter out highly repetitive sequences
-    filterHashTable();
+    // filterHashTable();
+}
+
+
+RefGenome::RefGenome(std::string filepath)
+{
+    load(filepath);
+}
+
+
+void RefGenome::save(const std::string& filepath)
+{
+
+    std::cout << "Start writing index to file " << filepath << "\n";
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+    // open file in binary mode
+    std::ofstream of(filepath, std::ofstream::binary);
+
+    // save CONSTANTS
+    auto htabs = MyConst::HTABSIZE;
+    of.write(reinterpret_cast<char*>(&htabs), sizeof(htabs));
+    auto readl = MyConst::READLEN;
+    of.write(reinterpret_cast<char*>(&readl), sizeof(readl));
+    auto winl = MyConst::WINLEN;
+    of.write(reinterpret_cast<char*>(&winl), sizeof(winl));
+    auto kmerl = MyConst::KMERLEN;
+    of.write(reinterpret_cast<char*>(&kmerl), sizeof(kmerl));
+
+    // store NON-start CpGs
+    size_t cpgNum = cpgTable.size();
+    of.write(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
+    for (auto cpg : cpgTable)
+    {
+        uint8_t chr = cpg.chrom;
+        of.write(reinterpret_cast<char*>(&chr), sizeof(chr));
+        uint32_t pos = cpg.pos;
+        of.write(reinterpret_cast<char*>(&pos), sizeof(pos));
+    }
+    // store start CpGs
+    cpgNum = cpgStartTable.size();
+    of.write(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
+    for (auto cpg : cpgStartTable)
+    {
+        uint8_t chr = cpg.chrom;
+        of.write(reinterpret_cast<char*>(&chr), sizeof(chr));
+        uint32_t pos = cpg.pos;
+        of.write(reinterpret_cast<char*>(&pos), sizeof(pos));
+    }
+    // write reference sequence
+    size_t chromNum = fullSeq.size();
+    of.write(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
+    for (std::vector<char> chromSeq : fullSeq)
+    {
+        size_t chromLen = chromSeq.size();
+        of.write(reinterpret_cast<char*>(&chromLen), sizeof(chromLen));
+        of.write(chromSeq.data(), chromLen);
+    }
+    // tabIndex
+    size_t tabLen = tabIndex.size();
+    of.write(reinterpret_cast<char*>(&tabLen), sizeof(tabLen));
+    of.write(reinterpret_cast<char*>(tabIndex.data()), sizeof(tabIndex[0])*tabLen);
+
+    // store kmers
+    size_t kmerNum = kmerTable.size();
+    of.write(reinterpret_cast<char*>(&kmerNum), sizeof(kmerNum));
+    of.write(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
+
+    // store strands
+    std::copy(strandTable.begin(), strandTable.end(), std::ostreambuf_iterator<char>(of));
+
+    // store meta CpGs
+    size_t metaCpGNum = metaCpGs.size();
+    of.write(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
+    for (auto m : metaCpGs)
+    {
+        uint32_t start = m.start;
+        of.write(reinterpret_cast<char*>(&start), sizeof(start));
+        uint32_t end = m.end;
+        of.write(reinterpret_cast<char*>(&end), sizeof(end));
+    }
+
+    // store start meta CpGs
+    metaCpGNum = metaStartCpGs.size();
+    of.write(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
+    for (auto m : metaStartCpGs)
+    {
+        uint32_t start = m.start;
+        of.write(reinterpret_cast<char*>(&start), sizeof(start));
+        uint32_t end = m.end;
+        of.write(reinterpret_cast<char*>(&end), sizeof(end));
+    }
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+    std::cout << "Finished writing index to file in " << runtime << "s\n\n";
+}
+
+void RefGenome::load(const std::string& filepath)
+{
+
+    std::cout << "Start reading index file " << filepath << "\n";
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+    // open file in binary mode
+    std::ifstream ifs(filepath, std::ifstream::binary);
+
+    // load CONSTANTS
+    auto htabs = MyConst::HTABSIZE;
+    ifs.read(reinterpret_cast<char*>(&htabs), sizeof(htabs));
+    if (htabs != MyConst::HTABSIZE)
+    {
+        std::cerr << "Hash table size in source code and index file are different!\n\n";
+        exit(1);
+    }
+    auto readl = MyConst::READLEN;
+    ifs.read(reinterpret_cast<char*>(&readl), sizeof(readl));
+    if (readl != MyConst::READLEN)
+    {
+        std::cerr << "Read length used in source code and index file are different!\n\n";
+        exit(1);
+    }
+    auto winl = MyConst::WINLEN;
+    ifs.read(reinterpret_cast<char*>(&winl), sizeof(winl));
+    if (winl != MyConst::WINLEN)
+    {
+        std::cerr << "Meta CpG length used in source code and index file are different!\n\n";
+        exit(1);
+    }
+    auto kmerl = MyConst::KMERLEN;
+    ifs.read(reinterpret_cast<char*>(&kmerl), sizeof(kmerl));
+    if (kmerl != MyConst::KMERLEN)
+    {
+        std::cerr << "k-mer length used in source code and index file are different!\n\n";
+        exit(1);
+    }
+
+    // load NON-start CpGs
+    size_t cpgNum;
+    ifs.read(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
+    cpgTable.reserve(cpgNum);
+    for (size_t i = 0; i < cpgNum; ++i)
+    {
+        uint8_t chr;
+        ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
+        uint32_t pos;
+        ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
+        cpgTable.emplace_back(chr, pos);
+    }
+    // load start CpGs
+    ifs.read(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
+    cpgStartTable.reserve(cpgNum);
+    for (size_t i = 0; i < cpgNum; ++i)
+    {
+        uint8_t chr;
+        ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
+        uint32_t pos;
+        ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
+        cpgTable.emplace_back(chr, pos);
+    }
+    // write reference sequence
+    size_t chromNum;
+    ifs.read(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
+    fullSeq.resize(chromNum);
+    for (size_t i = 0; i < chromNum; ++i)
+    {
+        size_t chromLen;
+        ifs.read(reinterpret_cast<char*>(&chromLen), sizeof(chromLen));
+        fullSeq[i].resize(chromLen);
+        ifs.read(fullSeq[i].data(), chromLen);
+    }
+    // tabIndex
+    size_t tabLen;
+    ifs.read(reinterpret_cast<char*>(&tabLen), sizeof(tabLen));
+    tabIndex.resize(tabLen);
+    ifs.read(reinterpret_cast<char*>(tabIndex.data()), sizeof(tabIndex[0])*tabLen);
+
+    // load kmers
+    size_t kmerNum;
+    ifs.read(reinterpret_cast<char*>(&kmerNum), sizeof(kmerNum));
+    kmerTable.resize(kmerNum);
+    ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
+
+    // load strands
+    strandTable.resize(kmerNum);
+    strandTable.insert(strandTable.begin(), std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+
+    // load meta CpGs
+    size_t metaCpGNum;
+    ifs.read(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
+    metaCpGs.reserve(metaCpGNum);
+    for (size_t i = 0; i < metaCpGNum; ++i)
+    {
+        uint32_t start;
+        ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
+        uint32_t end;
+        ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
+        metaCpGs.emplace_back(start, end);
+    }
+
+    // load start meta CpGs
+    ifs.read(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
+    metaStartCpGs.reserve(metaCpGNum);
+    for (size_t i = 0; i < metaCpGNum; ++i)
+    {
+        uint32_t start;
+        ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
+        uint32_t end;
+        ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
+        metaStartCpGs.emplace_back(start, end);
+    }
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+    std::cout << "Finished reading index to file in " << runtime << "s\n\n";
 }
 
 void RefGenome::generateMetaCpGs()
