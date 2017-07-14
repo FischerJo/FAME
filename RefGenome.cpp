@@ -107,7 +107,8 @@ void RefGenome::save(const std::string& filepath)
     of.write(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
 
     // store strands
-    std::copy(strandTable.begin(), strandTable.end(), std::ostreambuf_iterator<char>(of));
+    std::ofstream strandFile(filepath + "_strands", std::ofstream::binary);
+    std::copy(strandTable.begin(), strandTable.end(), std::ostreambuf_iterator<char>(strandFile));
 
     // store meta CpGs
     size_t metaCpGNum = metaCpGs.size();
@@ -180,6 +181,7 @@ void RefGenome::load(const std::string& filepath)
     ifs.read(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
     cpgTable.reserve(cpgNum);
     ifs.read(reinterpret_cast<char*>(&cpgTable), sizeof(cpgTable[0]) * cpgNum);
+    std::cout << "That worked. Size of table: " << cpgTable.size() << "\n\n";
     // for (size_t i = 0; i < cpgNum; ++i)
     // {
     //     uint8_t chr;
@@ -200,7 +202,7 @@ void RefGenome::load(const std::string& filepath)
     //     ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
     //     cpgTable.push_back({chr, pos});
     // }
-    // write reference sequence
+    // load reference sequence
     size_t chromNum;
     ifs.read(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
     fullSeq.resize(chromNum);
@@ -224,8 +226,9 @@ void RefGenome::load(const std::string& filepath)
     ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
 
     // load strands
-    strandTable.resize(kmerNum);
-    strandTable.insert(strandTable.begin(), std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+    strandTable.reserve(kmerNum);
+    std::ifstream ifs_bool(filepath + "_strands", std::ifstream::binary);
+    std::copy(std::istreambuf_iterator<char>(ifs_bool), std::istreambuf_iterator<char>(), std::back_inserter(strandTable));
 
     // load meta CpGs
     size_t metaCpGNum;
