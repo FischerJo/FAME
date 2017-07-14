@@ -114,11 +114,11 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
                     if (seq.size() >= (MyConst::READLEN - 1))
                     {
 
-                        cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
+                        cpgTab.push_back({chrIndex, static_cast<uint32_t>(seq.size()) - MyConst::READLEN + 1});
 
                     } else {
 
-                        cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
+                        cpgStartTab.push_back({chrIndex, static_cast<uint32_t>(seq.size()) - 1});
                     }
                     lastC = false;
                 }

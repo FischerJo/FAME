@@ -25,9 +25,6 @@ struct CpG {
     // convention: pos points to position of start of context of CpG (C position - READLEN + 2)
     //              or to position of C if the former is negative
     const uint32_t pos;
-
-    // Ctor for emplace_back
-    CpG(uint8_t chromC, uint32_t posC) : chrom(chromC), pos(posC) {}
 };
 
 
@@ -41,9 +38,6 @@ struct metaCpG {
 
     // index of last CpG in this meta CpG
     uint32_t end;
-
-    // Ctor for emplace_back
-    metaCpG(uint32_t startC, uint32_t endC) : start(startC), end(endC) {}
 };
 
 
@@ -78,6 +72,42 @@ namespace KMER {
         return  (isStart << 63) | (metacpg << 32) | off;
     }
 } // end namespace KMER
+// // TODO
+// namespace KMER {
+//
+//     // KMER DEFINITION
+//     //
+//     // metaID holds index of corresponding meta CpG
+//     // offset the offset inside the meta CpG
+//     // most significant bit of offset holds flag that is 1 <=> points to start meta CpG
+//     struct kmer {
+//
+//         uint32_t metaID;
+//         uint16_t offset;
+//     };
+//
+//     // return the offset of given kmer inside its cpg
+//     inline uint64_t getOffset(KMER::kmer& k)
+//     {
+//         return k.offset & static_cast<uint16_t>(0x7fff);
+//     }
+//
+//     inline uint32_t getMetaCpG(KMER::kmer& k)
+//     {
+//         return k.metaID;
+//     }
+//
+//     inline bool isStartCpG(KMER::kmer& k)
+//     {
+//         return k.offset & static_cast<uint16_t>(0x8000);
+//     }
+//
+//     // constructs a kmer according to its definition
+//     inline KMER::kmer constructKmer(uint16_t isStart, uint32_t metacpg, uint16_t off)
+//     {
+//         return  {metacpg, (isStart << 15 | off)};
+//     }
+// } // end namespace KMER
 
 
 namespace MATCH {

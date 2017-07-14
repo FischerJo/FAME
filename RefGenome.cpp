@@ -181,7 +181,7 @@ void RefGenome::load(const std::string& filepath)
         ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
         uint32_t pos;
         ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
-        cpgTable.emplace_back(chr, pos);
+        cpgTable.push_back({chr, pos});
     }
     // load start CpGs
     ifs.read(reinterpret_cast<char*>(&cpgNum), sizeof(cpgNum));
@@ -192,7 +192,7 @@ void RefGenome::load(const std::string& filepath)
         ifs.read(reinterpret_cast<char*>(&chr), sizeof(chr));
         uint32_t pos;
         ifs.read(reinterpret_cast<char*>(&pos), sizeof(pos));
-        cpgTable.emplace_back(chr, pos);
+        cpgTable.push_back({chr, pos});
     }
     // write reference sequence
     size_t chromNum;
@@ -231,7 +231,7 @@ void RefGenome::load(const std::string& filepath)
         ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
         uint32_t end;
         ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
-        metaCpGs.emplace_back(start, end);
+        metaCpGs.push_back({start, end});
     }
 
     // load start meta CpGs
@@ -243,7 +243,7 @@ void RefGenome::load(const std::string& filepath)
         ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
         uint32_t end;
         ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
-        metaStartCpGs.emplace_back(start, end);
+        metaStartCpGs.push_back({start, end});
     }
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
@@ -268,7 +268,7 @@ void RefGenome::generateMetaCpGs()
             ++cpgStartInd;
         }
 
-        metaStartCpGs.emplace_back(start, cpgStartInd - 1);
+        metaStartCpGs.push_back({start, cpgStartInd - 1});
         ++currChr;
         start = cpgStartInd;
     }
@@ -292,7 +292,7 @@ void RefGenome::generateMetaCpGs()
             {
 
                 // generate meta CpG
-                metaCpGs.emplace_back(start, cpgTabInd - 1);
+                metaCpGs.push_back({start, cpgTabInd - 1});
                 // set start for next meta CpG
                 start = cpgTabInd;
                 // update current chromosome index if necessary
@@ -307,7 +307,7 @@ void RefGenome::generateMetaCpGs()
     if (cpgTable.size() > 0)
     {
         // put in meta CpG containging last CpGs
-        metaCpGs.emplace_back(start, cpgTabInd - 1);
+        metaCpGs.push_back({start, cpgTabInd - 1});
     }
 
     metaCpGs.shrink_to_fit();

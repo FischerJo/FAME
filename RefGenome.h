@@ -28,9 +28,15 @@ class RefGenome
         //      cpgStartTab table of CpGs near the start
         //      genSeq      genomic sequence seperated by chromosome
         RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genSeq);
+        // ARGUMENTS:
+        //      filepath    file where index was saved before using RefGenome::save(...)
+        RefGenome(std::string filePath);
 
         ~RefGenome() = default;
 
+        // functions to save and load the index structure represented by this class
+        void save(const std::string& filepath);
+        void load(const std::string& filepath);
 
         // Returns the seeds of the reference genome for the given read
         // A seed is a kmer match between a reference genome part and the read
@@ -91,32 +97,21 @@ class RefGenome
         //
         // ARGUMENTS:
         //          seq             sequence of the read to query to hash table
-        //          seedsFwdStart   start indices per k-mer of the forward sequence,
-        //                              content of vector at position i is for k-mer
-        //                              starting at position i
-        //          seedsFwdEnd     index for one after the last element that corresponds to this k-mer
-        //          seedsRevStart   same for reverse sequence
-        //          seedsRevEnd     -"-
-        inline void getSeedRefs(std::string& seq, std::vector<size_t> seedsFwdStart, std::vector<size_t> seedsFwdEnd, std::vector<size_t> seedsRevStart, std::vector<size_t> seedsRevEnd)
+        //          seedsFwd        hash for each k-mer for lookup in tabIndex
+        //          seedsRev        same for reverse sequence
+        inline void getSeedRefs(std::string& seq, std::vector<size_t>& seedsFwd, std::vector<size_t>& seedsRev)
         {
-
-            seedsFwdStart = std::vector<size_t>(seq.size() - MyConst::KMERLEN + 1);
-            seedsFwdEnd = std::vector<size_t>(seq.size() - MyConst::KMERLEN + 1);
-            seedsRevStart = std::vector<size_t>(seq.size() - MyConst::KMERLEN + 1);
-            seedsFwdEnd = std::vector<size_t>(seq.size() - MyConst::KMERLEN + 1);
 
             // retrieve kmers for first hash
             uint64_t fhVal = 0;
             uint64_t rhVal = 0;
             ntHash::NTPC64(seq, fhVal, rhVal);
 
-            seedsFwdStart[0] = tabIndex[fhVal % MyConst::HTABSIZE];
-            seedsFwdEnd[0] = tabIndex[fhVal % MyConst::HTABSIZE + 1];
+            seedsFwd[0] = fhVal % MyConst::HTABSIZE;
 
             unsigned int revPos = seq.size() - MyConst::KMERLEN - 1;
 
-            seedsRevStart[revPos] = tabIndex[rhVal % MyConst::HTABSIZE];
-            seedsRevEnd[revPos] = tabIndex[rhVal % MyConst::HTABSIZE + 1];
+            seedsRev[revPos] = rhVal % MyConst::HTABSIZE;
             --revPos;
 
             for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i, --revPos)
@@ -125,11 +120,9 @@ class RefGenome
                 // use rolling hash
                 ntHash::NTPC64(seq[i], seq[i + MyConst::KMERLEN], fhVal, rhVal);
 
-                seedsFwdStart[i + 1] = tabIndex[fhVal % MyConst::HTABSIZE];
-                seedsFwdEnd[i + 1] = tabIndex[fhVal % MyConst::HTABSIZE + 1];
+                seedsFwd[i + 1] = fhVal % MyConst::HTABSIZE;
 
-                seedsRevStart[revPos] = tabIndex[rhVal % MyConst::HTABSIZE];
-                seedsRevEnd[revPos] = tabIndex[rhVal % MyConst::HTABSIZE + 1];
+                seedsRev[revPos] = rhVal % MyConst::HTABSIZE;
             }
         }
 
@@ -595,15 +588,16 @@ class RefGenome
                     switch (seqStart[i])
                     {
 
+                        case 'C':
                         case 'T':
 
                             kSeq += 3;
                             break;
 
-                        case 'C':
-
-                            kSeq += 1;
-                            break;
+                        // case 'C':
+                        //
+                        //     kSeq += 1;
+                        //     break;
 
                         case 'G':
 
@@ -626,15 +620,16 @@ class RefGenome
                     switch (seqStart[i - 1])
                     {
 
+                        case 'G':
                         case 'A':
 
                             kSeq += 3;
                             break;
 
-                        case 'G':
-
-                            kSeq += 1;
-                            break;
+                        // case 'G':
+                        //
+                        //     kSeq += 1;
+                        //     break;
 
                         case 'C':
 
@@ -660,8 +655,8 @@ class RefGenome
 
 
         // table of all CpGs in reference genome
-        const std::vector<struct CpG> cpgTable;
-        const std::vector<struct CpG> cpgStartTable;
+        std::vector<struct CpG> cpgTable;
+        std::vector<struct CpG> cpgStartTable;
 
         // table of bitstrings* holding a bit representation of genomeSeq
         // used as a perfect hash later on
