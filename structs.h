@@ -2,6 +2,7 @@
 #define STRUCTS_H
 
 #include <cstdint>
+#include <type_traits>
 
 // struct that holds information about id tags in buffer
 // id tags start with '>'
@@ -40,6 +41,13 @@ struct metaCpG {
     uint32_t end;
 };
 
+
+// test for POD types of structs
+inline constexpr bool testPODs()
+{
+
+    return (std::is_pod<struct CpG>::value && std::is_pod<struct metaCpG>::value);
+}
 
 namespace KMER {
 
