@@ -22,10 +22,10 @@ struct idPos {
 struct CpG {
 
     // position where this CpG is present in genome
-    const uint8_t chrom;
+    uint8_t chrom;
     // convention: pos points to position of start of context of CpG (C position - READLEN + 2)
     //              or to position of C if the former is negative
-    const uint32_t pos;
+    uint32_t pos;
 };
 
 
