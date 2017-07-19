@@ -85,7 +85,7 @@ class ReadQueue
 
                     lastId = metaId;
                     lastStrand = metaStrand;
-                    if (lastStrand)
+                    if (metaStrand)
                     {
                         ++threadCountFwd[metaId];
 
@@ -98,7 +98,14 @@ class ReadQueue
             }
 
             // More than cutoff many kmers are required per metaCpG
-            const unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // unsigned int countCut = readSize - MyConst::KMERLEN + 1 - (MyConst::KMERLEN * MyConst::MISCOUNT) - 10;
+            // check if we overflowed
+            // if (countCut > readSize)
+            // {
+            //     countCut = 0;
+            // }
+            uint16_t countCut = 20;
 
 
             // throw out rare metaCpGs
@@ -147,6 +154,76 @@ class ReadQueue
                 seedsS[i].resize(filterItK - seedsK[i].begin());
             }
 
+        }
+        inline void filterHeuSeedsRef(std::vector<size_t>& seedsK, const unsigned int readSize)
+        {
+
+            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+            // fill with zeroes
+            threadCountFwd.assign(ref.metaCpGs.size(), 0);
+            threadCountRev.assign(ref.metaCpGs.size(), 0);
+            threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
+            threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
+
+            // count occurences of meta CpGs
+            for (size_t i : seedsK)
+            {
+
+                // last visited id in this table entry
+                // avoid counting metaCpGs more then once per kmer
+                // note that metaCpGs are hashed in reverse order
+                uint64_t lastId = 0xffffffffffffffffULL;
+                // strand of last visited id (true iff forward strand)
+                bool wasFwd = false;
+                bool wasStart = false;
+
+                for (size_t j = ref.tabIndex[i]; j < ref.tabIndex[i+1]; ++j)
+                {
+
+                    // retrieve seed information
+                    KMER::kmer& k = ref.kmerTable[j];
+                    const bool isFwd = ref.strandTable[j];
+                    const uint64_t metaId = KMER::getMetaCpG(k);
+                    const bool isStart = KMER::isStartCpG(k);
+                    // check if we visited meta CpG before
+                    if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+                    {
+                        continue;
+                    }
+
+                    // update vars for last checked metaCpG
+                    lastId = metaId;
+                    wasFwd = isFwd;
+                    wasStart = isStart;
+                    if (isStart)
+                    {
+                        if (isFwd)
+                        {
+                            ++threadCountFwd[metaId];
+
+                        } else {
+
+                            ++threadCountRev[metaId];
+
+                        }
+                    } else {
+
+                        if (isFwd)
+                        {
+                            ++threadCountFwdStart[metaId];
+
+                        } else {
+
+                            ++threadCountRevStart[metaId];
+
+                        }
+
+                    }
+                }
+            }
         }
 
         // Do a bitmatching between the specified seeds of the reference and the read r or the reverse complement (Rev suffix)
@@ -369,14 +446,15 @@ class ReadQueue
         //              mat         will contain a unique match if successfull (i.e. return is true)
         //
         // RETURN:
-        //              true iff unique best match found
-        //              false otherwise
+        //              0 if no match found
+        //              1 if match is found
+        //              -1 if multiple matches, no unique best
         //
         // MODIFICATIONS:
         //              updates the match mat
         //              shift-and automaton is used - needs a reset (implicitly done when querying a new sequence internally)
         //
-        inline bool saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
+        inline int saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
         {
 
             // use counters to flag what has been processed so far
@@ -471,7 +549,7 @@ class ReadQueue
                                             {
 
                                                 // if so, return without a match
-                                                return false;
+                                                return -1;
 
                                             }
                                             // set the number of matches with that many errors to 2
@@ -545,7 +623,7 @@ class ReadQueue
                                             {
 
                                                 // if so, return without a match
-                                                return false;
+                                                return -1;
 
                                             }
                                             // set the number of matches with that many errors to 2
@@ -626,7 +704,7 @@ class ReadQueue
 
                                                 // if so, return without a match
                                                 // std::cout << "Nonunique no-error match\n";
-                                                return false;
+                                                return -1;
 
                                             }
                                             // set the number of matches with that many errors to 2
@@ -697,7 +775,7 @@ class ReadQueue
                                             {
 
                                                 // if so, return without a match
-                                                return false;
+                                                return -1;
 
                                             }
                                             // set the number of matches with that many errors to 2
@@ -734,6 +812,330 @@ class ReadQueue
                 if (multiMatch[i] > 1)
                 {
                     // of << "Too bad, multimatch in internal\n";
+                    return -1;
+
+                } else {
+
+                    mat = uniqueMatches[i];
+                    return 1;
+                }
+
+            }
+            // we have not a single match at all, return unsuccessfull to caller
+            // of << "No match at all\t";
+            return 0;
+        }
+        inline bool saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat)
+        {
+
+            // use counters to flag what has been processed so far
+            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+
+            // counter for how often we had a match
+            std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
+            multiMatch.fill(0);
+
+            // will contain matches iff match is found for number of errors specified by index
+            std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
+
+            // uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            uint16_t qThreshold = 1;
+            // check for overflow (i.e. read is to small for lemma)
+            if (qThreshold > sa.size())
+            {
+                qThreshold = 0;
+            }
+
+            // check all fwd meta CpGs
+            for (size_t i = 0; i < threadCountFwd.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountFwd[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[i].end];
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+
+                // check if CpG was too near to the end
+                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    endIt = ref.fullSeq[startCpg.chrom].end();
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.querySeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t i = 0; i < matchings.size(); ++i)
+                {
+
+                    // check if we had a match with that many errors before
+                    if (multiMatch[errors[i]])
+                    {
+
+                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        // check if same k-mer (borders of meta CpGs)
+                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && (MATCH::isFwd(m_2)))
+                        {
+                            continue;
+
+                        } else {
+
+                            // check if this is a match without errors
+                            if (!errors[i])
+                            {
+
+                                // if so, return without a match
+                                return false;
+
+                            }
+                            // set the number of matches with that many errors to 2
+                            // indicating that we do not have a unique match with that many errors
+                            multiMatch[errors[i]] = 2;
+                        }
+
+
+                    } else {
+
+                        // we don't have such a match yet,
+                        // so save this match at the correct position
+                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
+                        multiMatch[errors[i]] = 1;
+                    }
+                }
+            }
+            // go through reverse sequences
+            for (size_t i = 0; i < threadCountRev.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountRev[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[i].end];
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+
+                // check if CpG was too near to the end
+                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t i = 0; i < matchings.size(); ++i)
+                {
+
+                    // check if we had a match with that many errors before
+                    if (multiMatch[errors[i]])
+                    {
+
+                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        // check if same k-mer (borders of meta CpGs)
+                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && !(MATCH::isFwd(m_2)))
+                        {
+                            continue;
+
+                        } else {
+
+                            // check if this is a match without errors
+                            if (!errors[i])
+                            {
+
+                                // if so, return without a match
+                                return false;
+
+                            }
+                            // set the number of matches with that many errors to 2
+                            // indicating that we do not have a unique match with that many errors
+                            multiMatch[errors[i]] = 2;
+                        }
+
+
+                    } else {
+
+                        // we don't have such a match yet,
+                        // so save this match at the correct position
+                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 0);
+                        multiMatch[errors[i]] = 1;
+                    }
+                }
+            }
+            // check all fwd meta CpGs that are at start
+            for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountFwdStart[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
+                auto startIt = ref.fullSeq[startCpg.chrom].begin();
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+
+                // check if CpG was too near to the end
+                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    endIt = ref.fullSeq[startCpg.chrom].end();
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.querySeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t i = 0; i < matchings.size(); ++i)
+                {
+
+                    // check if we had a match with that many errors before
+                    if (multiMatch[errors[i]])
+                    {
+
+                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        // check if same k-mer (borders of meta CpGs)
+                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && (MATCH::isFwd(m_2)))
+                        {
+                            continue;
+
+                        } else {
+
+                            // check if this is a match without errors
+                            if (!errors[i])
+                            {
+
+                                // if so, return without a match
+                                return false;
+
+                            }
+                            // set the number of matches with that many errors to 2
+                            // indicating that we do not have a unique match with that many errors
+                            multiMatch[errors[i]] = 2;
+                        }
+
+
+                    } else {
+
+                        // we don't have such a match yet,
+                        // so save this match at the correct position
+                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
+                        multiMatch[errors[i]] = 1;
+                    }
+                }
+            }
+            // go through reverse sequences of start meta CpGs
+            for (size_t i = 0; i < threadCountRevStart.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountRevStart[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+
+                // check if CpG was too near to the end
+                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t i = 0; i < matchings.size(); ++i)
+                {
+
+                    // check if we had a match with that many errors before
+                    if (multiMatch[errors[i]])
+                    {
+
+                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        // check if same k-mer (borders of meta CpGs)
+                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && !(MATCH::isFwd(m_2)))
+                        {
+                            continue;
+
+                        } else {
+
+                            // check if this is a match without errors
+                            if (!errors[i])
+                            {
+
+                                // if so, return without a match
+                                return false;
+
+                            }
+                            // set the number of matches with that many errors to 2
+                            // indicating that we do not have a unique match with that many errors
+                            multiMatch[errors[i]] = 2;
+                        }
+
+
+                    } else {
+
+                        // we don't have such a match yet,
+                        // so save this match at the correct position
+                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 0);
+                        multiMatch[errors[i]] = 1;
+                    }
+                }
+            }
+
+
+
+            // go through found matches for each [0,maxErrorNumber] and see if it is unique
+            for (size_t i = 0; i < multiMatch.size(); ++i)
+            {
+                // there is no match with that few errors, search the one with more errors
+                if (multiMatch[i] == 0)
+                {
+                    continue;
+                }
+                // if match is not unique, return unsuccessfull to caller
+                if (multiMatch[i] > 1)
+                {
+                    // of << "Too bad, multimatch in internal\n";
                     return false;
 
                 } else {
@@ -748,6 +1150,131 @@ class ReadQueue
             return false;
         }
 
+        // count all metaCpG occurences of k-mers appearing in seq
+        //
+        // ARGUMENTS:
+        //          seq             sequence of the read to query to hash table
+        //
+        // MODIFICATION:
+        //          The threadCount* fields are modified such that they have the count of metaCpGs after
+        //          a call to this function
+        inline void getSeedRefs(std::vector<char>& seq)
+        {
+
+            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+            // fill with zeroes
+            threadCountFwd.assign(ref.metaCpGs.size(), 0);
+            threadCountRev.assign(ref.metaCpGs.size(), 0);
+            threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
+            threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
+
+            // retrieve kmers for first hash
+            uint64_t fhVal = ntHash::NTP64(seq.data());
+
+            uint64_t key = fhVal % MyConst::HTABSIZE;
+
+            uint64_t lastId = 0xffffffffffffffffULL;
+            bool wasFwd = false;
+            bool wasStart = false;
+
+            for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+            {
+
+                const uint64_t metaId = KMER::getMetaCpG(ref.kmerTable[i]);
+                const bool isFwd = ref.strandTable[i];
+                const bool isStart = KMER::isStartCpG(ref.kmerTable[i]);
+                // check if we visited meta CpG before
+                if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+                {
+                    continue;
+                }
+
+                // update vars for last checked metaCpG
+                lastId = metaId;
+                wasFwd = isFwd;
+                wasStart = isStart;
+                if (isStart)
+                {
+                    if (isFwd)
+                    {
+                        ++threadCountFwd[metaId];
+
+                    } else {
+
+                        ++threadCountRev[metaId];
+
+                    }
+                } else {
+
+                    if (isFwd)
+                    {
+                        ++threadCountFwdStart[metaId];
+
+                    } else {
+
+                        ++threadCountRevStart[metaId];
+
+                    }
+
+                }
+            }
+
+            for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i)
+            {
+
+                // use rolling hash
+                ntHash::NTP64(fhVal, seq[i], seq[i + MyConst::KMERLEN]);
+
+                lastId = 0xffffffffffffffffULL;
+                wasFwd = false;
+                wasStart = false;
+
+                for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+                {
+
+                    const uint64_t metaId = KMER::getMetaCpG(ref.kmerTable[i]);
+                    const bool isFwd = ref.strandTable[i];
+                    const bool isStart = KMER::isStartCpG(ref.kmerTable[i]);
+                    // check if we visited meta CpG before
+                    if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+                    {
+                        continue;
+                    }
+
+                    // update vars for last checked metaCpG
+                    lastId = metaId;
+                    wasFwd = isFwd;
+                    wasStart = isStart;
+                    if (isStart)
+                    {
+                        if (isFwd)
+                        {
+                            ++threadCountFwd[metaId];
+
+                        } else {
+
+                            ++threadCountRev[metaId];
+
+                        }
+                    } else {
+
+                        if (isFwd)
+                        {
+                            ++threadCountFwdStart[metaId];
+
+                        } else {
+
+                            ++threadCountRevStart[metaId];
+
+                        }
+
+                    }
+                }
+            }
+        }
 
         // print statistics over seed set to statFile and countFile
         //
@@ -785,6 +1312,7 @@ class ReadQueue
         // MODIFICATIONS:
         //              none
         //
+        // TODO
         static constexpr unsigned int n = 400;
         std::ofstream statFile;
         std::ofstream countFile;
@@ -811,6 +1339,8 @@ class ReadQueue
         // for forward and reverse strand metaCpGs, respectively
         std::array<std::vector<uint16_t>, CORENUM> countsFwd;
         std::array<std::vector<uint16_t>, CORENUM> countsRev;
+        std::array<std::vector<uint16_t>, CORENUM> countsFwdStart;
+        std::array<std::vector<uint16_t>, CORENUM> countsRevStart;
         // TODO
         std::ofstream of;
 };
