@@ -825,7 +825,7 @@ class ReadQueue
             // of << "No match at all\t";
             return 0;
         }
-        inline bool saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat)
+        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat)
         {
 
             // use counters to flag what has been processed so far
@@ -899,7 +899,7 @@ class ReadQueue
                             {
 
                                 // if so, return without a match
-                                return false;
+                                return -1;
 
                             }
                             // set the number of matches with that many errors to 2
@@ -967,7 +967,7 @@ class ReadQueue
                             {
 
                                 // if so, return without a match
-                                return false;
+                                return -1;
 
                             }
                             // set the number of matches with that many errors to 2
@@ -1035,7 +1035,7 @@ class ReadQueue
                             {
 
                                 // if so, return without a match
-                                return false;
+                                return -1;
 
                             }
                             // set the number of matches with that many errors to 2
@@ -1103,7 +1103,7 @@ class ReadQueue
                             {
 
                                 // if so, return without a match
-                                return false;
+                                return -1;
 
                             }
                             // set the number of matches with that many errors to 2
@@ -1136,18 +1136,18 @@ class ReadQueue
                 if (multiMatch[i] > 1)
                 {
                     // of << "Too bad, multimatch in internal\n";
-                    return false;
+                    return -1;
 
                 } else {
 
                     mat = uniqueMatches[i];
-                    return true;
+                    return 1;
                 }
 
             }
             // we have not a single match at all, return unsuccessfull to caller
             // of << "No match at all\t";
-            return false;
+            return 0;
         }
 
         // count all metaCpG occurences of k-mers appearing in seq
@@ -1284,46 +1284,47 @@ class ReadQueue
             // if we retrieve too many seed positions passing the q-gram lemma filter, return flag to skip read
 
 
-            // set q-gram lemma threshold
-            uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            // if too small we get an overflow -> set to zero
-            if (qThreshold > readSize)
-                qThreshold = 0;
-
-            unsigned int passCount = 0;
-            for (uint16_t& c : threadCountFwd)
-            {
-
-                if (c >= qThreshold)
-                {
-                    ++passCount;
-
-                } else {
-
-                    c = 0;
-                }
-
-            }
-            for (uint16_t& c : threadCountRev)
-            {
-
-                if (c >= qThreshold)
-                {
-                    ++passCount;
-
-                } else {
-
-                    c = 0;
-                }
-
-            }
-            // test if we have too many k-mers passing filter
-            if (passCount > MyConst::QUERYTHRESHOLD)
-            {
-                return false;
-            } else {
-                return true;
-            }
+            // // set q-gram lemma threshold
+            // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // // if too small we get an overflow -> set to zero
+            // if (qThreshold > readSize)
+            //     qThreshold = 0;
+            //
+            // unsigned int passCount = 0;
+            // for (uint16_t& c : threadCountFwd)
+            // {
+            //
+            //     if (c >= qThreshold)
+            //     {
+            //         ++passCount;
+            //
+            //     } else {
+            //
+            //         c = 0;
+            //     }
+            //
+            // }
+            // for (uint16_t& c : threadCountRev)
+            // {
+            //
+            //     if (c >= qThreshold)
+            //     {
+            //         ++passCount;
+            //
+            //     } else {
+            //
+            //         c = 0;
+            //     }
+            //
+            // }
+            // // test if we have too many k-mers passing filter
+            // if (passCount > MyConst::QUERYTHRESHOLD)
+            // {
+            //     return false;
+            // } else {
+            //     return true;
+            // }
+            return true;
         }
 
         // print statistics over seed set to statFile and countFile
