@@ -841,13 +841,8 @@ class ReadQueue
             // will contain matches iff match is found for number of errors specified by index
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
 
-            // uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
             uint16_t qThreshold = 1;
             // check for overflow (i.e. read is to small for lemma)
-            if (qThreshold > sa.size())
-            {
-                qThreshold = 0;
-            }
 
             // check all fwd meta CpGs
             for (size_t i = 0; i < threadCountFwd.size(); ++i)
@@ -888,7 +883,7 @@ class ReadQueue
 
                         MATCH::match& m_2 = uniqueMatches[errors[i]];
                         // check if same k-mer (borders of meta CpGs)
-                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && (MATCH::isFwd(m_2)))
+                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && (MATCH::isFwd(m_2)))
                         {
                             continue;
 
@@ -956,7 +951,7 @@ class ReadQueue
 
                         MATCH::match& m_2 = uniqueMatches[errors[i]];
                         // check if same k-mer (borders of meta CpGs)
-                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && !(MATCH::isFwd(m_2)))
+                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && !(MATCH::isFwd(m_2)))
                         {
                             continue;
 
@@ -1146,7 +1141,6 @@ class ReadQueue
 
             }
             // we have not a single match at all, return unsuccessfull to caller
-            // of << "No match at all\t";
             return 0;
         }
 
@@ -1231,6 +1225,8 @@ class ReadQueue
                 // use rolling hash
                 ntHash::NTP64(fhVal, seq[i], seq[i + MyConst::KMERLEN]);
 
+                key = fhVal % MyConst::HTABSIZE;
+
                 lastId = 0xffffffffffffffffULL;
                 wasFwd = false;
                 wasStart = false;
@@ -1284,47 +1280,46 @@ class ReadQueue
             // if we retrieve too many seed positions passing the q-gram lemma filter, return flag to skip read
 
 
-            // // set q-gram lemma threshold
-            // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            // // if too small we get an overflow -> set to zero
-            // if (qThreshold > readSize)
-            //     qThreshold = 0;
-            //
-            // unsigned int passCount = 0;
-            // for (uint16_t& c : threadCountFwd)
-            // {
-            //
-            //     if (c >= qThreshold)
-            //     {
-            //         ++passCount;
-            //
-            //     } else {
-            //
-            //         c = 0;
-            //     }
-            //
-            // }
-            // for (uint16_t& c : threadCountRev)
-            // {
-            //
-            //     if (c >= qThreshold)
-            //     {
-            //         ++passCount;
-            //
-            //     } else {
-            //
-            //         c = 0;
-            //     }
-            //
-            // }
-            // // test if we have too many k-mers passing filter
-            // if (passCount > MyConst::QUERYTHRESHOLD)
-            // {
-            //     return false;
-            // } else {
-            //     return true;
-            // }
-            return true;
+            // set q-gram lemma threshold
+            uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // if too small we get an overflow -> set to zero
+            if (qThreshold > readSize)
+                qThreshold = 0;
+
+            unsigned int passCount = 0;
+            for (uint16_t& c : threadCountFwd)
+            {
+
+                if (c >= qThreshold)
+                {
+                    ++passCount;
+
+                } else {
+
+                    c = 0;
+                }
+
+            }
+            for (uint16_t& c : threadCountRev)
+            {
+
+                if (c >= qThreshold)
+                {
+                    ++passCount;
+
+                } else {
+
+                    c = 0;
+                }
+
+            }
+            // test if we have too many k-mers passing filter
+            if (passCount > MyConst::QUERYTHRESHOLD)
+            {
+                return false;
+            } else {
+                return true;
+            }
         }
 
         // print statistics over seed set to statFile and countFile
