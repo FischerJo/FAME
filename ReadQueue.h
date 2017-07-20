@@ -155,76 +155,76 @@ class ReadQueue
             }
 
         }
-        inline void filterHeuSeedsRef(std::vector<size_t>& seedsK, const unsigned int readSize)
-        {
-
-            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
-            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
-            std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
-            std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
-            // fill with zeroes
-            threadCountFwd.assign(ref.metaCpGs.size(), 0);
-            threadCountRev.assign(ref.metaCpGs.size(), 0);
-            threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
-            threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
-
-            // count occurences of meta CpGs
-            for (size_t i : seedsK)
-            {
-
-                // last visited id in this table entry
-                // avoid counting metaCpGs more then once per kmer
-                // note that metaCpGs are hashed in reverse order
-                uint64_t lastId = 0xffffffffffffffffULL;
-                // strand of last visited id (true iff forward strand)
-                bool wasFwd = false;
-                bool wasStart = false;
-
-                for (size_t j = ref.tabIndex[i]; j < ref.tabIndex[i+1]; ++j)
-                {
-
-                    // retrieve seed information
-                    KMER::kmer& k = ref.kmerTable[j];
-                    const bool isFwd = ref.strandTable[j];
-                    const uint64_t metaId = KMER::getMetaCpG(k);
-                    const bool isStart = KMER::isStartCpG(k);
-                    // check if we visited meta CpG before
-                    if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
-                    {
-                        continue;
-                    }
-
-                    // update vars for last checked metaCpG
-                    lastId = metaId;
-                    wasFwd = isFwd;
-                    wasStart = isStart;
-                    if (isStart)
-                    {
-                        if (isFwd)
-                        {
-                            ++threadCountFwd[metaId];
-
-                        } else {
-
-                            ++threadCountRev[metaId];
-
-                        }
-                    } else {
-
-                        if (isFwd)
-                        {
-                            ++threadCountFwdStart[metaId];
-
-                        } else {
-
-                            ++threadCountRevStart[metaId];
-
-                        }
-
-                    }
-                }
-            }
-        }
+        // inline void filterHeuSeedsRef(std::vector<size_t>& seedsK, const unsigned int readSize)
+        // {
+        //
+        //     std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+        //     std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+        //     std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
+        //     std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+        //     // fill with zeroes
+        //     threadCountFwd.assign(ref.metaCpGs.size(), 0);
+        //     threadCountRev.assign(ref.metaCpGs.size(), 0);
+        //     threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
+        //     threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
+        //
+        //     // count occurences of meta CpGs
+        //     for (size_t i : seedsK)
+        //     {
+        //
+        //         // last visited id in this table entry
+        //         // avoid counting metaCpGs more then once per kmer
+        //         // note that metaCpGs are hashed in reverse order
+        //         uint64_t lastId = 0xffffffffffffffffULL;
+        //         // strand of last visited id (true iff forward strand)
+        //         bool wasFwd = false;
+        //         bool wasStart = false;
+        //
+        //         for (size_t j = ref.tabIndex[i]; j < ref.tabIndex[i+1]; ++j)
+        //         {
+        //
+        //             // retrieve seed information
+        //             KMER::kmer& k = ref.kmerTable[j];
+        //             const bool isFwd = ref.strandTable[j];
+        //             const uint64_t metaId = KMER::getMetaCpG(k);
+        //             const bool isStart = KMER::isStartCpG(k);
+        //             // check if we visited meta CpG before
+        //             if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+        //             {
+        //                 continue;
+        //             }
+        //
+        //             // update vars for last checked metaCpG
+        //             lastId = metaId;
+        //             wasFwd = isFwd;
+        //             wasStart = isStart;
+        //             if (isStart)
+        //             {
+        //                 if (isFwd)
+        //                 {
+        //                     ++threadCountFwdStart[metaId];
+        //
+        //                 } else {
+        //
+        //                     ++threadCountRevStart[metaId];
+        //
+        //                 }
+        //
+        //             } else {
+        //
+        //                 if (isFwd)
+        //                 {
+        //                     ++threadCountFwd[metaId];
+        //
+        //                 } else {
+        //
+        //                     ++threadCountRev[metaId];
+        //
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         // Do a bitmatching between the specified seeds of the reference and the read r or the reverse complement (Rev suffix)
         //
@@ -1155,10 +1155,13 @@ class ReadQueue
         // ARGUMENTS:
         //          seq             sequence of the read to query to hash table
         //
+        // RETURN:
+        //          false iff too many matchable positions
+        //
         // MODIFICATION:
         //          The threadCount* fields are modified such that they have the count of metaCpGs after
         //          a call to this function
-        inline void getSeedRefs(std::vector<char>& seq)
+        inline bool getSeedRefs(std::vector<char>& seq, const size_t& readSize)
         {
 
             std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
@@ -1200,17 +1203,6 @@ class ReadQueue
                 {
                     if (isFwd)
                     {
-                        ++threadCountFwd[metaId];
-
-                    } else {
-
-                        ++threadCountRev[metaId];
-
-                    }
-                } else {
-
-                    if (isFwd)
-                    {
                         ++threadCountFwdStart[metaId];
 
                     } else {
@@ -1219,6 +1211,17 @@ class ReadQueue
 
                     }
 
+                } else {
+
+                    if (isFwd)
+                    {
+                        ++threadCountFwd[metaId];
+
+                    } else {
+
+                        ++threadCountRev[metaId];
+
+                    }
                 }
             }
 
@@ -1250,16 +1253,6 @@ class ReadQueue
                     wasStart = isStart;
                     if (isStart)
                     {
-                        if (isFwd)
-                        {
-                            ++threadCountFwd[metaId];
-
-                        } else {
-
-                            ++threadCountRev[metaId];
-
-                        }
-                    } else {
 
                         if (isFwd)
                         {
@@ -1271,8 +1264,65 @@ class ReadQueue
 
                         }
 
+                    } else {
+
+                        if (isFwd)
+                        {
+                            ++threadCountFwd[metaId];
+
+                        } else {
+
+                            ++threadCountRev[metaId];
+
+                        }
                     }
                 }
+            }
+
+
+            // COUNTING HEURISTIC
+            // if we retrieve too many seed positions passing the q-gram lemma filter, return flag to skip read
+
+
+            // set q-gram lemma threshold
+            uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // if too small we get an overflow -> set to zero
+            if (qThreshold > readSize)
+                qThreshold = 0;
+
+            unsigned int passCount = 0;
+            for (uint16_t& c : threadCountFwd)
+            {
+
+                if (c >= qThreshold)
+                {
+                    ++passCount;
+
+                } else {
+
+                    c = 0;
+                }
+
+            }
+            for (uint16_t& c : threadCountRev)
+            {
+
+                if (c >= qThreshold)
+                {
+                    ++passCount;
+
+                } else {
+
+                    c = 0;
+                }
+
+            }
+            // test if we have too many k-mers passing filter
+            if (passCount > MyConst::QUERYTHRESHOLD)
+            {
+                return false;
+            } else {
+                return true;
             }
         }
 

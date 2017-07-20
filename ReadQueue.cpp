@@ -9,7 +9,7 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     ,   ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
         // TODO
-    ,   of  ("runtimes_2.tsv")
+    ,   of  ("runtimes.tsv")
 {
     if (isGZ)
     {
@@ -22,7 +22,7 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     }
 
     // fill counting structure for parallelization
-    for (int i = 0; i < CORENUM; ++i)
+    for (unsigned int i = 0; i < CORENUM; ++i)
     {
 
         countsFwd[i] = std::vector<uint16_t>();
@@ -33,10 +33,47 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     lmap['C'] = 1;
     lmap['G'] = 2;
     lmap['T'] = 3;
+
+    // TODO
+    // write to statFile
+    // for (size_t i = 0; i < MyConst::HTABSIZE; ++i)
+    // {
+        // if (ref.tabIndex[i+1] - ref.tabIndex[i] > 2000000)
+        // {
+        //
+        //     auto startIt = ref.kmerTable.begin() + ref.tabIndex[i];
+        //     auto endIt = ref.kmerTable.begin() + ref.tabIndex[i + 1];
+        //     auto tit = ref.strandTable.begin() + ref.tabIndex[i];
+        //     for (auto it = startIt; it != endIt; ++it, ++tit)
+        //     {
+        //         KMER::kmer& k = *it;
+        //         const uint64_t m = KMER::getMetaCpG(k);
+        //         const bool isStart = KMER::isStartCpG(k);
+        //         if (!isStart)
+        //         {
+        //             const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+        //             uint64_t offset = KMER::getOffset(k);
+        //             auto stIt = ref.fullSeq[startCpg.chrom].begin() + offset + startCpg.pos;
+        //             auto enIt = ref.fullSeq[startCpg.chrom].begin() + offset + MyConst::KMERLEN + startCpg.pos;
+        //             if (*tit)
+        //             {
+        //                 statFile << std::string(stIt, enIt) << "\n";
+        //             } else {
+        //
+        //                 statFile << "REV---" << std::string(stIt, enIt) << "\n";
+        //             }
+        //         }
+        //     }
+        // }
+    //     statFile << ref.tabIndex[i+1] - ref.tabIndex[i] << "\n";
+    // }
+    // statFile.close();
 }
 
 bool ReadQueue::parseChunk(unsigned int& procReads)
 {
+
+    std::cout << "Start reading chunk of reads\n";
 
     std::string id;
 
@@ -115,6 +152,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
     uint64_t succMatchRev = 0;
     uint64_t unSuccMatch = 0;
     uint64_t nonUniqueMatch = 0;
+    uint64_t pCount = 0;
 
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
@@ -212,51 +250,107 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
         auto runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-        of << runtime << "\t";
-        startTime = std::chrono::high_resolution_clock::now();
+        // of << runtime << "\t";
+        // startTime = std::chrono::high_resolution_clock::now();
 
-        std::vector<std::vector<KMER::kmer> > fwdSeedsK;
-        std::vector<std::vector<bool> > fwdSeedsS;
-        ref.getSeeds(redSeq, fwdSeedsK, fwdSeedsS);
-        std::vector<std::vector<KMER::kmer> > revSeedsK;
-        std::vector<std::vector<bool> > revSeedsS;
-        ref.getSeeds(redRevSeq, revSeedsK, revSeedsS);
+        // std::vector<std::vector<KMER::kmer> > fwdSeedsK;
+        // std::vector<std::vector<bool> > fwdSeedsS;
+        // ref.getSeeds(redSeq, fwdSeedsK, fwdSeedsS);
+        // std::vector<std::vector<KMER::kmer> > revSeedsK;
+        // std::vector<std::vector<bool> > revSeedsS;
+        // ref.getSeeds(redRevSeq, revSeedsK, revSeedsS);
 
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-        of << runtime << "\t";
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        // of << runtime << "\t";
 
         // printStatistics(fwdSeedsK);
 
-        startTime = std::chrono::high_resolution_clock::now();
-        // FILTER SEEDS BY COUNTING LEMMA
-        filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
-        filterHeuSeeds(revSeedsK, revSeedsS, readSize);
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-        of << runtime << "\t";
+        // startTime = std::chrono::high_resolution_clock::now();
+        // // FILTER SEEDS BY COUNTING LEMMA
+        // filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
+        // filterHeuSeeds(revSeedsK, revSeedsS, readSize);
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        // of << runtime << "\t";
 
-        startTime = std::chrono::high_resolution_clock::now();
+        // startTime = std::chrono::high_resolution_clock::now();
         // produce shift-and automaton for forward and reverse sequence of this read
-        ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
-        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
+        // ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
+        // ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
 
         // match
         // note that this is only used when initialized by saQuerySeedSet, based on boolean return of this function
-        MATCH::match matchFwd = 0;
-        MATCH::match matchRev = 0;
+        // MATCH::match matchFwd = 0;
+        // MATCH::match matchRev = 0;
         // query seeds to shift-and automaton
 
-        bool succQueryFwd = saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS, matchFwd);
-        bool succQueryRev = saQuerySeedSet(saRev, revSeedsK, revSeedsS, matchRev);
+        // int succQueryFwd = saQuerySeedSet(saFwd, fwdSeedsK, fwdSeedsS, matchFwd);
+
+
+        // TODO
+        MATCH::match matchFwd = 0;
+        bool succFlag = getSeedRefs(redSeq, readSize);
+        if (!succFlag)
+        {
+            ++unSuccMatch;
+            r.isInvalid = true;
+            continue;
+        }
+        ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
+        int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd);
+
+        MATCH::match matchRev = 0;
+        succFlag = getSeedRefs(redRevSeq, readSize);
+        if (!succFlag)
+        {
+            ++unSuccMatch;
+            r.isInvalid = true;
+            continue;
+        }
+        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
+        int succQueryRev = saQuerySeedSetRef(saRev, matchRev);
+
+
+
+
+
 
         //TODO
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-        of <<  runtime << "\n";
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        // of <<  runtime << "\t";
+        // if (runtime > 100)
+        // {
+        //     of << r.seq << std::endl;
+        //     for (auto s : fwdSeedsK)
+        //     {
+        //
+        //         of << s.size() << " ; ";
+        //     }
+        //
+        //     of << "\n\n";
+        // }
+
+        // startTime = std::chrono::high_resolution_clock::now();
+        // int succQueryRev = saQuerySeedSet(saRev, revSeedsK, revSeedsS, matchRev);
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        // of <<  runtime << "\n";
+        // if (runtime > 100)
+        // {
+        //     of << "REV---:" << r.seq << std::endl;
+        //     for (auto s : revSeedsK)
+        //     {
+        //
+        //         of << s.size() << " ; ";
+        //     }
+        //
+        //     of << "\n\n";
+        // }
 
         // found match for fwd and rev strand
-        if (succQueryFwd && succQueryRev)
+        if (succQueryFwd == 1 && succQueryRev == 1)
         {
 
             // TODO
@@ -281,7 +375,12 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                 // if same number of errors, then not unique
                 } else {
 
-                    if (MATCH::getOffset(matchFwd) == MATCH::getOffset(matchRev))
+                    // of << MATCH::getOffset(matchFwd) << " match fwdAutomaton " << MATCH::getErrNum(matchFwd) << "errors --- strand " << MATCH::isFwd << "\n" << MATCH::getOffset(matchRev) << " match revAutomaton " << MATCH::getErrNum(matchRev) << "errors --- strand: " << MATCH::isFwd << "\n";
+
+                    const uint64_t offFwd = MATCH::getOffset(matchFwd);
+                    const uint64_t offRev = MATCH::getOffset(matchRev);
+                    // est if same match in same region
+                    if (offFwd == offRev)
                     {
                         ++succMatchFwd;
                         r.mat = matchFwd;
@@ -289,19 +388,20 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                     } else {
 
                         ++nonUniqueMatch;
+
                         // std::cout << "Nonunique match: fwd and rev with same errorcount in match\n";
                         r.isInvalid = true;
                     }
                 }
             }
         // unique match on forward strand
-        } else if (succQueryFwd) {
+        } else if (succQueryFwd == 1) {
 
             ++succMatchFwd;
             r.mat = matchFwd;
 
         // unique match on backward strand
-        } else if (succQueryRev) {
+        } else if (succQueryRev == 1) {
 
             ++succMatchRev;
             r.mat = matchRev;
@@ -342,29 +442,74 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             //     of << KMER::getOffset(sk) << " ; " << KMER::getMetaCpG(sk) << "\t";
             // }
             // of << "\nreal seq: " << r.seq << "\n" << r.id << "\n\n";
-            ++unSuccMatch;
-            // if (unSuccMatch > 5)
+            if (succQueryFwd == -1 || succQueryRev == -1)
+            {
+
+                ++nonUniqueMatch;
+
+            } else {
+
+                ++unSuccMatch;
+            }
+
+            // TODO
+            // if (runtime <= 100)
+            // {
+            //     of << r.seq << std::endl;
+            //     for (auto s : fwdSeedsK)
+            //     {
+            //
+            //         of << s.size() << " ; ";
+            //     }
+            //
+            //     of << "\n^NO MATCH^\n\n---\n";
+            // } else {
+            //
+            //     of << "^NO MATCH^\n\n---\n";
+            //
+            // }
+            // if (unSuccMatch > 10)
             // {
             //     of.close();
             //     exit(1);
             // }
         }
-        // printStatistics(fwdSeedsK);
+        // validate
+        // if (!r.isInvalid)
+        // {
+            // std::string stringOffset (r.id.begin() + r.id.find_first_of('_', 1) + 1, r.id.end());
+            // unsigned long offset = std::stoul(stringOffset);
+            // uint64_t matchedOff = MATCH::getOffset(r.mat);
+            // // if (!MATCH::isFwd(r.mat))
+            // // {
+            // //     if (MATCH::getErrNum(r.mat) > 0)
+            // //     {
+            // //         of << "This should be a non-unique match. Bad.\n";
+            // //         of << "Number of errors: " << MATCH::getErrNum(r.mat) << "\n";
+            // //         of << "Offset should be " << offset << " but is " << matchedOff << "\n";
+            // //         continue;
+            // //     }
+            // // }
+            // if (matchedOff > 100 && (matchedOff > offset + 110 || matchedOff < offset))
+            // {
+            //     ++pCount;
+            //     std::cout << "Wrong match. Offset should be " << offset << " but is " << matchedOff << "\n";
+            //     std::cout << "Number of errors: " << MATCH::getErrNum(r.mat) << "\n";
+            //     std::cout << "Read sequence:\n" << r.seq << "\n\n";
+            //     std::cout << "Reference sequence (match):\n" << std::string(ref.fullSeq[0].begin() + matchedOff - 99, ref.fullSeq[0].begin() + matchedOff) << "\n\n";
+            //     std::cout << "Reference sequence (source):\n: " << std::string(ref.fullSeq[0].begin() + offset, ref.fullSeq[0].begin() + offset + 100) << "\n\n";
+            // }
+            // if (pCount > 5)
+            // {
+            //
+            //     of.close();
+            //     exit(1);
+            // }
+        // }
 
         // BITMASK COMPARISON ON FULL ALPHABET FOR REMAINING SEEDS
         // bitMatching(r, fwdSeedsK, fwdSeedsS);
         // bitMatchingRev(r, revSeedsK, revSeedsS);
-
-        // printStatistics(fwdSeedsK);
-        // FILTER MATCHING KMERS BY COUNTING LEMMA
-        // filterHeuSeeds(fwdSeedsK, fwdSeedsS, readSize);
-        // filterHeuSeeds(revSeedsK, revSeedsS, readSize);
-
-        // printStatistics(fwdSeedsK);
-
-        // finish line for this read in counter file
-        // countFile << "\n";
-
 
     }
 
