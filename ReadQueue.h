@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <array>
 
 #ifdef _OPENMP
@@ -49,6 +50,15 @@ class ReadQueue
 
 
     private:
+
+        // hash function for std::unordered_set of meta ids
+        struct MetaHash {
+                // just use meta IDs as they are unique
+               size_t operator() (const uint32_t& metaID) const {
+
+                   return static_cast<size_t>(metaID);
+               }
+        };
 
         // filters seeds according to simple counting criteria
         // #kmers of one metaCpG should be > READLEN - KMERLEN + 1 - (KMERLEN * MISCOUNT)
@@ -829,10 +839,10 @@ class ReadQueue
         {
 
             // use counters to flag what has been processed so far
-            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
-            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+            std::unordered_set<uint32_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            std::unordered_set<uint32_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
             // counter for how often we had a match
             std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
@@ -841,20 +851,17 @@ class ReadQueue
             // will contain matches iff match is found for number of errors specified by index
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
 
-            uint16_t qThreshold = 1;
+            // uint16_t qThreshold = 1;
+            // set q-gram lemma threshold
+            uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
             // check for overflow (i.e. read is to small for lemma)
+            if (qThreshold > sa.size())
+                qThreshold = 0;
 
             // check all fwd meta CpGs
-            for (size_t i = 0; i < threadCountFwd.size(); ++i)
+            for (const uint32_t& i : fwdMetaIDs_t)
             {
 
-                // check if we fulfill the qgram lemma
-                // if not - continue with next meta CpG
-                if (threadCountFwd[i] < qThreshold)
-                {
-                    continue;
-                }
-                // retrieve sequence
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[i].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
@@ -913,15 +920,9 @@ class ReadQueue
                 }
             }
             // go through reverse sequences
-            for (size_t i = 0; i < threadCountRev.size(); ++i)
+            for (const uint32_t i : revMetaIDs_t)
             {
 
-                // check if we fulfill the qgram lemma
-                // if not - continue with next meta CpG
-                if (threadCountRev[i] < qThreshold)
-                {
-                    continue;
-                }
                 // retrieve sequence
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[i].end];
@@ -1155,7 +1156,7 @@ class ReadQueue
         // MODIFICATION:
         //          The threadCount* fields are modified such that they have the count of metaCpGs after
         //          a call to this function
-        inline bool getSeedRefs(std::vector<char>& seq, const size_t& readSize)
+        inline bool getSeedRefs(const std::vector<char>& seq, const size_t& readSize)
         {
 
             std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
@@ -1168,6 +1169,9 @@ class ReadQueue
             threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
             threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
 
+            std::unordered_set<uint32_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            std::unordered_set<uint32_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+
             // retrieve kmers for first hash
             uint64_t fhVal = ntHash::NTP64(seq.data());
 
@@ -1176,6 +1180,13 @@ class ReadQueue
             uint64_t lastId = 0xffffffffffffffffULL;
             bool wasFwd = false;
             bool wasStart = false;
+
+            // set q-gram lemma threshold
+            uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // if too small we get an overflow -> set to zero
+            if (qThreshold > readSize)
+                qThreshold = 0;
+            unsigned int passCount = 0;
 
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
             {
@@ -1197,11 +1208,13 @@ class ReadQueue
                 {
                     if (isFwd)
                     {
-                        ++threadCountFwdStart[metaId];
+                        if (++threadCountFwdStart[metaId] > qThreshold)
+                            ++passCount;
 
                     } else {
 
-                        ++threadCountRevStart[metaId];
+                        if (++threadCountRevStart[metaId] > qThreshold)
+                            ++passCount;
 
                     }
 
@@ -1209,11 +1222,19 @@ class ReadQueue
 
                     if (isFwd)
                     {
-                        ++threadCountFwd[metaId];
+                        if (++threadCountFwd[metaId] > qThreshold)
+                        {
+                            ++passCount;
+                            fwdMetaIDs_t.emplace(metaId);
+                        }
 
                     } else {
 
-                        ++threadCountRev[metaId];
+                        if (++threadCountRev[metaId] > qThreshold)
+                        {
+                            ++passCount;
+                            revMetaIDs_t.emplace(metaId);
+                        }
 
                     }
                 }
@@ -1252,11 +1273,13 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            ++threadCountFwdStart[metaId];
+                            if (++threadCountFwdStart[metaId] > qThreshold)
+                                ++passCount;
 
                         } else {
 
-                            ++threadCountRevStart[metaId];
+                            if (++threadCountRevStart[metaId] > qThreshold)
+                                ++passCount;
 
                         }
 
@@ -1264,11 +1287,19 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            ++threadCountFwd[metaId];
+                            if (++threadCountFwd[metaId] > qThreshold)
+                            {
+                                ++passCount;
+                                fwdMetaIDs_t.emplace(metaId);
+                            }
 
                         } else {
 
-                            ++threadCountRev[metaId];
+                            if (++threadCountRev[metaId] > qThreshold)
+                            {
+                                ++passCount;
+                                revMetaIDs_t.emplace(metaId);
+                            }
 
                         }
                     }
@@ -1280,46 +1311,14 @@ class ReadQueue
             // if we retrieve too many seed positions passing the q-gram lemma filter, return flag to skip read
 
 
-            // set q-gram lemma threshold
-            uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            // if too small we get an overflow -> set to zero
-            if (qThreshold > readSize)
-                qThreshold = 0;
 
-            unsigned int passCount = 0;
-            for (uint16_t& c : threadCountFwd)
-            {
-
-                if (c >= qThreshold)
-                {
-                    ++passCount;
-
-                } else {
-
-                    c = 0;
-                }
-
-            }
-            for (uint16_t& c : threadCountRev)
-            {
-
-                if (c >= qThreshold)
-                {
-                    ++passCount;
-
-                } else {
-
-                    c = 0;
-                }
-
-            }
             // test if we have too many k-mers passing filter
-            if (passCount > MyConst::QUERYTHRESHOLD)
-            {
-                return false;
-            } else {
+            // if (passCount > MyConst::QUERYTHRESHOLD)
+            // {
+            //     return false;
+            // } else {
                 return true;
-            }
+            // }
         }
 
         // print statistics over seed set to statFile and countFile
@@ -1387,6 +1386,8 @@ class ReadQueue
         std::array<std::vector<uint16_t>, CORENUM> countsRev;
         std::array<std::vector<uint16_t>, CORENUM> countsFwdStart;
         std::array<std::vector<uint16_t>, CORENUM> countsRevStart;
+        std::array<std::unordered_set<uint32_t, MetaHash>, CORENUM> fwdMetaIDs;
+        std::array<std::unordered_set<uint32_t, MetaHash>, CORENUM> revMetaIDs;
         // TODO
         std::ofstream of;
 };

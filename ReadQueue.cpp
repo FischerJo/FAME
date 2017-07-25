@@ -5,11 +5,11 @@
 
 ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
         statFile("seedStats.tsv")
-    ,   countFile("seedCounts.tsv")
+    // ,   countFile("seedCounts.tsv")
     ,   ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
         // TODO
-    ,   of  ("runtimes.tsv")
+    ,   of  ("runtimes_human_k30_nothresh.tsv")
 {
     if (isGZ)
     {
@@ -25,8 +25,12 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
 
+        fwdMetaIDs[i] = std::unordered_set<uint32_t, MetaHash>();
+        revMetaIDs[i] = std::unordered_set<uint32_t, MetaHash>();
         countsFwd[i] = std::vector<uint16_t>();
         countsRev[i] = std::vector<uint16_t>();
+        countsFwdStart[i] = std::vector<uint16_t>();
+        countsRevStart[i] = std::vector<uint16_t>();
     }
     // fill array mapping - locale specific filling
     lmap['A'] = 0;
@@ -152,14 +156,13 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
     uint64_t succMatchRev = 0;
     uint64_t unSuccMatch = 0;
     uint64_t nonUniqueMatch = 0;
-    uint64_t pCount = 0;
+    uint64_t readCount = 0;
 
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
-
 
         Read& r = readBuffer[i];
 
@@ -250,8 +253,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
         auto runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-        // of << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
+        of << runtime << "\t";
+        startTime = std::chrono::high_resolution_clock::now();
 
         // std::vector<std::vector<KMER::kmer> > fwdSeedsK;
         // std::vector<std::vector<bool> > fwdSeedsS;
@@ -289,27 +292,57 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
 
         // TODO
+        startTime = std::chrono::high_resolution_clock::now();
+        fwdMetaIDs[omp_get_thread_num()].clear();
+        revMetaIDs[omp_get_thread_num()].clear();
         MATCH::match matchFwd = 0;
         bool succFlag = getSeedRefs(redSeq, readSize);
         if (!succFlag)
         {
-            ++unSuccMatch;
+            ++readCount;
+            of << "\n";
             r.isInvalid = true;
             continue;
         }
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
+        startTime = std::chrono::high_resolution_clock::now();
         ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
+        startTime = std::chrono::high_resolution_clock::now();
         int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd);
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
 
+        startTime = std::chrono::high_resolution_clock::now();
+        fwdMetaIDs[omp_get_thread_num()].clear();
+        revMetaIDs[omp_get_thread_num()].clear();
         MATCH::match matchRev = 0;
         succFlag = getSeedRefs(redRevSeq, readSize);
         if (!succFlag)
         {
-            ++unSuccMatch;
+            ++readCount;
             r.isInvalid = true;
+            of << "\n";
             continue;
         }
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
+        startTime = std::chrono::high_resolution_clock::now();
         ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\t";
+        startTime = std::chrono::high_resolution_clock::now();
         int succQueryRev = saQuerySeedSetRef(saRev, matchRev);
+        endTime = std::chrono::high_resolution_clock::now();
+        runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        of << runtime << "\n";
 
 
 
@@ -514,7 +547,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
     }
 
     of.close();
-    std::cout << "Successfully matched (Fwd|Rev): " << succMatchFwd << "|" << succMatchRev << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\n\n";
+    std::cout << "Successfully matched (Fwd|Rev): " << succMatchFwd << "|" << succMatchRev << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << " / Discarded because of too many meta CpGs: " << readCount << "\n\n";
     // TODO: Go over read set once and register the CpG matchings
     return true;
 }
