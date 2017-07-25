@@ -119,7 +119,8 @@ void RefGenome::save(const std::string& filepath)
     }
     // store strands
     std::ofstream strandFile(filepath + "_strands", std::ofstream::binary | std::ofstream::trunc);
-    std::copy(strandTable.begin(), strandTable.end(), std::ostreambuf_iterator<char>(strandFile));
+    write_strands(strandFile);
+    // std::copy(strandTable.begin(), strandTable.end(), std::ostreambuf_iterator<char>(strandFile));
     if (strandFile.fail())
     {
         std::cerr << "Error while writing index strand file! Terminating...\n\n";
@@ -227,9 +228,11 @@ void RefGenome::load(const std::string& filepath)
     ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
 
     // load strands
-    strandTable.reserve(kmerNum);
+    std::chrono::high_resolution_clock::time_point startTime2 = std::chrono::high_resolution_clock::now();
+    // strandTable.reserve(kmerNum);
     std::ifstream ifs_bool(filepath + "_strands", std::ifstream::binary);
-    std::copy(std::istreambuf_iterator<char>(ifs_bool), std::istreambuf_iterator<char>(), std::back_inserter(strandTable));
+    // std::copy(std::istreambuf_iterator<char>(ifs_bool), std::istreambuf_iterator<char>(), std::back_inserter(strandTable));
+    read_strands(ifs_bool);
     if (ifs_bool.fail())
     {
         std::cerr << "Error while reading index strand file! Terminating...\n\n";
@@ -237,34 +240,21 @@ void RefGenome::load(const std::string& filepath)
     }
 
     ifs_bool.close();
+    std::chrono::high_resolution_clock::time_point endTime2 = std::chrono::high_resolution_clock::now();
+    auto runtime2 = std::chrono::duration_cast<std::chrono::seconds>(endTime2 - startTime2).count();
+    std::cout << "Finished reading strand file in " << runtime2 << "s\n\n";
 
     // load meta CpGs
     size_t metaCpGNum;
     ifs.read(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
     metaCpGs.resize(metaCpGNum);
     ifs.read(reinterpret_cast<char*>(metaCpGs.data()), sizeof(metaCpGs[0]) * metaCpGNum);
-    // for (size_t i = 0; i < metaCpGNum; ++i)
-    // {
-    //     uint32_t start;
-    //     ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
-    //     uint32_t end;
-    //     ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
-    //     metaCpGs.push_back({start, end});
-    // }
 
     // load start meta CpGs
     size_t metaStartCpGNum;
     ifs.read(reinterpret_cast<char*>(&metaStartCpGNum), sizeof(metaStartCpGNum));
     metaStartCpGs.resize(metaStartCpGNum);
     ifs.read(reinterpret_cast<char*>(metaStartCpGs.data()), sizeof(metaStartCpGs[0]) * metaStartCpGNum);
-    // for (size_t i = 0; i < metaCpGNum; ++i)
-    // {
-    //     uint32_t start;
-    //     ifs.read(reinterpret_cast<char*>(&start), sizeof(start));
-    //     uint32_t end;
-    //     ifs.read(reinterpret_cast<char*>(&end), sizeof(end));
-    //     metaStartCpGs.push_back({start, end});
-    // }
     if (ifs.fail())
     {
         std::cerr << "Error while reading index file! Terminating...\n\n";
@@ -275,6 +265,55 @@ void RefGenome::load(const std::string& filepath)
     std::cout << "Finished reading index file " << filepath << " in " << runtime << "s\n\n";
     ifs.close();
 }
+
+// General idea taken from
+// https://stackoverflow.com/questions/29623605/how-to-dump-stdvectorbool-in-a-binary-file
+// accessed on 21th July 2017
+inline void RefGenome::write_strands(std::ofstream& of)
+{
+
+    size_t n = strandTable.size();
+    of.write(reinterpret_cast<char*>(&n), sizeof(n));
+
+    // go over all bits
+    for (size_t i = 0; i < n;)
+    {
+        // saves 8 flags in one char
+        unsigned char mergedBits = 0;
+        for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
+        {
+            if (strandTable[i])
+            {
+                mergedBits |= mask;
+            }
+
+        }
+        of.write(reinterpret_cast<const char*>(&mergedBits), sizeof(mergedBits));
+    }
+}
+inline void RefGenome::read_strands(std::ifstream& ifs)
+{
+    size_t n;
+    ifs.read(reinterpret_cast<char*>(&n), sizeof(n));
+    strandTable.resize(n);
+
+    // go over all bits
+    for (size_t i = 0; i < n;)
+    {
+        // will hold 8 bits
+        unsigned char mergedBits;
+        // read one chunk
+        ifs.read(reinterpret_cast<char*>(&mergedBits), sizeof(mergedBits));
+        // store bits of chunk
+        for(unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
+        {
+            strandTable[i] = mergedBits & mask;
+        }
+    }
+}
+
+
+
 
 void RefGenome::generateMetaCpGs()
 {
