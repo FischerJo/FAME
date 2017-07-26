@@ -114,6 +114,7 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
 
     reset();
 
+    size_t numCompLets = 0;
     for (auto it = start; it != end; ++it)
     {
 
@@ -124,6 +125,12 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
             continue;
         }
         queryLetter(*it);
+
+        ++numCompLets;
+
+        // There can only be a match after at least this->size() - E many chars are queried so only then compare
+        if (numCompLets < (pLen - E))
+            continue;
 
         uint8_t errNum;
         if (isMatch(errNum))
@@ -143,12 +150,11 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
 
     reset();
 
+    size_t numCompLets = 0;
     for (auto it = start; it != end; --it)
     {
 
         char c;
-        // TODO: make constant lookup once it works
-        // change letter to reverse complement
         switch (*it)
         {
             case 'A':
@@ -172,6 +178,12 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
                 exit(1);
         }
         queryLetter(c);
+
+        ++numCompLets;
+
+        // There can only be a match after at least this->size() - E many chars are queried so only then compare
+        if (numCompLets < (pLen - E))
+            continue;
 
         uint8_t errNum;
         if (isMatch(errNum))
@@ -396,6 +408,11 @@ inline bool ShiftAnd<2>::isMatch(uint8_t& errNum)
     if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
     {
         errNum = 1;
+        return true;
+    }
+    if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
+    {
+        errNum = 2;
         return true;
     }
     return false;
