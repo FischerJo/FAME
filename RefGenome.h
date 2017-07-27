@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 // Project includes
 #include "CONST.h"
@@ -34,9 +35,13 @@ class RefGenome
 
         ~RefGenome() = default;
 
-        // functions to save and load the index structure represented by this class
+        // functions to save and load the index structure represented by this class to a binary file
         void save(const std::string& filepath);
         void load(const std::string& filepath);
+        inline void write_strands(std::ofstream& of);
+        inline void read_strands(std::ifstream& ifs);
+        inline void write_filteredKmers(std::ofstream& of);
+        inline void read_filteredKmers(std::ifstream& ifs);
 
         // Returns the seeds of the reference genome for the given read
         // A seed is a kmer match between a reference genome part and the read
@@ -62,16 +67,23 @@ class RefGenome
             uint64_t hVal = ntHash::NTP64(seq.data());
             uint64_t hashInd = hVal % MyConst::HTABSIZE;
 
+            // std::cout << "Where does it break?\n";
+            // std::cout << "Accessing tabIndex:" << tabIndex[hashInd] << tabIndex[hashInd + 1];
+            // std::cout << "Accessing kmerTable iterator:" << *kmerTable.begin();
             // iterators for kmertable
             std::vector<KMER::kmer>::iterator startK = kmerTable.begin() + tabIndex[hashInd];
             std::vector<KMER::kmer>::iterator endK = kmerTable.begin() + tabIndex[hashInd + 1];
+            // std::cout << "Where does it break? creating kmer iterators worked...\n";
             // iterators for strandtable
             std::vector<bool>::iterator startS = strandTable.begin() + tabIndex[hashInd];
             std::vector<bool>::iterator endS = strandTable.begin() + tabIndex[hashInd + 1];
 
+            // std::cout << "Where does it break? creating strand iterators worked...\n";
             // retrieve seeds
             seedsK.emplace_back(startK, endK);
+            // std::cout << "Where does it break? getting kmer worked...\n";
             seedsS.emplace_back(startS, endS);
+            // std::cout << "Where does it break? emplacing first element from hash " << hashInd << " worked\n";
 
             for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i)
             {
@@ -86,9 +98,11 @@ class RefGenome
                 startS = strandTable.begin() + tabIndex[hashInd];
                 endS = strandTable.begin() + tabIndex[hashInd + 1];
 
+                // std::cout << "Where does it break? emplacing element " << i + 1 << " from hash " << hashInd << " worked\n";
                 // retrieve seeds
                 seedsK.emplace_back(startK, endK);
                 seedsS.emplace_back(startS, endS);
+                // std::cout << "Success...\n";
             }
 
         }
@@ -99,32 +113,32 @@ class RefGenome
         //          seq             sequence of the read to query to hash table
         //          seedsFwd        hash for each k-mer for lookup in tabIndex
         //          seedsRev        same for reverse sequence
-        inline void getSeedRefs(std::string& seq, std::vector<size_t>& seedsFwd, std::vector<size_t>& seedsRev)
-        {
-
-            // retrieve kmers for first hash
-            uint64_t fhVal = 0;
-            uint64_t rhVal = 0;
-            ntHash::NTPC64(seq, fhVal, rhVal);
-
-            seedsFwd[0] = fhVal % MyConst::HTABSIZE;
-
-            unsigned int revPos = seq.size() - MyConst::KMERLEN - 1;
-
-            seedsRev[revPos] = rhVal % MyConst::HTABSIZE;
-            --revPos;
-
-            for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i, --revPos)
-            {
-
-                // use rolling hash
-                ntHash::NTPC64(seq[i], seq[i + MyConst::KMERLEN], fhVal, rhVal);
-
-                seedsFwd[i + 1] = fhVal % MyConst::HTABSIZE;
-
-                seedsRev[revPos] = rhVal % MyConst::HTABSIZE;
-            }
-        }
+        // inline void getSeedRefs(std::string& seq, std::vector<size_t>& seedsFwd, std::vector<size_t>& seedsRev)
+        // {
+        //
+        //     // retrieve kmers for first hash
+        //     uint64_t fhVal = 0;
+        //     uint64_t rhVal = 0;
+        //     ntHash::NTPC64(seq, fhVal, rhVal);
+        //
+        //     seedsFwd[0] = fhVal % MyConst::HTABSIZE;
+        //
+        //     unsigned int revPos = seq.size() - MyConst::KMERLEN - 1;
+        //
+        //     seedsRev[revPos] = rhVal % MyConst::HTABSIZE;
+        //     --revPos;
+        //
+        //     for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i, --revPos)
+        //     {
+        //
+        //         // use rolling hash
+        //         ntHash::NTPC64(seq[i], seq[i + MyConst::KMERLEN], fhVal, rhVal);
+        //
+        //         seedsFwd[i + 1] = fhVal % MyConst::HTABSIZE;
+        //
+        //         seedsRev[revPos] = rhVal % MyConst::HTABSIZE;
+        //     }
+        // }
 
 
         // yields the internal bit representation of the reference genome at the specified chromosome
@@ -651,6 +665,8 @@ class RefGenome
         // overwrites the internal kmerTable and strandTable structure, as well as tabIndex
         //
         void filterHashTable();
+        // filter hash table such that k-mers that occur more then once per meta CpG are deleted
+        void filterRedundancyInHashTable();
 
 
 
@@ -684,6 +700,17 @@ class RefGenome
         // meta CpG table
         std::vector<struct metaCpG> metaCpGs;
         std::vector<struct metaCpG> metaStartCpGs;
+
+        struct KmerHash
+        {
+            // just use the provided kmer representation
+            size_t operator() (const uint64_t& k) const {
+
+                return static_cast<size_t>(k);
+            }
+        };
+        // contains all kmers discarded during filterHashTable
+        std::unordered_set<uint64_t, KmerHash> filteredKmers;
 
 };
 

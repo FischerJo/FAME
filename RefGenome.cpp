@@ -42,13 +42,30 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "\nDone hashing CpGs (" << runtime << "s)\n";
     // filter out highly repetitive sequences
-    // filterHashTable();
+    filterHashTable();
+    filterRedundancyInHashTable();
 }
 
 
 RefGenome::RefGenome(std::string filepath)
 {
     load(filepath);
+    // TODO
+    // generate file
+    // std::ofstream ofDummy ("dummy_human_ref_onlyCpG.fasta");
+    // size_t i = 0;
+    // for (const auto& m : metaCpGs)
+    // {
+    //     const struct CpG& startCpg2 = cpgTable[m.start];
+    //     const struct CpG& endCpg2 = cpgTable[m.end];
+    //     auto startIt2 = fullSeq[startCpg2.chrom].begin() + startCpg2.pos;
+    //     auto endIt2 = fullSeq[startCpg2.chrom].begin() + endCpg2.pos + (MyConst::READLEN*2 - 2);
+    //     ofDummy << ">MetaID=" << i << "\n";
+    //     ofDummy << std::string(startIt2, endIt2)<< "\n";
+    //     ++i;
+    //
+    // }
+    // ofDummy.close();
 }
 
 
@@ -144,6 +161,12 @@ void RefGenome::save(const std::string& filepath)
     if (of.fail())
     {
         std::cout << "Error while writing start metaCpGs " << metaCpGNum << "\n";
+    }
+    // store filtered kmers
+    write_filteredKmers(of);
+    if (of.fail())
+    {
+        std::cout << "Error while writing filtered kmer map\n";
     }
     if (of.fail())
     {
@@ -255,6 +278,9 @@ void RefGenome::load(const std::string& filepath)
     ifs.read(reinterpret_cast<char*>(&metaStartCpGNum), sizeof(metaStartCpGNum));
     metaStartCpGs.resize(metaStartCpGNum);
     ifs.read(reinterpret_cast<char*>(metaStartCpGs.data()), sizeof(metaStartCpGs[0]) * metaStartCpGNum);
+
+    // load filtered kmers
+    read_filteredKmers(ifs);
     if (ifs.fail())
     {
         std::cerr << "Error while reading index file! Terminating...\n\n";
@@ -310,6 +336,31 @@ inline void RefGenome::read_strands(std::ifstream& ifs)
             strandTable[i] = mergedBits & mask;
         }
     }
+}
+inline void RefGenome::write_filteredKmers(std::ofstream& of)
+{
+
+    size_t n = filteredKmers.size();
+    of.write(reinterpret_cast<char*>(&n), sizeof(n));
+    for (const uint64_t k : filteredKmers)
+    {
+
+        of.write(reinterpret_cast<char*>(&k), sizeof(k));
+    }
+}
+inline void RefGenome::load_filteredKmers(std::ifstream ifs)
+{
+
+    size_t n;
+    ifs.read(reinterpret_cast<char*>(&n), sizeof(n));
+    for (size_t i = 0; i < n; ++i)
+    {
+
+        uint64_t k;
+        ifs.read(reinterpret_cast<char*>(&k), sizeof(k));
+        filteredKmers.emplace(k);
+    }
+
 }
 
 
@@ -1184,6 +1235,66 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 }
 
 
+void RefGenome::filterRedundancyInHashTable()
+{
+
+    std::cout << "\nHash table size before filter: " << kmerTable.size() << std::endl;
+    std::chrono::high_resolution_clock::time_point filterStartTime = std::chrono::high_resolution_clock::now();
+
+    // iterator to the element that we process
+    auto srcItK = kmerTable.begin();
+    auto srcItS = strandTable.begin();
+    // iterator to the position of the last inserted FILTERED element, always at most as far as srcIt
+    auto filterItK = kmerTable.begin();
+    auto filterItS = strandTable.begin();
+
+    // iterate over hashTable
+    for (uint64_t i = 0; i < MyConst::HTABSIZE; ++i)
+    {
+
+        // previous IDs and flags
+        bool isStart = false;
+        bool isFwd = false;
+        uint64_t metaID = 0xffffffffffffffffULL;
+        const uint64_t prevSizeK = filterItK - kmerTable.begin();
+
+        // iterate through vector elements
+        for (uint64_t j = tabIndex[i]; j < tabIndex[i+1]; ++j, ++srcItK, ++srcItS)
+        {
+
+            if (KMER::getMetaCpG(*srcItK) != metaID || *srcItS != isFwd || KMER::isStartCpG(*srcItK) != isStart)
+            {
+
+                isFwd = *srcItS;
+                isStart = KMER::isStartCpG(*srcItK);
+                metaID = KMER::getMetaCpG(*srcItK);
+                *filterItK = *srcItK;
+                *filterItS = *srcItS;
+                ++filterItK;
+                ++filterItS;
+            }
+
+        }
+        // update the indexing structure for collisions
+        tabIndex[i] = prevSizeK;
+    }
+
+    // update dummy value used for efficient indexing
+    tabIndex[MyConst::HTABSIZE] = filterItK - kmerTable.begin();
+
+    // shrink to new size
+    kmerTable.resize(filterItK - kmerTable.begin());
+    strandTable.resize(filterItK - kmerTable.begin());
+
+    std::chrono::high_resolution_clock::time_point filterEndTime = std::chrono::high_resolution_clock::now();
+
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(filterEndTime - filterStartTime).count();
+
+
+    std::cout << "Hash table size after filter (running " << runtime << "s): " << tabIndex[MyConst::HTABSIZE] << "\n\n";
+}
+
+
 void RefGenome::filterHashTable()
 {
 
@@ -1245,6 +1356,9 @@ void RefGenome::filterHashTable()
                     ++filterItK;
                     ++filterItS;
 
+                } else {
+
+                    filteredKmers.emplace(kHash);
                 }
             }
 
