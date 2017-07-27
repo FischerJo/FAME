@@ -52,7 +52,8 @@ class ReadQueue
     private:
 
         // hash function for std::unordered_set of meta ids
-        struct MetaHash {
+        struct MetaHash
+        {
                 // just use meta IDs as they are unique
                size_t operator() (const uint32_t& metaID) const {
 
@@ -835,14 +836,16 @@ class ReadQueue
             // of << "No match at all\t";
             return 0;
         }
-        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat)
+        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, const uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
             std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
-            std::unordered_set<uint32_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
-            std::unordered_set<uint32_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+            std::unordered_map<uint32_t, uint16_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            std::unordered_map<uint32_t, uint16_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+
+            // of << "\nmapsizes: " << fwdMetaIDs_t.size() << "/" << revMetaIDs_t.size() << "\n";
 
             // counter for how often we had a match
             std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
@@ -853,19 +856,29 @@ class ReadQueue
 
             // uint16_t qThreshold = 1;
             // set q-gram lemma threshold
-            uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
             // check for overflow (i.e. read is to small for lemma)
-            if (qThreshold > sa.size())
-                qThreshold = 0;
+            // if (qThreshold > sa.size())
+            //     qThreshold = 0;
 
             // check all fwd meta CpGs
-            for (const uint32_t& i : fwdMetaIDs_t)
+            for (const auto& m : fwdMetaIDs_t)
             {
 
-                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[i].start];
-                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[i].end];
+                // apply qgram lemma
+                if (m.second < qThreshold)
+                    continue;
+
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+                // TODO
+                // of << std::string(startIt, endIt)<< "\n";
+                // const struct CpG& startCpg2 = ref.cpgTable[ref.metaCpGs[m.first + 1].start];
+                // auto startIt2 = ref.fullSeq[startCpg2.chrom].begin() + startCpg2.pos;
+                // auto endIt2 = ref.fullSeq[startCpg2.chrom].begin() + startCpg2.pos + 200;
+                // of << std::string(startIt2, endIt2)<< "\n";
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -920,12 +933,16 @@ class ReadQueue
                 }
             }
             // go through reverse sequences
-            for (const uint32_t i : revMetaIDs_t)
+            for (const auto& m : revMetaIDs_t)
             {
 
+                // apply qgram lemma
+                if (m.second < qThreshold)
+                    continue;
+
                 // retrieve sequence
-                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[i].start];
-                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[i].end];
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
 
@@ -1156,21 +1173,24 @@ class ReadQueue
         // MODIFICATION:
         //          The threadCount* fields are modified such that they have the count of metaCpGs after
         //          a call to this function
-        inline bool getSeedRefs(const std::vector<char>& seq, const size_t& readSize)
+        // inline bool getSeedRefs(const std::vector<char>& seq, const size_t& readSize)
+        inline bool getSeedRefs(const std::string& seq, const size_t& readSize)
         {
 
-            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
-            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+            // std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            // std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
             // fill with zeroes
-            threadCountFwd.assign(ref.metaCpGs.size(), 0);
-            threadCountRev.assign(ref.metaCpGs.size(), 0);
+            // threadCountFwd.assign(ref.metaCpGs.size(), 0);
+            // threadCountRev.assign(ref.metaCpGs.size(), 0);
             threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
             threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
 
-            std::unordered_set<uint32_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
-            std::unordered_set<uint32_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+            std::unordered_map<uint32_t, uint16_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            std::unordered_map<uint32_t, uint16_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+            fwdMetaIDs_t.clear();
+            revMetaIDs_t.clear();
 
             // retrieve kmers for first hash
             uint64_t fhVal = ntHash::NTP64(seq.data());
@@ -1186,7 +1206,7 @@ class ReadQueue
             // if too small we get an overflow -> set to zero
             if (qThreshold > readSize)
                 qThreshold = 0;
-            unsigned int passCount = 0;
+            // unsigned int passCount = 0;
 
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
             {
@@ -1208,13 +1228,15 @@ class ReadQueue
                 {
                     if (isFwd)
                     {
-                        if (++threadCountFwdStart[metaId] > qThreshold)
-                            ++passCount;
+                        // if (++threadCountFwdStart[metaId] > qThreshold)
+                        //     ++passCount;
+                        ++threadCountFwdStart[metaId];
 
                     } else {
 
-                        if (++threadCountRevStart[metaId] > qThreshold)
-                            ++passCount;
+                        // if (++threadCountRevStart[metaId] > qThreshold)
+                        //     ++passCount;
+                        ++threadCountRevStart[metaId];
 
                     }
 
@@ -1222,19 +1244,21 @@ class ReadQueue
 
                     if (isFwd)
                     {
-                        if (++threadCountFwd[metaId] > qThreshold)
-                        {
-                            ++passCount;
-                            fwdMetaIDs_t.emplace(metaId);
-                        }
+                        // if (++threadCountFwd[metaId] > qThreshold)
+                        // {
+                        //     ++passCount;
+                        //     fwdMetaIDs_t.emplace(metaId);
+                        // }
+                        ++fwdMetaIDs_t[metaId];
 
                     } else {
 
-                        if (++threadCountRev[metaId] > qThreshold)
-                        {
-                            ++passCount;
-                            revMetaIDs_t.emplace(metaId);
-                        }
+                        // if (++threadCountRev[metaId] > qThreshold)
+                        // {
+                        //     ++passCount;
+                        //     revMetaIDs_t.emplace(metaId);
+                        // }
+                        ++revMetaIDs_t[metaId];
 
                     }
                 }
@@ -1273,13 +1297,15 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            if (++threadCountFwdStart[metaId] > qThreshold)
-                                ++passCount;
+                            // if (++threadCountFwdStart[metaId] > qThreshold)
+                            //     ++passCount;
+                            ++threadCountFwdStart[metaId];
 
                         } else {
 
-                            if (++threadCountRevStart[metaId] > qThreshold)
-                                ++passCount;
+                            // if (++threadCountRevStart[metaId] > qThreshold)
+                            //     ++passCount;
+                            ++threadCountRevStart[metaId];
 
                         }
 
@@ -1287,25 +1313,26 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            if (++threadCountFwd[metaId] > qThreshold)
-                            {
-                                ++passCount;
-                                fwdMetaIDs_t.emplace(metaId);
-                            }
+                            // if (++threadCountFwd[metaId] > qThreshold)
+                            // {
+                            //     ++passCount;
+                            //     fwdMetaIDs_t.emplace(metaId);
+                            // }
+                            ++fwdMetaIDs_t[metaId];
 
                         } else {
 
-                            if (++threadCountRev[metaId] > qThreshold)
-                            {
-                                ++passCount;
-                                revMetaIDs_t.emplace(metaId);
-                            }
+                            // if (++threadCountRev[metaId] > qThreshold)
+                            // {
+                            //     ++passCount;
+                            //     revMetaIDs_t.emplace(metaId);
+                            // }
+                            ++revMetaIDs_t[metaId];
 
                         }
                     }
                 }
             }
-
 
             // COUNTING HEURISTIC
             // if we retrieve too many seed positions passing the q-gram lemma filter, return flag to skip read
@@ -1313,12 +1340,72 @@ class ReadQueue
 
 
             // test if we have too many k-mers passing filter
-            // if (passCount > MyConst::QUERYTHRESHOLD)
+            // if (revMetaIDs_t.size() + fwdMetaIDs_t.size() > MyConst::QUERYTHRESHOLD)
             // {
             //     return false;
             // } else {
                 return true;
             // }
+        }
+        // compute the qgram threshold for a given sequence
+        inline uint16_t computeQgramThresh(std::string& seq)
+        {
+
+            uint16_t qThresh = seq.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+
+            uint64_t kSeq = 0;
+
+            // read the first k-1 letters
+            for (unsigned int i = 0; i < MyConst::KMERLEN - 1; ++i)
+            {
+                kSeq = kSeq << 2;
+
+                switch (seq[i])
+                {
+
+                    case 'C':
+                    case 'T':
+
+                        kSeq += 3;
+                        break;
+
+                    case 'G':
+
+                        kSeq += 2;
+                        break;
+
+                }
+            }
+
+            for (unsigned int i = MyConst::KMERLEN - 1; i < seq.size(); ++i)
+            {
+
+                kSeq = kSeq << 2;
+
+                switch (seq[i])
+                {
+
+                    case 'C':
+                    case 'T':
+
+                        kSeq += 3;
+                        break;
+
+                    case 'G':
+
+                        kSeq += 2;
+                        break;
+
+                }
+                // test if kmer was filtered -> if yes, reduce qgram lemma threshold
+                if (ref.filteredKmers.count(kSeq & MyConst::KMERMASK))
+                    --qThresh;
+
+            }
+            // if underflow, reset
+            if (qThresh > seq.size())
+                qThresh = 0;
+            return qThresh;
         }
 
         // print statistics over seed set to statFile and countFile
@@ -1386,8 +1473,8 @@ class ReadQueue
         std::array<std::vector<uint16_t>, CORENUM> countsRev;
         std::array<std::vector<uint16_t>, CORENUM> countsFwdStart;
         std::array<std::vector<uint16_t>, CORENUM> countsRevStart;
-        std::array<std::unordered_set<uint32_t, MetaHash>, CORENUM> fwdMetaIDs;
-        std::array<std::unordered_set<uint32_t, MetaHash>, CORENUM> revMetaIDs;
+        std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
+        std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
         // TODO
         std::ofstream of;
 };
