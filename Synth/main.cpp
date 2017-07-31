@@ -5,6 +5,10 @@
 
 
 constexpr size_t refLen = 1000000000;
+constexpr double mthRate = 0.5;
+constexpr size_t readLen = 100;
+constexpr size_t readNum = 10000000;
+constexpr unsigned int errNum = 2;
 
 
 // --------------- MAIN -----------------
@@ -13,41 +17,46 @@ constexpr size_t refLen = 1000000000;
 int main(int argc, char** argv)
 {
 
-    SynthDS synthGen(refLen);
+    // SynthDS synthGen(refLen);
+    SynthDS synthGen(argv[1], mthRate);
 
-    std::vector<size_t> offsets;
-    std::vector<std::string> fwdReads = synthGen.genReadsFwdFixed(100, 100000, 1, offsets);
-
-    std::vector<std::string> revReads = synthGen.genReadsRevFixed(100, 100000, 1);
+    std::vector<std::pair<size_t,size_t> > offsets;
+    std::vector<std::string> fwdReads = synthGen.genReadsFwdRef(readLen, readNum, errNum, offsets);
 
 
-    std::ofstream ofsRef("genRef_1err.fasta");
-    ofsRef << ">CHRSYNTH1\n";
-    ofsRef << synthGen.getRef();
-    ofsRef.close();
+    // std::ofstream ofsRef("genRef_1err.fasta");
+    // ofsRef << ">CHRSYNTH1\n";
+    // ofsRef << synthGen.getRef();
+    // ofsRef.close();
 
-    std::ofstream ofsReads("genReadsFwd_1err.fastq");
+    std::ofstream ofsReads("genReadsFwd_2err_humanRef.fastq");
 
     for (size_t i = 0; i < fwdReads.size(); ++i)
     {
         // generate fastq format of reads
-        ofsReads << '@' << i << "_" << offsets[i] << std::endl;
-        ofsReads << fwdReads[i] << std::endl;
-        ofsReads << '+' << i << std::endl;
-        ofsReads << 'N' << std::endl;
+        ofsReads << '@' << i << "_CHR" << offsets[i].second << "_" << offsets[i].first << "\n";
+        ofsReads << fwdReads[i] << "\n";
+        ofsReads << '+' << i << "\n";
+        // produce dummy quality scores
+        for (size_t i = 0; i < readLen; ++i)
+            ofsReads << "%";
+        ofsReads << "\n";
     }
     ofsReads.close();
-    ofsReads.open("genReadsRev_1err.fastq");
-    for (size_t i = 0; i < revReads.size(); ++i)
+    offsets.clear();
+    std::vector<std::string> revReads = synthGen.genReadsRevRef(readLen, readNum, errNum, offsets);
+    ofsReads.open("genReadsRev_2err_humanRef.fastq");
+    for (size_t i = 0; i < fwdReads.size(); ++i)
     {
-        const size_t id = i + fwdReads.size();
         // generate fastq format of reads
-        ofsReads << '@' << id << std::endl;
-        ofsReads << revReads[i] << std::endl;
-        ofsReads << '+' << id << std::endl;
-        ofsReads << 'N' << std::endl;
+        ofsReads << '@' << i << "_CHR" << offsets[i].second << "_" << offsets[i].first << "\n";
+        ofsReads << fwdReads[i] << "\n";
+        ofsReads << '+' << i << "\n";
+        // produce dummy quality scores
+        for (size_t i = 0; i < readLen; ++i)
+            ofsReads << "%";
+        ofsReads << "\n";
     }
-
     ofsReads.close();
     return 0;
 
