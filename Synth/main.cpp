@@ -3,6 +3,7 @@
 
 #include "SynthDS.h"
 
+// --------------- PARAMS ---------------
 
 constexpr size_t refLen = 1000000000;
 constexpr double mthRate = 0.5;
@@ -17,6 +18,11 @@ constexpr unsigned int errNum = 2;
 int main(int argc, char** argv)
 {
 
+    if (argc < 2)
+    {
+        std::cerr << "Output filename required! Terminating...\n";
+        exit(1);
+    }
     // SynthDS synthGen(refLen);
     SynthDS synthGen(argv[1], mthRate);
 
@@ -29,7 +35,7 @@ int main(int argc, char** argv)
     // ofsRef << synthGen.getRef();
     // ofsRef.close();
 
-    std::ofstream ofsReads("genReadsFwd_2err_humanRef.fastq");
+    std::ofstream ofsReads(std::string(argv[1]) + "_fwd.fastq");
 
     for (size_t i = 0; i < fwdReads.size(); ++i)
     {
@@ -45,7 +51,7 @@ int main(int argc, char** argv)
     ofsReads.close();
     offsets.clear();
     std::vector<std::string> revReads = synthGen.genReadsRevRef(readLen, readNum, errNum, offsets);
-    ofsReads.open("genReadsRev_2err_humanRef.fastq");
+    ofsReads.open(std::string(argv[1] + "_rev.fastq");
     for (size_t i = 0; i < fwdReads.size(); ++i)
     {
         // generate fastq format of reads
