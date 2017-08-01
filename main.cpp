@@ -107,7 +107,7 @@ int main(int argc, char** argv)
             continue;
         }
 
-        if (std::string(argv[i]) == "--gunzip_reads")
+        if (std::string(argv[i]) == "--gzip_reads")
         {
             readsGZ = true;
             continue;
@@ -259,7 +259,7 @@ void printHelp()
     std::cout << "\t                 \t\tfastq format. If not specified, index is built and\n";
     std::cout << "\t                 \t\tsaved in file provided via --store_index.\n\n";
 
-    std::cout << "\t--gunzip_reads   \t\tRead file specified by -r is treated as gunzipped\n";
+    std::cout << "\t--gzip_reads     \t\tRead file specified by -r is treated as gzipped\n";
     std::cout << "\t                 \t\tfile (.gz file ending).\n\n";
 
     std::cout << "\t--store_index [.]\t\tStore index in provided file in binary format.\n\n";
@@ -269,4 +269,17 @@ void printHelp()
     std::cout << "\t                 \t\tas used in the current CONST.h. This will be checked\n";
     std::cout << "\t                 \t\twhile loading.\n\n";
 
+
+    std::cout << "\nEXAMPLES\n\n";
+
+    std::cout << "Setting: Read a reference genome and map a set of reads, save index for\n";
+    std::cout << "consecutive usages.\n\n";
+    std::cout << "\t /path/to/Metal --genome /path/to/reference.fasta --store_index index.bin \\\n";
+    std::cout << "\t\t-r /path/to/reads.fastq\n\n\n";
+
+    std::cout << "Setting: Load index from previously stored index, maap reads stored in .gz\n";
+    std::cout << "format.\n\n";
+    std::cout << "\t /path/to/Metal --load_index index.bin -r /path/to/reads.fastq.gz\n\n\n";
+
+    std::cout << "\n\n";
 }
