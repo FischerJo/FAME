@@ -249,9 +249,24 @@ void printHelp()
 
     std::cout << "OPTIONS\n\nOptions followed by [.] require an additional argument\n\n";
 
-    std::cout << "\t-h          \t\thelp\n\n";
-    std::cout << "\t--genome [.]\t\tspecification of a filepath to a reference genome\n";
-    std::cout << "\t            \t\tin fasta format.\n";
-    std::cout << "\t";
+    std::cout << "\t--help\n";
+    std::cout << "\t-h               \t\tHelp\n\n";
+
+    std::cout << "\t--genome      [.]\t\tSpecification of a filepath to a reference genome\n";
+    std::cout << "\t                 \t\tin fasta format.\n\n";
+
+    std::cout << "\t-r            [.]\t\tSpecification of a filepath to a set of reads in\n";
+    std::cout << "\t                 \t\tfastq format. If not specified, index is built and\n";
+    std::cout << "\t                 \t\tsaved in file provided via --store_index.\n\n";
+
+    std::cout << "\t--gunzip_reads   \t\tRead file specified by -r is treated as gunzipped\n";
+    std::cout << "\t                 \t\tfile (.gz file ending).\n\n";
+
+    std::cout << "\t--store_index [.]\t\tStore index in provided file in binary format.\n\n";
+
+    std::cout << "\t--load_index  [.]\t\tLoad index from provided file. Note that all\n";
+    std::cout << "\t                 \t\tparameters used to build the index must be the same\n";
+    std::cout << "\t                 \t\tas used in the current CONST.h. This will be checked\n";
+    std::cout << "\t                 \t\twhile loading.\n\n";
 
 }
