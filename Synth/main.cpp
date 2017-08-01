@@ -1,5 +1,6 @@
 
 #include <fstream>
+#include <iostream>
 
 #include "SynthDS.h"
 
@@ -51,7 +52,7 @@ int main(int argc, char** argv)
     ofsReads.close();
     offsets.clear();
     std::vector<std::string> revReads = synthGen.genReadsRevRef(readLen, readNum, errNum, offsets);
-    ofsReads.open(std::string(argv[1] + "_rev.fastq");
+    ofsReads.open(std::string(argv[1]) + "_rev.fastq");
     for (size_t i = 0; i < fwdReads.size(); ++i)
     {
         // generate fastq format of reads
