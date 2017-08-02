@@ -114,6 +114,7 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
 
     reset();
 
+    bool wasMatch = false;
     size_t numCompLets = 0;
     for (auto it = start; it != end; ++it)
     {
@@ -136,9 +137,22 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
         if (isMatch(errNum))
         {
 
-            matches.emplace_back(it - start);
-            errors.emplace_back(errNum);
+            // if we matched in previous round, overwrite that match
+            if (wasMatch)
+            {
+                matches.back() = it - start;
+                errors.back() = errNum;
 
+            } else {
+
+                matches.emplace_back(it - start);
+                errors.emplace_back(errNum);
+                wasMatch = true;
+            }
+
+        } else {
+
+            wasMatch = false;
         }
     }
 }
@@ -150,6 +164,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
 
     reset();
 
+    bool wasMatch = false;
     size_t numCompLets = 0;
     for (auto it = start; it != end; --it)
     {
@@ -189,9 +204,22 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
         if (isMatch(errNum))
         {
 
-            matches.emplace_back(it - end + pLen - 2);
-            errors.emplace_back(errNum);
+            // if we matched in previous round, overwrite that match
+            if (wasMatch)
+            {
+                matches.back() = it - end + pLen - 2;
+                errors.back() = errNum;
 
+            } else {
+
+                matches.emplace_back(it - end + pLen - 2);
+                errors.emplace_back(errNum);
+                wasMatch = true;
+            }
+
+        } else {
+
+            wasMatch = false;
         }
     }
 }
