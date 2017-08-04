@@ -14,6 +14,8 @@ enum ERROR_T {MATCH, MISMATCH, INSERTION, DELETION};
 
 // class for dynamic programming approach for computing Levenshtein
 // distance and the corresponding alignment for two strings
+// it is REQUIRED that the first given string (rowStr in Ctor) must be fully
+// matched!
 //
 // template parameter is the size type T of the underlying matrix
 // i.e. should be the minimal size type that fits the max of the two string sizes
@@ -42,7 +44,7 @@ class LevenshtDP
         T getEditDist()
         {
             T minimum = std::numeric_limits<T>::max();
-            for (long offset = 0; offset <= static_cast<long>(band); ++offset)
+            for (long offset = -static_cast<long>(band); offset <= static_cast<long>(band); ++offset)
                 minimum = std::min(minimum, dpMatrix(rowPat.size(), rowPat.size() + offset));
             return minimum;
         }
@@ -75,9 +77,8 @@ class LevenshtDP
         //          solution to frecurrence
         inline T LevRec(long i, long j)
         {
-            // TODO test printout
-            T matchFlag = rowPat[i-1] == colPat[j-1] ? static_cast<T>(0) : static_cast<T>(1);
-            return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + matchFlag});
+            T mismatchFlag = rowPat[i-1] == colPat[j-1] ? static_cast<T>(0) : static_cast<T>(1);
+            return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchFlag});
         }
 
         // the two strings that are compared
@@ -165,6 +166,84 @@ void LevenshtDP<T, band>::runDPFill()
     //     }
     //     std::cout << "\n";
     // }
+}
+
+
+template <typename T, size_t band>
+std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP()
+{
+
+    // the trace of errors
+    // note that insertion means we have an additional character in the PATTERN (rowPat)
+    // and deletion analogously
+    std::vector<ERROR_T> errorTrace (rowPat.size());
+    // find minimum in the last part of table
+    T minimum = std::numeric_limits<T>::max();
+    // stores the index of the cell of the minimum
+    size_t col = 0;
+    for (long offset = -static_cast<long>(band); offset <= static_cast<long>(band); ++offset)
+    {
+        const T& valRef = dpMatrix(rowPat.size(), rowPat.size() + offset);
+        if (valRef < minimum)
+        {
+
+            col = rowPat.size() + offset;
+            minimum = valRef;
+        }
+    }
+
+    // BACKTRACK
+    // starting from the minimum cell in the last column
+    for (long row = rowPat.size(); row > 0;)
+    {
+
+        // check if characters match
+        T mismatchFlag = rowPat[row - 1] == colPat[col - 1] ? static_cast<T>(0) : static_cast<T>(1);
+
+        // see where does it came from
+        if (dpMatrix(row-1,col) + 1 < dpMatrix(row,col-1) + 1)
+        {
+            // we have an insertion in the pattern
+            if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
+            {
+                errorTrace[row - 1] = INSERTION;
+                --row;
+
+            } else {
+
+                // test if mismatch
+                if (mismatchFlag)
+                    errorTrace[row - 1] = MISMATCH;
+                else
+                    errorTrace[row - 1] = MATCH;
+                --row;
+                --col;
+
+            }
+
+        } else {
+
+            // we have an insertion in the pattern
+            if (dpMatrix(row,col-1) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
+            {
+                errorTrace[row - 1] = DELETION;
+                --col;
+
+            } else {
+
+                // test if mismatch
+                if (mismatchFlag)
+                    errorTrace[row - 1] = MISMATCH;
+                else
+                    errorTrace[row - 1] = MATCH;
+                --row;
+                --col;
+
+            }
+        }
+
+    }
+    return errorTrace;
 }
 
 #endif /* LEVENSHTDP_H */
