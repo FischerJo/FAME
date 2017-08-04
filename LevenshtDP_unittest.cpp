@@ -5,7 +5,7 @@
 #include "LevenshtDP.h"
 
 
-// test if everything is initialized correctly with 1 letter string
+// test if everything is initialized correctly with 2 letter string
 TEST(init_test, twoLetterMismatches)
 {
     std::string s1 = "AG";
@@ -51,4 +51,58 @@ TEST(init_test, twoLetterMismatches)
 
     l2_incorr2.runDPFill();
     ASSERT_EQ(2, l2_incorr2.getEditDist());
+}
+
+
+// test simple sequence with 2 mismatches
+TEST(matching_test, simpleSeq)
+{
+    std::string s1 = "ACTTTGACCG";
+    std::string s2 = "ACTGTGACTGAA";
+
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+
+    lev.runDPFill();
+
+    ASSERT_EQ(2, lev.getEditDist());
+
+}
+
+// test a more complex sequence with insertions
+TEST(matching_test, complexSeqIns)
+{
+    std::string s1 = "ACTAAGTGACTG";
+    std::string s2 = "ACTGTGACTGAA";
+
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+
+    lev.runDPFill();
+
+    ASSERT_EQ(2, lev.getEditDist());
+}
+
+// test a more complex sequence with deletions
+TEST(matching_test, complexSeqDel)
+{
+    std::string s1 = "ACTGACTG";
+    std::string s2 = "ACTGTGACTGAA";
+
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+
+    lev.runDPFill();
+
+    ASSERT_EQ(2, lev.getEditDist());
+}
+
+// test sequence with different types of errors
+TEST(matching_test, complexSeqAll)
+{
+    std::string s1 = "ACTAGTGATTG";
+    std::string s2 = "ACTGTGACTGAA";
+
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+
+    lev.runDPFill();
+
+    ASSERT_EQ(2, lev.getEditDist());
 }
