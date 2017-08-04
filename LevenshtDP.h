@@ -37,6 +37,16 @@ class LevenshtDP
         // compute the levenshtein distance
         void runDPFill();
 
+        // return edit distance
+        // undefined behaviour if runDPFill was not run beforehand
+        T getEditDist()
+        {
+            T minimum = std::numeric_limits<T>::max();
+            for (long offset = 0; offset <= static_cast<long>(band); ++offset)
+                minimum = std::min(minimum, dpMatrix(rowPat.size(), rowPat.size() + offset));
+            return minimum;
+        }
+
         // backtrack the result to obtain alignment
         //
         // RETURN:
@@ -65,7 +75,8 @@ class LevenshtDP
         //          solution to frecurrence
         inline T LevRec(long i, long j)
         {
-            T matchFlag = rowPat[i] == colPat[j] ? 0 : 1;
+            // TODO test printout
+            T matchFlag = rowPat[i-1] == colPat[j-1] ? static_cast<T>(0) : static_cast<T>(1);
             return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + matchFlag});
         }
 
@@ -73,7 +84,7 @@ class LevenshtDP
         // rowPat is represented by rows of the DP matrix
         // colPat is represented by columns in DP matrix
         std::string& rowPat;
-        char* colPat;
+        const char* colPat;
 
         // underlying dp matrix
         // note that bandwidth is extended by one for the edge cases
@@ -86,7 +97,7 @@ template <typename T, size_t band>
 LevenshtDP<T, band>::LevenshtDP(std::string& rowStr, const char* colStr) :
         rowPat(rowStr)
     ,   colPat(colStr)
-    ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, 0)
+    ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, static_cast<T>(0))
 {
     // check if template param is correct size type
     if (!std::is_integral<T>::value)
@@ -102,43 +113,58 @@ void LevenshtDP<T, band>::runDPFill()
 
     // INIT BORDERS
 
+    dpMatrix(0,0) = 0;
+
     // initialize first row
-    for (long col = 0; col <= (band + 1); ++col)
+    for (long col = 1; col <= static_cast<long>(band); ++col)
     {
-        dpMatrix(0, col) = std::numeric_limits<T>::max();
+        dpMatrix(0, col) = col;
     }
     // init first column
-    for (long row = 1; row <= (band + 1); ++row)
+    for (long row = 1; row <= static_cast<long>(band); ++row)
     {
-        dpMatrix(row, 0) = std::numeric_limits<T>::max();
+        dpMatrix(row, 0) = row;
     }
     // init outermost lefthanded band
-    for (long col = 1; col < rowPat.size() - band; ++col)
+    for (long col = 0; col < static_cast<long>(rowPat.size() - band); ++col)
     {
-        dpMatrix(col + (band + 1), col) = std::numeric_limits<T>::max();
+        dpMatrix(col + (band + 1), col) = std::numeric_limits<T>::max() - col - band - 1;
     }
     // init outermost righthanded band
-    for (long row = 1; row < rowPat.size(); ++row)
+    for (long row = 0; row < static_cast<long>(rowPat.size()); ++row)
     {
-        dpMatrix(row, row + (band + 1)) = std::numeric_limits<T>::max();
+        dpMatrix(row, row + (band + 1)) = std::numeric_limits<T>::max() - row - band - 1;
     }
 
 
     // FILL MATRIX
-    for (long row = 1; row <= rowPat.size(); ++row)
+    for (long row = 1; row <= static_cast<long>(rowPat.size()); ++row)
     {
 
-        for (long offset = -band; offset <= band; ++offset)
+        for (long offset = -band; offset <= static_cast<long>(band); ++offset)
         {
             // skip borders
-            if (row - band <= 0)
+            if (row + offset <= 0)
                 continue;
 
             dpMatrix(row, row + offset) = LevRec(row, row + offset);
         }
-        // normal part
-
     }
+
+    // TEST PRINTOUT
+    // for (long row = 0; row <= static_cast<long>(rowPat.size()); ++row)
+    // {
+    //     for (long offset = -band - 1; offset <= static_cast<long>(band + 1); ++offset)
+    //     {
+    //         // skip borders
+    //         if (row + offset < 0)
+    //             continue;
+    //         if (row  + offset > rowPat.size() + band)
+    //             continue;
+    //         std::cout << dpMatrix(row, row + offset) << "\t";
+    //     }
+    //     std::cout << "\n";
+    // }
 }
 
 #endif /* LEVENSHTDP_H */

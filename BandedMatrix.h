@@ -32,7 +32,7 @@ class BandedMatrix
         // Create BandedMatrix object with nrow rows and ncol columns
         // Second version fills matrix with copies of initVal
         BandedMatrix(size_t nrow, size_t ncol);
-        BandedMatrix(size_t nrow, size_t ncol, T& initVal);
+        BandedMatrix(size_t nrow, size_t ncol, T initVal);
 
         // -------------------
 
@@ -79,7 +79,7 @@ BandedMatrix<T,band>::BandedMatrix(size_t nrow, size_t ncol) :
 
 
 template <typename T, size_t band>
-BandedMatrix<T,band>::BandedMatrix(size_t nrow, size_t ncol, T& initVal) :
+BandedMatrix<T,band>::BandedMatrix(size_t nrow, size_t ncol, T initVal) :
         rowNum(nrow)
     ,   colNum(ncol)
         // note +1 for main diagonal
