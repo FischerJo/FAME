@@ -115,8 +115,9 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
     reset();
 
     bool wasMatch = false;
+    uint8_t prevErrs = MyConst::MISCOUNT + 1;
     size_t numCompLets = 0;
-    for (auto it = start; it != end; ++it)
+    for (auto it = start; it < end; ++it)
     {
 
         // we do not consider Ns for matches - restart whole automaton for next letter
@@ -140,14 +141,19 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
             // if we matched in previous round, overwrite that match
             if (wasMatch)
             {
-                matches.back() = it - start;
-                errors.back() = errNum;
+                if (errNum < prevErrs)
+                {
+                    matches.back() = it - start;
+                    errors.back() = errNum;
+                    prevErrs = errNum;
+                }
 
             } else {
 
                 matches.emplace_back(it - start);
                 errors.emplace_back(errNum);
                 wasMatch = true;
+                prevErrs = errNum;
             }
 
         } else {
@@ -165,6 +171,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
     reset();
 
     bool wasMatch = false;
+    uint8_t prevErrs = MyConst::MISCOUNT + 1;
     size_t numCompLets = 0;
     for (auto it = start; it != end; --it)
     {
@@ -207,14 +214,19 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
             // if we matched in previous round, overwrite that match
             if (wasMatch)
             {
-                matches.back() = it - end + pLen - 2;
-                errors.back() = errNum;
+                if (errNum < prevErrs)
+                {
+                    matches.back() = it - end + pLen - 2;
+                    errors.back() = errNum;
+                    prevErrs = errNum;
+                }
 
             } else {
 
                 matches.emplace_back(it - end + pLen - 2);
                 errors.emplace_back(errNum);
                 wasMatch = true;
+                prevErrs = errNum;
             }
 
         } else {

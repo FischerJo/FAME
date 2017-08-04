@@ -227,17 +227,17 @@ TEST_F(ShiftAnd_test, matching_same)
 
     // check size of matchings
     ASSERT_EQ(1, matchings0.size());
-    ASSERT_EQ(2, matchings1.size());
+    ASSERT_EQ(1, matchings1.size());
     ASSERT_EQ(126, matchings0[0]);
-    ASSERT_EQ(125, matchings1[0]);
-    ASSERT_EQ(126, matchings1[1]);
+    // ASSERT_EQ(125, matchings1[0]);
+    ASSERT_EQ(126, matchings1[0]);
 
     // check the mismatches
     ASSERT_EQ(1, errors0.size());
-    ASSERT_EQ(2, errors1.size());
+    ASSERT_EQ(1, errors1.size());
     ASSERT_EQ(0, errors0[0]);
-    ASSERT_EQ(1, errors1[0]);
-    ASSERT_EQ(0, errors1[1]);
+    // ASSERT_EQ(1, errors1[0]);
+    ASSERT_EQ(0, errors1[0]);
 
     // Exchange a letter to produce mismatch
     t[5] = 'C';
@@ -282,19 +282,15 @@ TEST_F(ShiftAnd_test, matching_smaller)
     // one with insertion at pos 9,
     // one with substitution 13,
     // another one with deletion at 18
-    ASSERT_EQ(5, matchings.size());
-    ASSERT_EQ(5, errors.size());
+    ASSERT_EQ(3, matchings.size());
+    ASSERT_EQ(3, errors.size());
 
-    ASSERT_EQ(7, matchings[0]);
-    ASSERT_EQ(1, errors[0]);
-    ASSERT_EQ(8, matchings[1]);
-    ASSERT_EQ(0, errors[1]);
-    ASSERT_EQ(9, matchings[2]);
+    ASSERT_EQ(8, matchings[0]);
+    ASSERT_EQ(0, errors[0]);
+    ASSERT_EQ(13, matchings[1]);
+    ASSERT_EQ(1, errors[1]);
+    ASSERT_EQ(18, matchings[2]);
     ASSERT_EQ(1, errors[2]);
-    ASSERT_EQ(13, matchings[3]);
-    ASSERT_EQ(1, errors[3]);
-    ASSERT_EQ(18, matchings[4]);
-    ASSERT_EQ(1, errors[4]);
 
     // query only last part
     matchings.clear();
@@ -320,15 +316,11 @@ TEST_F(ShiftAnd_test, matching_bisulfite)
     std::vector<uint8_t> errors;
     sa1.querySeq(t.begin(), t.end(), matchings, errors);
 
-    ASSERT_EQ(3, matchings.size());
-    ASSERT_EQ(3, errors.size());
+    ASSERT_EQ(1, matchings.size());
+    ASSERT_EQ(1, errors.size());
 
-    ASSERT_EQ(7, matchings[0]);
-    ASSERT_EQ(1, errors[0]);
-    ASSERT_EQ(8, matchings[1]);
-    ASSERT_EQ(0, errors[1]);
-    ASSERT_EQ(9, matchings[2]);
-    ASSERT_EQ(1, errors[2]);
+    ASSERT_EQ(8, matchings[0]);
+    ASSERT_EQ(0, errors[0]);
 
     // introduce a substitution error
     t[4]= 'G';
