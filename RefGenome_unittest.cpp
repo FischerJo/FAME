@@ -42,7 +42,7 @@ TEST(RefGenome_test, simple1)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
+    cpgTab.push_back({0, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -148,7 +148,7 @@ TEST(RefGenome_test, simpleWithN)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
+    cpgTab.push_back({0, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -250,7 +250,7 @@ TEST(RefGenome_test, simpleTooShort)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
+    cpgTab.push_back({0, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -283,8 +283,8 @@ TEST(RefGenome_test, multiCpGNoOverlap)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
-    cpgTab.emplace_back(0, 63);
+    cpgTab.push_back({0, 3});
+    cpgTab.push_back({0, 63});
 
     std::vector<struct CpG> cpgStart;
 
@@ -427,8 +427,8 @@ TEST(RefGenome_test, multiCpGOverlap)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
-    cpgTab.emplace_back(0, 9);
+    cpgTab.push_back({0, 3});
+    cpgTab.push_back({0, 9});
 
     std::vector<struct CpG> cpgStart;
 
@@ -557,8 +557,8 @@ TEST(RefGenome_test, multiMeta)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
-    cpgTab.emplace_back(1, 3);
+    cpgTab.push_back({0, 3});
+    cpgTab.push_back({1, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -695,7 +695,7 @@ TEST(RefGenome_test, simpleAtEnd)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
+    cpgTab.push_back({0, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -803,7 +803,7 @@ TEST(RefGenome_test, simpleAtStart)
     std::vector<struct CpG> cpgTab;
 
     std::vector<struct CpG> cpgStart;
-    cpgStart.emplace_back(0, 10);
+    cpgStart.push_back({0, 10});
 
     RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
@@ -906,8 +906,8 @@ TEST(RefGenome_test, simpleGetSeed)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
-    cpgTab.emplace_back(0, 63);
+    cpgTab.push_back({0, 3});
+    cpgTab.push_back({0, 63});
 
     std::vector<struct CpG> cpgStart;
 
@@ -1030,7 +1030,7 @@ TEST(RefGenome_test, simpleGetSeedStart)
     std::vector<struct CpG> cpgTab;
 
     std::vector<struct CpG> cpgStart;
-    cpgStart.emplace_back(0, 10);
+    cpgStart.push_back({0, 10});
 
     RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
@@ -1080,7 +1080,7 @@ TEST(RefGenome_test, simpleRetrieveKSeqStart)
     std::vector<struct CpG> cpgTab;
 
     std::vector<struct CpG> cpgStart;
-    cpgStart.emplace_back(0, 10);
+    cpgStart.push_back({0, 10});
 
     RefGenome ref (std::move(cpgTab), std::move(cpgStart), genSeq);
 
@@ -1112,7 +1112,7 @@ TEST(RefGenome_test, simpleRetrieveKSeqNormal)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
+    cpgTab.push_back({0, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -1147,7 +1147,7 @@ TEST(RefGenome_test, simpleBlacklistFull)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 3);
+    cpgTab.push_back({0, 3});
 
     std::vector<struct CpG> cpgStart;
 
@@ -1175,7 +1175,7 @@ TEST(RefGenome_test, simpleBlacklistSame)
 
     // set up CpG container
     std::vector<struct CpG> cpgTab;
-    cpgTab.emplace_back(0, 2);
+    cpgTab.push_back({0, 2});
 
     std::vector<struct CpG> cpgStart;
 
