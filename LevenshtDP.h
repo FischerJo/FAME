@@ -31,13 +31,18 @@ class LevenshtDP
 
         LevenshtDP() = delete;
 
-        LevenshtDP(std::string& rowStr, const char* colStr);
+        LevenshtDP(const std::string& rowStr, const char* colStr);
 
         // -------------------
 
 
         // compute the levenshtein distance
-        void runDPFill();
+        //
+        // ARGUMENTS:
+        //      comp        comparison function for the letters
+        //
+        template <typename C>
+        void runDPFill(C& comp);
 
         // return edit distance
         // undefined behaviour if runDPFill was not run beforehand
@@ -51,11 +56,15 @@ class LevenshtDP
 
         // backtrack the result to obtain alignment
         //
+        // ARGUMENTS:
+        //      comp        comparison function for the letters
+        //
         // RETURN:
         //      vector of size of rowPat containing a value of type ERROR_T
         //      the value represents the type of transition made from i-th to
         //      i+1 th character of rowPat to match with colPat
-        std::vector<ERROR_T> backtrackDP();
+        template <typename C>
+        std::vector<ERROR_T> backtrackDP(C& comp);
 
 
     private:
@@ -72,19 +81,22 @@ class LevenshtDP
         //          indices of positions in strings
         //          i       position in rowPat
         //          j       position in colPat
+        //          comp    comparison function for the letters
+        //
         //
         // RETURN:
         //          solution to frecurrence
-        inline T LevRec(long i, long j)
+        template <typename C>
+        inline T LevRec(long i, long j, C& comp)
         {
-            T mismatchFlag = rowPat[i-1] == colPat[j-1] ? static_cast<T>(0) : static_cast<T>(1);
-            return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchFlag});
+            T mismatchTest = comp(rowPat[i-1], colPat[j-1]);
+            return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
         }
 
         // the two strings that are compared
         // rowPat is represented by rows of the DP matrix
         // colPat is represented by columns in DP matrix
-        std::string& rowPat;
+        const std::string& rowPat;
         const char* colPat;
 
         // underlying dp matrix
@@ -95,7 +107,7 @@ class LevenshtDP
 
 
 template <typename T, size_t band>
-LevenshtDP<T, band>::LevenshtDP(std::string& rowStr, const char* colStr) :
+LevenshtDP<T, band>::LevenshtDP(const std::string& rowStr, const char* colStr) :
         rowPat(rowStr)
     ,   colPat(colStr)
     ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, static_cast<T>(0))
@@ -109,7 +121,8 @@ LevenshtDP<T, band>::LevenshtDP(std::string& rowStr, const char* colStr) :
 }
 
 template <typename T, size_t band>
-void LevenshtDP<T, band>::runDPFill()
+template <typename C>
+void LevenshtDP<T, band>::runDPFill(C& comp)
 {
 
     // INIT BORDERS
@@ -148,7 +161,7 @@ void LevenshtDP<T, band>::runDPFill()
             if (row + offset <= 0)
                 continue;
 
-            dpMatrix(row, row + offset) = LevRec(row, row + offset);
+            dpMatrix(row, row + offset) = LevRec<C>(row, row + offset, comp);
         }
     }
 
@@ -170,13 +183,16 @@ void LevenshtDP<T, band>::runDPFill()
 
 
 template <typename T, size_t band>
-std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP()
+template <typename C>
+std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
 {
 
     // the trace of errors
     // note that insertion means we have an additional character in the PATTERN (rowPat)
     // and deletion analogously
-    std::vector<ERROR_T> errorTrace (rowPat.size());
+    // we start indexing for the character in the back
+    // that is errorTrace[0] is the error type of the last character
+    std::vector<ERROR_T> errorTrace (rowPat.size() + band, MISMATCH);
     // find minimum in the last part of table
     T minimum = std::numeric_limits<T>::max();
     // stores the index of the cell of the minimum
@@ -193,12 +209,13 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP()
     }
 
     // BACKTRACK
+    size_t index = 0;
     // starting from the minimum cell in the last column
-    for (long row = rowPat.size(); row > 0;)
+    for (long row = rowPat.size(); row > 0; ++index)
     {
 
         // check if characters match
-        T mismatchFlag = rowPat[row - 1] == colPat[col - 1] ? static_cast<T>(0) : static_cast<T>(1);
+        T mismatchFlag = comp(rowPat[row - 1], colPat[col - 1]);
 
         // see where does it came from
         if (dpMatrix(row-1,col) + 1 < dpMatrix(row,col-1) + 1)
@@ -206,16 +223,16 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP()
             // we have an insertion in the pattern
             if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
-                errorTrace[row - 1] = INSERTION;
+                errorTrace[index] = INSERTION;
                 --row;
 
             } else {
 
                 // test if mismatch
                 if (mismatchFlag)
-                    errorTrace[row - 1] = MISMATCH;
+                    errorTrace[index] = MISMATCH;
                 else
-                    errorTrace[row - 1] = MATCH;
+                    errorTrace[index] = MATCH;
                 --row;
                 --col;
 
@@ -223,19 +240,19 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP()
 
         } else {
 
-            // we have an insertion in the pattern
+            // we have a deletion in the pattern
             if (dpMatrix(row,col-1) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
-                errorTrace[row - 1] = DELETION;
+                errorTrace[index] = DELETION;
                 --col;
 
             } else {
 
                 // test if mismatch
                 if (mismatchFlag)
-                    errorTrace[row - 1] = MISMATCH;
+                    errorTrace[index] = MISMATCH;
                 else
-                    errorTrace[row - 1] = MATCH;
+                    errorTrace[index] = MATCH;
                 --row;
                 --col;
 
