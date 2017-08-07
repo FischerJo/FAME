@@ -6,9 +6,17 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <unordered_map>
 
 
-#define CORENUM  16
+// --------------- PARAMS ---------------
+
+constexpr size_t refLen = 1000000000;
+constexpr double mthRate = 0.5;
+constexpr size_t readLen = 100;
+constexpr size_t readNum = 10000000;
+constexpr unsigned int errNum = 2;
+#define CORENUM  1
 
 // class representing a synthetic dataset
 class SynthDS
@@ -59,10 +67,17 @@ class SynthDS
         std::vector<std::string> genReadsRevFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum);
 
         // generate set of reads of given length drawn from a LOADED reference
-        std::vector<std::string> genReadsFwdRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets);
-        std::vector<std::string> genReadsRevRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets);
+        std::vector<std::string> genReadsFwdRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs);
+        std::vector<std::string> genReadsRevRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs);
 
         inline std::string& getRef() { return refFwd;}
+
+        // storing methylation rates the same way we do in Metal
+        // key is 32bit most significant chromosome; 32bit least significant position in chromosome
+        // value is first: unmethylated second: methylated count
+        std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateFwd;
+        std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateRev;
+
 
     private:
 
