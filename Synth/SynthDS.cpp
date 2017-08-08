@@ -357,6 +357,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                         }
                     }
                 }
+                std::reverse(read.begin(), read.end());
             }
 
             readSet[i] = std::move(read);
@@ -523,6 +524,7 @@ std::vector<std::string> SynthDS::genReadsRevRef(const size_t readLen, const siz
                         }
                     }
                 }
+                std::reverse(read.begin(), read.end());
             }
 
             readSet[i] = std::move(read);
