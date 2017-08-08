@@ -327,41 +327,62 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 
             } else {
 
+                std::reverse(read.begin(), read.end());
                 for (size_t j = 0; j < readLen; ++j)
                 {
-                    if (read[j] == 'G')
+                    switch (read[j])
                     {
-                        // try conversion
-                        if (!methToss(MT))
-                        {
-                            if (convToss(MT))
-                                read[j] = 'A';
-                            // if necessary, count up methylation counters
-                            if (j > 0)
-                            {
-                                if (read[j-1] == 'C')
-                                {
-                                    cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ].first += 1;
-                                }
-                            }
-                        } else {
+                        // C will generate G on reverse stran -> test for G to A conversion
+                        case ('C') :
 
-                            // if necessary, count up methylation counters
-                            if (j > 0)
+                            // try conversion
+                            if (!methToss(MT))
                             {
-                                if (read[j-1] == 'C')
+                                if (convToss(MT))
+                                    read[j] = 'A';
+                                // if necessary, count up methylation counters
+                                if (j > 0)
                                 {
-                                    cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ].second += 1;
+                                    if (read[j-1] == 'C')
+                                    {
+                                        cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].first += 1;
+                                    }
                                 }
+
+                            } else {
+
+                                // if necessary, count up methylation counters
+                                if (j > 0)
+                                {
+                                    if (read[j-1] == 'C')
+                                    {
+                                        cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
+                                    }
+                                }
+
                             }
-                        }
+                            break;
+
+                        case ('G') :
+
+                            read[j] = 'C';
+                            break;
+
+                        case ('A') :
+
+                            read[j] = 'T';
+                            break;
+
+                        case ('T') :
+
+                            read[j] = 'A';
+                            break;
                     }
                 }
-                std::reverse(read.begin(), read.end());
             }
 
             readSet[i] = std::move(read);
-            offsets[i] = std::move(std::pair<size_t,size_t>(offset, chr));
+            offsets[i] = std::pair<size_t,size_t>(offset, chr);
         }
         processedReads += chrReadNum;
 
@@ -492,39 +513,58 @@ std::vector<std::string> SynthDS::genReadsRevRef(const size_t readLen, const siz
 
             } else {
 
+                std::reverse(read.begin(), read.end());
                 for (size_t j = 0; j < readLen; ++j)
                 {
-                    if (read[j] == 'G')
+                    switch (read[j])
                     {
-                        // try conversion
-                        if (!methToss(MT))
-                        {
-                            if (convToss(MT))
-                                read[j] = 'A';
-                            // if necessary, count up methylation counters
-                            if (j > 0)
+                        // C will generate G on reverse stran -> test for G to A conversion
+                        case ('C') :
+
+                            // try conversion
+                            if (!methToss(MT))
                             {
-                                if (read[j-1] == 'C')
+                                if (convToss(MT))
+                                    read[j] = 'A';
+                                // if necessary, count up methylation counters
+                                if (j > 0)
                                 {
-                                    cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ].first += 1;
+                                    if (read[j-1] == 'C')
+                                    {
+                                        cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].first += 1;
+                                    }
                                 }
-                            }
 
-                        } else {
+                            } else {
 
-                            // if necessary, count up methylation counters
-                            if (j > 0)
-                            {
-                                if (read[j-1] == 'C')
+                                // if necessary, count up methylation counters
+                                if (j > 0)
                                 {
-                                    cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ].second += 1;
+                                    if (read[j-1] == 'C')
+                                    {
+                                        cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
+                                    }
                                 }
-                            }
 
-                        }
+                            }
+                            break;
+
+                        case ('G') :
+
+                            read[j] = 'C';
+                            break;
+
+                        case ('A') :
+
+                            read[j] = 'T';
+                            break;
+
+                        case ('T') :
+
+                            read[j] = 'A';
+                            break;
                     }
                 }
-                std::reverse(read.begin(), read.end());
             }
 
             readSet[i] = std::move(read);
