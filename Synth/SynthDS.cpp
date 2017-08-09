@@ -332,7 +332,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                 {
                     switch (read[j])
                     {
-                        // C will generate G on reverse stran -> test for G to A conversion
+                        // C will generate G on reverse strand -> test for G to A conversion
                         case ('C') :
 
                             // try conversion
@@ -354,6 +354,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                                 // if necessary, count up methylation counters
                                 if (j > 0)
                                 {
+                                    read[j] = 'G';
                                     if (read[j-1] == 'C')
                                     {
                                         cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
@@ -540,6 +541,7 @@ std::vector<std::string> SynthDS::genReadsRevRef(const size_t readLen, const siz
                                 // if necessary, count up methylation counters
                                 if (j > 0)
                                 {
+                                    read[j] = 'G';
                                     if (read[j-1] == 'C')
                                     {
                                         cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
