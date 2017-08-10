@@ -122,36 +122,38 @@ namespace MATCH {
 
     // MATCH DEFINITION
     //
-    // 32 lower (least significant) bit hold offset where the match ends in the sequence
-    // 8 next higher bits hold the chromosome index
-    // 8 even next higher bits hold number of errors produced by this match
-    // most significant bit holds strand flag which is 1 iff match is on forward strand
+    // 16 lower (least significant) bit hold offset where the match ends in the sequence
+    // 8 higher bits hold number of errors produced by this match
+    // next higher bit is strand flag
+    // even next higher bit is start flag
+    // 32 most significant bits hold meta CpGID
     typedef uint64_t match;
 
     // return the offset of given match
-    inline uint32_t getOffset(MATCH::match m)
+    inline uint64_t getOffset(const MATCH::match m)
     {
-        return static_cast<uint32_t>(m & 0x00000000ffffffffULL);
+        return m & 0x000000000000ffffULL;
+    }
+    inline uint64_t getErrNum(const MATCH::match m)
+    {
+        return (m & 0x0000000000ff0000ULL) >> 16;
+    }
+    inline bool isFwd(const MATCH::match m)
+    {
+        return (m & 0x0000000001000000ULL);
+    }
+    inline bool isStart(const MATCH::match m)
+    {
+        return (m & 0x0000000002000000ULL);
+    }
+    inline uint32_t getMetaID(const MATCH::match m)
+    {
+        return static_cast<uint32_t>(m >> 32);
     }
 
-    inline uint8_t getChrom(MATCH::match m)
+    inline MATCH::match constructMatch(uint16_t off, uint8_t errNum, uint64_t isFwd, uint64_t isStart, uint64_t metaID)
     {
-        return static_cast<uint8_t>((m & 0x000000ff00000000ULL) >> 32);
-    }
-
-    inline uint64_t getErrNum(MATCH::match m)
-    {
-        return (m & 0x0000ff0000000000ULL) >> 40;
-    }
-
-    inline bool isFwd(MATCH::match m)
-    {
-        return (m & 0x8000000000000000ULL);
-    }
-
-    inline MATCH::match constructMatch(uint32_t off, uint8_t chrom, uint8_t errNum, uint64_t isFwd)
-    {
-        return (isFwd << 63) | (static_cast<uint64_t>(errNum) << 40) | (static_cast<uint64_t>(chrom) << 32) | static_cast<uint64_t>(off);
+        return (static_cast<uint64_t>(off)) | (static_cast<uint64_t>(errNum) << 16) | (isFwd << 24) | (isStart << 25) | (metaID << 32);
     }
 } // end namespace MATCH
 
