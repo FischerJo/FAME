@@ -94,6 +94,31 @@ TEST(matching_test, simpleSeq)
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 
 }
+// test simple sequence for reverse query
+TEST(matching_test, simpleSeqRev)
+{
+    struct Compi
+    {
+        uint8_t operator()(const char c1, const char c2)
+        {
+            return c1==c2 ? 0 : 1;
+        }
+    } comp;
+
+    std::string s1 =   "TTTGACCGAA";
+    std::string s2 = "ACTGTGACTGAA";
+
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 11);
+
+    lev.runDPFillRev<Compi>(comp);
+
+    ASSERT_EQ(2, lev.getEditDist());
+
+    std::vector<ERROR_T> trace ({MATCHING, MISMATCH, MATCHING, MATCHING,  MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
+
+    ASSERT_EQ(trace, lev.backtrackDPRev<Compi>(comp));
+
+}
 
 // test a more complex sequence with insertions
 TEST(matching_test, complexSeqIns)

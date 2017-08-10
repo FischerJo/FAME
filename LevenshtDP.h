@@ -31,7 +31,7 @@ class LevenshtDP
 
         LevenshtDP() = delete;
 
-        LevenshtDP(const std::string rowStr, const char* colStr);
+        LevenshtDP(const std::string& rowStr, const char* colStr);
 
         // -------------------
 
@@ -90,7 +90,7 @@ class LevenshtDP
         //
         //
         // RETURN:
-        //          solution to frecurrence
+        //          solution to recurrence
         template <typename C>
         inline T LevRec(long i, long j, C& comp)
         {
@@ -101,14 +101,14 @@ class LevenshtDP
         template <typename C>
         inline T LevRecRev(long i, long j, C& comp)
         {
-            T mismatchTest = comp(rowPat[i-1], *(colPat-j+1));
+            T mismatchTest = comp(rowPat[rowPat.size() - i], *(colPat-j+1));
             return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
         }
 
         // the two strings that are compared
         // rowPat is represented by rows of the DP matrix
         // colPat is represented by columns in DP matrix
-        const std::string rowPat;
+        const std::string& rowPat;
         const char* colPat;
 
         // underlying dp matrix
@@ -119,7 +119,7 @@ class LevenshtDP
 
 
 template <typename T, size_t band>
-LevenshtDP<T, band>::LevenshtDP(const std::string rowStr, const char* colStr) :
+LevenshtDP<T, band>::LevenshtDP(const std::string& rowStr, const char* colStr) :
         rowPat(rowStr)
     ,   colPat(colStr)
     ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, static_cast<T>(0))
@@ -236,6 +236,20 @@ void LevenshtDP<T, band>::runDPFillRev(C& comp)
             dpMatrix(row, row + offset) = LevRecRev<C>(row, row + offset, comp);
         }
     }
+    // // TEST PRINTOUT
+    // for (long row = 0; row <= static_cast<long>(rowPat.size()); ++row)
+    // {
+    //     for (long offset = -band - 1; offset <= static_cast<long>(band + 1); ++offset)
+    //     {
+    //         // skip borders
+    //         if (row + offset < 0)
+    //             continue;
+    //         if (row  + offset > rowPat.size() + band)
+    //             continue;
+    //         std::cout << dpMatrix(row, row + offset) << "\t";
+    //     }
+    //     std::cout << "\n";
+    // }
 }
 
 
@@ -353,7 +367,7 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
     {
 
         // check if characters match
-        T mismatchFlag = comp(rowPat[row - 1], *(colPat-col+1));
+        T mismatchFlag = comp(rowPat[rowPat.size() - row], *(colPat-col+1));
 
         // see where does it came from
         if (dpMatrix(row-1,col) + 1 < dpMatrix(row,col-1) + 1)
