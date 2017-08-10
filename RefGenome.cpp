@@ -18,7 +18,7 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
 
     if (!testPODs())
     {
-        std::cout << "\nWARNING: Structure are not POD! Cannot write index to file savely!\n\n";
+        std::cout << "\nWARNING: Structures are not POD! Cannot write index to file savely!\n\n";
     }
     // find out genome size
     size_t gensize = 0;
@@ -41,9 +41,12 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "\nDone hashing CpGs (" << runtime << "s)\n";
+    // std::cout << "\nStarting filtering process for Index\nThrowing out highly repetetive kmers...\n";
     // filter out highly repetitive sequences
-    filterHashTable();
-    filterRedundancyInHashTable();
+    // filterHashTable();
+    // std::cout << "\nThrowing out kmers of single metaCpG with same hash...\n";
+    // filterRedundancyInHashTable();
+    // std::cout << "\nFinished index processing.\n";
 }
 
 
@@ -86,6 +89,8 @@ void RefGenome::save(const std::string& filepath)
     of.write(reinterpret_cast<char*>(&winl), sizeof(winl));
     auto kmerl = MyConst::KMERLEN;
     of.write(reinterpret_cast<char*>(&kmerl), sizeof(kmerl));
+    auto kmerc = MyConst::KMERCUTOFF;
+    of.write(reinterpret_cast<char*>(&kmerc), sizeof(kmerc));
 
     // store NON-start CpGs
     size_t cpgNum = cpgTable.size();
@@ -137,7 +142,6 @@ void RefGenome::save(const std::string& filepath)
     // store strands
     std::ofstream strandFile(filepath + "_strands", std::ofstream::binary | std::ofstream::trunc);
     write_strands(strandFile);
-    // std::copy(strandTable.begin(), strandTable.end(), std::ostreambuf_iterator<char>(strandFile));
     if (strandFile.fail())
     {
         std::cerr << "Error while writing index strand file! Terminating...\n\n";
@@ -216,6 +220,13 @@ void RefGenome::load(const std::string& filepath)
         std::cerr << "k-mer length used in source code and index file are different!\n\n";
         exit(1);
     }
+    auto kmerc = MyConst::KMERCUTOFF;
+    ifs.read(reinterpret_cast<char*>(&kmerc), sizeof(kmerc));
+    if (kmerc != MyConst::KMERCUTOFF)
+    {
+        std::cerr << "k-mer length used in source code and index file are different!\n\n";
+        exit(1);
+    }
 
     // load NON-start CpGs
     size_t cpgNum;
@@ -251,10 +262,7 @@ void RefGenome::load(const std::string& filepath)
     ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
 
     // load strands
-    std::chrono::high_resolution_clock::time_point startTime2 = std::chrono::high_resolution_clock::now();
-    // strandTable.reserve(kmerNum);
     std::ifstream ifs_bool(filepath + "_strands", std::ifstream::binary);
-    // std::copy(std::istreambuf_iterator<char>(ifs_bool), std::istreambuf_iterator<char>(), std::back_inserter(strandTable));
     read_strands(ifs_bool);
     if (ifs_bool.fail())
     {
@@ -263,9 +271,6 @@ void RefGenome::load(const std::string& filepath)
     }
 
     ifs_bool.close();
-    std::chrono::high_resolution_clock::time_point endTime2 = std::chrono::high_resolution_clock::now();
-    auto runtime2 = std::chrono::duration_cast<std::chrono::seconds>(endTime2 - startTime2).count();
-    std::cout << "Finished reading strand file in " << runtime2 << "s\n\n";
 
     // load meta CpGs
     size_t metaCpGNum;
@@ -345,10 +350,10 @@ inline void RefGenome::write_filteredKmers(std::ofstream& of)
     for (const uint64_t k : filteredKmers)
     {
 
-        of.write(reinterpret_cast<char*>(&k), sizeof(k));
+        of.write(reinterpret_cast<const char*>(&k), sizeof(k));
     }
 }
-inline void RefGenome::load_filteredKmers(std::ifstream ifs)
+inline void RefGenome::read_filteredKmers(std::ifstream& ifs)
 {
 
     size_t n;
@@ -490,7 +495,7 @@ void RefGenome::generateHashes(std::vector<std::vector<char> >& genomeSeq)
 
             // how long is the rest of the sequence after the end of last cpg in meta cpg
             const unsigned int remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
-            // if we can read the full sequence breadth after the CpG
+            // if we can read the full sequence length after the CpG
             if (remainderBps >= (MyConst::READLEN - 2) )
             {
 
@@ -1284,7 +1289,7 @@ void RefGenome::filterRedundancyInHashTable()
 
     // shrink to new size
     kmerTable.resize(filterItK - kmerTable.begin());
-    strandTable.resize(filterItK - kmerTable.begin());
+    strandTable.resize(filterItS - stradTable.begin());
 
     std::chrono::high_resolution_clock::time_point filterEndTime = std::chrono::high_resolution_clock::now();
 
@@ -1372,7 +1377,7 @@ void RefGenome::filterHashTable()
 
     // shrink to new size
     kmerTable.resize(filterItK - kmerTable.begin());
-    strandTable.resize(filterItK - kmerTable.begin());
+    strandTable.resize(filterItS - strandTable.begin());
 
     std::chrono::high_resolution_clock::time_point filterEndTime = std::chrono::high_resolution_clock::now();
 
