@@ -352,9 +352,9 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                             } else {
 
                                 // if necessary, count up methylation counters
+                                read[j] = 'G';
                                 if (j > 0)
                                 {
-                                    read[j] = 'G';
                                     if (read[j-1] == 'C')
                                     {
                                         cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
@@ -539,9 +539,9 @@ std::vector<std::string> SynthDS::genReadsRevRef(const size_t readLen, const siz
                             } else {
 
                                 // if necessary, count up methylation counters
+                                read[j] = 'G';
                                 if (j > 0)
                                 {
-                                    read[j] = 'G';
                                     if (read[j-1] == 'C')
                                     {
                                         cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
