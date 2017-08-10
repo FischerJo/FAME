@@ -19,10 +19,10 @@ TEST(init_test, twoLetterMismatches)
 
     std::string s1 = "AG";
 
-    std::string s2_c = "AGCT";
-    const char* s2_correct = s2_c.data();
-    std::string s2_ic = "CGCCT";
-    const char* s2_incorrect = s2_ic.data();
+    std::string s2_c = "CTAG";
+    const char* s2_correct = s2_c.data() + 3;
+    std::string s2_ic = "CCTCG";
+    const char* s2_incorrect = s2_ic.data() + 4;
 
     // test with no error
     LevenshtDP<uint16_t, 0> l0_corr(s1,s2_correct);
@@ -58,10 +58,10 @@ TEST(init_test, twoLetterMismatches)
     std::vector<ERROR_T> errTypes_incorr = l2_incorr.backtrackDP<Compi>(comp);
 
     ASSERT_EQ(std::vector<ERROR_T>({MATCHING, MATCHING, MISMATCH, MISMATCH}), errTypes_corr);
-    ASSERT_EQ(std::vector<ERROR_T>({MATCHING, MISMATCH, MISMATCH, MISMATCH}), errTypes_incorr);
+    ASSERT_EQ(std::vector<ERROR_T>({INSERTION, MATCHING, MISMATCH, MISMATCH}), errTypes_incorr);
 
     // introduce another error
-    s2_ic[1] = 'T';
+    s2_ic[4] = 'T';
     LevenshtDP<uint16_t, 2> l2_incorr2(s1,s2_incorrect);
 
     l2_incorr2.runDPFill<Compi>(comp);
@@ -80,16 +80,16 @@ TEST(matching_test, simpleSeq)
         }
     } comp;
 
-    std::string s1 = "ACTTTGACCG";
-    std::string s2 = "ACTGTGACTGAA";
+    std::string s1 =   "ACTTTGACCG";
+    std::string s2 = "AAACTGTGACTG";
 
-    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 11);
 
     lev.runDPFill<Compi>(comp);
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MISMATCH, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 
@@ -101,20 +101,38 @@ TEST(matching_test, simpleSeqRev)
     {
         uint8_t operator()(const char c1, const char c2)
         {
-            return c1==c2 ? 0 : 1;
+            switch (c1)
+            {
+                case 'A':
+                    return c2 == 'T' ? 0 : 1;
+                    break;
+
+                case 'C':
+                    return c2 == 'G' ? 0 : 1;
+                    break;
+
+                case 'G':
+                    return c2 == 'C' ? 0 : 1;
+                    break;
+
+                case 'T':
+                    return c2 == 'A' ? 0 : 1;
+                    break;
+            }
+            return 1;
         }
     } comp;
 
-    std::string s1 =   "TTTGACCGAA";
-    std::string s2 = "ACTGTGACTGAA";
+    std::string s1 = "TCCAG";
+    std::string s2 = "GACTGAA";
 
-    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 11);
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 6);
 
     lev.runDPFillRev<Compi>(comp);
 
-    ASSERT_EQ(2, lev.getEditDist());
+    ASSERT_EQ(1, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MISMATCH, MATCHING, MATCHING,  MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MISMATCH, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDPRev<Compi>(comp));
 
@@ -132,15 +150,15 @@ TEST(matching_test, complexSeqIns)
     } comp;
 
     std::string s1 = "ACTAAGTGACTG";
-    std::string s2 = "ACTGTGACTGAATT";
+    std::string s2 = "TTTTACTGTGACTG";
 
-    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 13);
 
     lev.runDPFill<Compi>(comp);
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, INSERTION, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, INSERTION, INSERTION, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 }
@@ -156,16 +174,16 @@ TEST(matching_test, complexSeqDel)
         }
     } comp;
 
-    std::string s1 = "ACTGACTT";
-    std::string s2 = "ACTGTGACTTAA";
+    std::string s1 = "TGTGACTT";
+    std::string s2 = "TGTGACTAAT";
 
-    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 9);
 
     lev.runDPFill<Compi>(comp);
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, DELETION, DELETION, MATCHING, MATCHING});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, DELETION, DELETION, MATCHING});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 }
@@ -181,16 +199,22 @@ TEST(matching_test, complexSeqAll)
         }
     } comp;
 
-    std::string s1 = "ACTAGTGATTG";
-    std::string s2 = "ACTGTGACTGAAT";
+    std::string s1 = "ACGTGAACCTG";
+    std::string s2 = "AAACGGTGAACTG";
 
-    LevenshtDP<uint16_t, 2> lev(s1, s2.data());
+    LevenshtDP<uint16_t, 2> lev(s1, s2.data() + 12);
 
     lev.runDPFill<Compi>(comp);
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, DELETION, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, MATCHING, MATCHING, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 }
+
+// TODO test indels for reverse
+//
+//
+//
+//

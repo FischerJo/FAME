@@ -94,14 +94,14 @@ class LevenshtDP
         template <typename C>
         inline T LevRec(long i, long j, C& comp)
         {
-            T mismatchTest = comp(rowPat[i-1], colPat[j-1]);
+            T mismatchTest = comp(rowPat[rowPat.size() - i], *(colPat-j+1));
             return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
         }
         // if we want to align from right to left
         template <typename C>
         inline T LevRecRev(long i, long j, C& comp)
         {
-            T mismatchTest = comp(rowPat[rowPat.size() - i], *(colPat-j+1));
+            T mismatchTest = comp(rowPat[i-1], *(colPat-j+1));
             return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
         }
 
@@ -177,7 +177,7 @@ void LevenshtDP<T, band>::runDPFill(C& comp)
         }
     }
 
-    // TEST PRINTOUT
+    // // TEST PRINTOUT
     // for (long row = 0; row <= static_cast<long>(rowPat.size()); ++row)
     // {
     //     for (long offset = -band - 1; offset <= static_cast<long>(band + 1); ++offset)
@@ -287,10 +287,10 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
     {
 
         // check if characters match
-        T mismatchFlag = comp(rowPat[row - 1], colPat[col - 1]);
+        T mismatchFlag = comp(rowPat[rowPat.size() - row], *(colPat-col+1));
 
         // see where does it came from
-        if (dpMatrix(row-1,col) + 1 < dpMatrix(row,col-1) + 1)
+        if (dpMatrix(row-1,col) < dpMatrix(row,col-1))
         {
             // we have an insertion in the pattern
             if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
@@ -367,10 +367,10 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
     {
 
         // check if characters match
-        T mismatchFlag = comp(rowPat[rowPat.size() - row], *(colPat-col+1));
+        T mismatchFlag = comp(rowPat[row - 1], *(colPat -col + 1));
 
         // see where does it came from
-        if (dpMatrix(row-1,col) + 1 < dpMatrix(row,col-1) + 1)
+        if (dpMatrix(row-1,col) < dpMatrix(row,col-1))
         {
             // we have an insertion in the pattern
             if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
