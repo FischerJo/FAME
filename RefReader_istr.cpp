@@ -5,7 +5,7 @@
 #include "RefReader_istr.h"
 
 
-void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq)
+void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq)
 {
 
     std::string line;
@@ -29,16 +29,8 @@ void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, 
 
     std::cout << "Start reading reference file " << filename << std::endl;
 
-    // TODO
-    // unsigned int counter = 0;
-
     while (getline(ifs, line)) {
 
-        // if (counter >= 3121254)
-        // {
-        //     break;
-        // }
-        // ++counter;
         // Test for id tag line
         if (line.begin() != line.end() && *(line.begin()) == '>' && (line.begin() + 1) != line.end())
         {
@@ -89,8 +81,6 @@ void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, 
 
     }
 
-    std::cout << "Done reading reference file" << std::endl;
-
     // if we read primary assembly previously, write it to vectors
     if (contFlag)
     {
@@ -102,4 +92,7 @@ void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, 
     cpgTab.shrink_to_fit();
     genSeq.shrink_to_fit();
     ifs.close();
+
+    std::cout << "Done reading reference file" << std::endl;
+
 }

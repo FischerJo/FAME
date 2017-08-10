@@ -16,7 +16,7 @@
 // produces sequence strings seperated by chromosome saved to genSeq, their length to genSeqLen
 //      underlying vectors should be empty on calling
 //      convention: table index 0-21  autosome 1-22, 22-23 allosome X,Y
-void readReference(const char* const filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq);
+void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq);
 
 // read a line of the reference, constructing possible CpGs, appending and counting the read characters
 //
