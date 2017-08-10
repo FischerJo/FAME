@@ -1,6 +1,6 @@
 
 OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o main.o\
-		ReadQueue.o Read.o CONST.o ShiftAnd.o
+		ReadQueue.o Read.o CONST.o ShiftAnd.o LevenshtDP.o
 PROGNAME=Metal
 CXX=g++
 
@@ -29,7 +29,7 @@ ${PROGNAME}: ${OBJECTS}
 	${CXX} ${CXXFLAGS} ${OBJECTS} ${GZFLAGS} -o $@ 
 
 ${PROGNAME}Profile: ${OBJECTS}
-	${CXX} ${CXXFLAGS} -pg -rdynamic ${OBJECTS} ${GZFLAGS}-o $@
+	${CXX} ${CXXFLAGS} -pg -rdynamic ${OBJECTS} ${GZFLAGS} -o $@
 
 clean:
 	rm -f ${OBJECTS} ${PROGNAME}
