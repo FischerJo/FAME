@@ -10,7 +10,7 @@
 
 
 // types of errors allowed
-enum ERROR_T {MATCH, MISMATCH, INSERTION, DELETION};
+enum ERROR_T {MATCHING, MISMATCH, INSERTION, DELETION};
 
 // class for dynamic programming approach for computing Levenshtein
 // distance and the corresponding alignment for two strings
@@ -31,7 +31,7 @@ class LevenshtDP
 
         LevenshtDP() = delete;
 
-        LevenshtDP(const std::string& rowStr, const char* colStr);
+        LevenshtDP(const std::string rowStr, const char* colStr);
 
         // -------------------
 
@@ -43,6 +43,9 @@ class LevenshtDP
         //
         template <typename C>
         void runDPFill(C& comp);
+        // for querying from right to left
+        template <typename C>
+        void runDPFillRev(C& comp);
 
         // return edit distance
         // undefined behaviour if runDPFill was not run beforehand
@@ -65,6 +68,8 @@ class LevenshtDP
         //      i+1 th character of rowPat to match with colPat
         template <typename C>
         std::vector<ERROR_T> backtrackDP(C& comp);
+        template <typename C>
+        std::vector<ERROR_T> backtrackDPRev(C& comp);
 
 
     private:
@@ -92,11 +97,18 @@ class LevenshtDP
             T mismatchTest = comp(rowPat[i-1], colPat[j-1]);
             return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
         }
+        // if we want to align from right to left
+        template <typename C>
+        inline T LevRecRev(long i, long j, C& comp)
+        {
+            T mismatchTest = comp(rowPat[i-1], *(colPat-j+1));
+            return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
+        }
 
         // the two strings that are compared
         // rowPat is represented by rows of the DP matrix
         // colPat is represented by columns in DP matrix
-        const std::string& rowPat;
+        const std::string rowPat;
         const char* colPat;
 
         // underlying dp matrix
@@ -107,7 +119,7 @@ class LevenshtDP
 
 
 template <typename T, size_t band>
-LevenshtDP<T, band>::LevenshtDP(const std::string& rowStr, const char* colStr) :
+LevenshtDP<T, band>::LevenshtDP(const std::string rowStr, const char* colStr) :
         rowPat(rowStr)
     ,   colPat(colStr)
     ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, static_cast<T>(0))
@@ -180,6 +192,52 @@ void LevenshtDP<T, band>::runDPFill(C& comp)
     //     std::cout << "\n";
     // }
 }
+template <typename T, size_t band>
+template <typename C>
+void LevenshtDP<T, band>::runDPFillRev(C& comp)
+{
+
+    // INIT BORDERS
+
+    dpMatrix(0,0) = 0;
+
+    // initialize first row
+    for (long col = 1; col <= static_cast<long>(band); ++col)
+    {
+        dpMatrix(0, col) = col;
+    }
+    // init first column
+    for (long row = 1; row <= static_cast<long>(band); ++row)
+    {
+        dpMatrix(row, 0) = row;
+    }
+    // init outermost lefthanded band
+    for (long col = 0; col < static_cast<long>(rowPat.size() - band); ++col)
+    {
+        dpMatrix(col + (band + 1), col) = std::numeric_limits<T>::max() - col - band - 1;
+    }
+    // init outermost righthanded band
+    for (long row = 0; row < static_cast<long>(rowPat.size()); ++row)
+    {
+        dpMatrix(row, row + (band + 1)) = std::numeric_limits<T>::max() - row - band - 1;
+    }
+
+
+    // FILL MATRIX
+    for (long row = 1; row <= static_cast<long>(rowPat.size()); ++row)
+    {
+
+        for (long offset = -band; offset <= static_cast<long>(band); ++offset)
+        {
+            // skip borders
+            if (row + offset <= 0)
+                continue;
+
+            dpMatrix(row, row + offset) = LevRecRev<C>(row, row + offset, comp);
+        }
+    }
+}
+
 
 
 template <typename T, size_t band>
@@ -232,7 +290,7 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
                 if (mismatchFlag)
                     errorTrace[index] = MISMATCH;
                 else
-                    errorTrace[index] = MATCH;
+                    errorTrace[index] = MATCHING;
                 --row;
                 --col;
 
@@ -252,7 +310,87 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
                 if (mismatchFlag)
                     errorTrace[index] = MISMATCH;
                 else
-                    errorTrace[index] = MATCH;
+                    errorTrace[index] = MATCHING;
+                --row;
+                --col;
+
+            }
+        }
+
+    }
+    return errorTrace;
+}
+template <typename T, size_t band>
+template <typename C>
+std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
+{
+
+    // the trace of errors
+    // note that insertion means we have an additional character in the PATTERN (rowPat)
+    // and deletion analogously
+    // we start indexing for the character in the back
+    // that is errorTrace[0] is the error type of the last character
+    std::vector<ERROR_T> errorTrace (rowPat.size() + band, MISMATCH);
+    // find minimum in the last part of table
+    T minimum = std::numeric_limits<T>::max();
+    // stores the index of the cell of the minimum
+    size_t col = 0;
+    for (long offset = -static_cast<long>(band); offset <= static_cast<long>(band); ++offset)
+    {
+        const T& valRef = dpMatrix(rowPat.size(), rowPat.size() + offset);
+        if (valRef < minimum)
+        {
+
+            col = rowPat.size() + offset;
+            minimum = valRef;
+        }
+    }
+
+    // BACKTRACK
+    size_t index = 0;
+    // starting from the minimum cell in the last column
+    for (long row = rowPat.size(); row > 0; ++index)
+    {
+
+        // check if characters match
+        T mismatchFlag = comp(rowPat[row - 1], *(colPat-col+1));
+
+        // see where does it came from
+        if (dpMatrix(row-1,col) + 1 < dpMatrix(row,col-1) + 1)
+        {
+            // we have an insertion in the pattern
+            if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
+            {
+                errorTrace[index] = INSERTION;
+                --row;
+
+            } else {
+
+                // test if mismatch
+                if (mismatchFlag)
+                    errorTrace[index] = MISMATCH;
+                else
+                    errorTrace[index] = MATCHING;
+                --row;
+                --col;
+
+            }
+
+        } else {
+
+            // we have a deletion in the pattern
+            if (dpMatrix(row,col-1) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
+            {
+                errorTrace[index] = DELETION;
+                --col;
+
+            } else {
+
+                // test if mismatch
+                if (mismatchFlag)
+                    errorTrace[index] = MISMATCH;
+                else
+                    errorTrace[index] = MATCHING;
                 --row;
                 --col;
 
