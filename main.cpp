@@ -6,7 +6,7 @@
 #include "RefGenome.h"
 #include "ReadQueue.h"
 
-void queryRoutine(ReadQueue& rQue);
+void queryRoutine(ReadQueue& rQue, const bool isGZ);
 void printHelp();
 
 // --------------- MAIN -----------------
@@ -113,10 +113,21 @@ int main(int argc, char** argv)
             continue;
         }
 
+
+
+
+        // no such option
+        std::cerr << "Don't know the option \"" << std::string(argv[i]) << "\", maybe you forgot a flag?\n\n";
+        exit(1);
+
     }
+
+
+    // Start processing
 
     if (loadIndexFlag)
     {
+
         RefGenome ref(indexFile);
 
         if (readFile == NULL)
@@ -128,7 +139,7 @@ int main(int argc, char** argv)
         }
         ReadQueue rQue(readFile, ref, readsGZ);
 
-        queryRoutine(rQue);
+        queryRoutine(rQue, readsGZ);
 
     } else {
 
@@ -159,47 +170,10 @@ int main(int argc, char** argv)
 
         if (readFile != NULL)
         {
-            ReadQueue(readFile, ref, readsGZ);
+            ReadQueue rQue(readFile, ref, readsGZ);
+            queryRoutine(rQue, readsGZ);
         }
     }
-
-
-    // std::vector<struct CpG> cpgTab;
-    // std::vector<struct CpG> cpgStartTab;
-    // std::vector<std::vector<char>> genSeq;
-    //
-    // readReference(argv[1], cpgTab, cpgStartTab, genSeq);
-    // RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq);
-    // // ref.save(binFile);
-    // // RefGenome refCopy(binFile);
-    // // ReadQueue rQue(argv[2], refCopy, false);
-    // // ReadQueue rQue(argv[2], refCopy, true);
-    // ReadQueue rQue(argv[2], ref, false);
-    //
-    // unsigned int readCounter = 0;
-    // unsigned int i = 0;
-    //
-    // rQue.parseChunk(readCounter);
-    // rQue.matchReads(readCounter);
-    // // rQue.parseChunkGZ(readCounter);
-    // // rQue.matchReads(readCounter);
-    // // std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-    // // while(rQue.parseChunk(readCounter))
-    // // {
-    // //     ++i;
-    // //     if (i >= 10)
-    // //         break;
-    // //     rQue.matchReads(readCounter);
-    // //     std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
-    // // }
-    // // // match remaining reads
-    // // rQue.matchReads(readCounter);
-    // //
-    // // std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-    // // auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
-    // //
-    // // std::cout << "Done processing in " << runtime << "s\n";
-    //
     return 0;
 }
 
@@ -210,20 +184,20 @@ int main(int argc, char** argv)
 
 
 
-void queryRoutine(ReadQueue& rQue)
+void queryRoutine(ReadQueue& rQue, const bool isGZ)
 {
 
     unsigned int readCounter = 0;
     unsigned int i = 0;
     std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-    while(rQue.parseChunk(readCounter))
+    while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
         // TODO
-        if (i >= 11)
+        if (i >= 1)
             break;
         rQue.matchReads(readCounter);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
+        // std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
     }
     // match remaining reads
     rQue.matchReads(readCounter);
