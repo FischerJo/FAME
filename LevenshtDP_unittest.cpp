@@ -57,8 +57,8 @@ TEST(init_test, twoLetterMismatches)
     std::vector<ERROR_T> errTypes_corr = l2_corr.backtrackDP<Compi>(comp);
     std::vector<ERROR_T> errTypes_incorr = l2_incorr.backtrackDP<Compi>(comp);
 
-    ASSERT_EQ(std::vector<ERROR_T>({MATCH, MATCH, MISMATCH, MISMATCH}), errTypes_corr);
-    ASSERT_EQ(std::vector<ERROR_T>({MATCH, MISMATCH, MISMATCH, MISMATCH}), errTypes_incorr);
+    ASSERT_EQ(std::vector<ERROR_T>({MATCHING, MATCHING, MISMATCH, MISMATCH}), errTypes_corr);
+    ASSERT_EQ(std::vector<ERROR_T>({MATCHING, MISMATCH, MISMATCH, MISMATCH}), errTypes_incorr);
 
     // introduce another error
     s2_ic[1] = 'T';
@@ -89,7 +89,7 @@ TEST(matching_test, simpleSeq)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCH, MISMATCH, MATCH, MATCH, MATCH, MATCH, MISMATCH, MATCH, MATCH, MATCH, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 
@@ -115,7 +115,7 @@ TEST(matching_test, complexSeqIns)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCH, MATCH, MATCH, MATCH, MATCH, MATCH, MATCH, INSERTION, INSERTION, MATCH, MATCH, MATCH, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, INSERTION, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 }
@@ -140,7 +140,7 @@ TEST(matching_test, complexSeqDel)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCH, MATCH, MATCH, MATCH, MATCH, MATCH, DELETION, DELETION, MATCH, MATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, DELETION, DELETION, MATCHING, MATCHING});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 }
@@ -165,7 +165,7 @@ TEST(matching_test, complexSeqAll)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCH, MATCH, MISMATCH, MATCH, MATCH, MATCH, MATCH, INSERTION, MATCH, MATCH, MATCH, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
 
     ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
 }
