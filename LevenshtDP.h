@@ -61,15 +61,16 @@ class LevenshtDP
         //
         // ARGUMENTS:
         //      comp        comparison function for the letters
+        //      align       gives the alignment using error types as flags SHOULD BE EMPTY ON CALL
         //
-        // RETURN:
-        //      vector of size of rowPat containing a value of type ERROR_T
+        // MODIFICATIONS:
+        //      alignment will bevector of size of rowPat containing a value of type ERROR_T
         //      the value represents the type of transition made from i-th to
         //      i+1 th character of rowPat to match with colPat
         template <typename C>
-        std::vector<ERROR_T> backtrackDP(C& comp);
+        void backtrackDP(C& comp, std::vector<ERROR_T>& align);
         template <typename C>
-        std::vector<ERROR_T> backtrackDPRev(C& comp);
+        void backtrackDPRev(C& comp, std::vector<ERROR_T>& align);
 
 
     private:
@@ -256,15 +257,15 @@ void LevenshtDP<T, band>::runDPFillRev(C& comp)
 
 template <typename T, size_t band>
 template <typename C>
-std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
+void LevenshtDP<T, band>::backtrackDP(C& comp, std::vector<ERROR_T>& alignment)
 {
 
     // the trace of errors
     // note that insertion means we have an additional character in the PATTERN (rowPat)
     // and deletion analogously
     // we start indexing for the character in the back
-    // that is errorTrace[0] is the error type of the last character
-    std::vector<ERROR_T> errorTrace (rowPat.size() + band, MISMATCH);
+    // that is alignment[0] is the error type of the last character
+    alignment.reserve(rowPat.size() + band);
     // find minimum in the last part of table
     T minimum = std::numeric_limits<T>::max();
     // stores the index of the cell of the minimum
@@ -281,9 +282,8 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
     }
 
     // BACKTRACK
-    size_t index = 0;
     // starting from the minimum cell in the last column
-    for (long row = rowPat.size(); row > 0; ++index)
+    for (long row = rowPat.size(); row > 0;)
     {
 
         // check if characters match
@@ -295,16 +295,16 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
             // we have an insertion in the pattern
             if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
-                errorTrace[index] = INSERTION;
+                alignment.emplace_back(INSERTION);
                 --row;
 
             } else {
 
                 // test if mismatch
                 if (mismatchFlag)
-                    errorTrace[index] = MISMATCH;
+                    alignment.emplace_back(MISMATCH);
                 else
-                    errorTrace[index] = MATCHING;
+                    alignment.emplace_back(MATCHING);
                 --row;
                 --col;
 
@@ -315,16 +315,16 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
             // we have a deletion in the pattern
             if (dpMatrix(row,col-1) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
-                errorTrace[index] = DELETION;
+                alignment.emplace_back(DELETION);
                 --col;
 
             } else {
 
                 // test if mismatch
                 if (mismatchFlag)
-                    errorTrace[index] = MISMATCH;
+                    alignment.emplace_back(MISMATCH);
                 else
-                    errorTrace[index] = MATCHING;
+                    alignment.emplace_back(MATCHING);
                 --row;
                 --col;
 
@@ -332,19 +332,18 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDP(C& comp)
         }
 
     }
-    return errorTrace;
 }
 template <typename T, size_t band>
 template <typename C>
-std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
+void LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignment)
 {
 
     // the trace of errors
     // note that insertion means we have an additional character in the PATTERN (rowPat)
     // and deletion analogously
     // we start indexing for the character in the back
-    // that is errorTrace[0] is the error type of the last character
-    std::vector<ERROR_T> errorTrace (rowPat.size() + band, MISMATCH);
+    // that is alignment[0] is the error type of the last character
+    alignment.reserve(rowPat.size() + band);
     // find minimum in the last part of table
     T minimum = std::numeric_limits<T>::max();
     // stores the index of the cell of the minimum
@@ -361,9 +360,8 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
     }
 
     // BACKTRACK
-    size_t index = 0;
     // starting from the minimum cell in the last column
-    for (long row = rowPat.size(); row > 0; ++index)
+    for (long row = rowPat.size(); row > 0;)
     {
 
         // check if characters match
@@ -375,16 +373,16 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
             // we have an insertion in the pattern
             if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
-                errorTrace[index] = INSERTION;
+                alignment.emplace_back(INSERTION);
                 --row;
 
             } else {
 
                 // test if mismatch
                 if (mismatchFlag)
-                    errorTrace[index] = MISMATCH;
+                    alignment.emplace_back(MISMATCH);
                 else
-                    errorTrace[index] = MATCHING;
+                    alignment.emplace_back(MATCHING);
                 --row;
                 --col;
 
@@ -395,24 +393,22 @@ std::vector<ERROR_T> LevenshtDP<T, band>::backtrackDPRev(C& comp)
             // we have a deletion in the pattern
             if (dpMatrix(row,col-1) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
-                errorTrace[index] = DELETION;
+                alignment.emplace_back(DELETION);
                 --col;
 
             } else {
 
                 // test if mismatch
                 if (mismatchFlag)
-                    errorTrace[index] = MISMATCH;
+                    alignment.emplace_back(MISMATCH);
                 else
-                    errorTrace[index] = MATCHING;
+                    alignment.emplace_back(MATCHING);
                 --row;
                 --col;
 
             }
         }
-
     }
-    return errorTrace;
 }
 
 #endif /* LEVENSHTDP_H */

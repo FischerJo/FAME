@@ -54,11 +54,13 @@ TEST(init_test, twoLetterMismatches)
     ASSERT_EQ(0, l2_corr.getEditDist());
     ASSERT_EQ(1, l2_incorr.getEditDist());
 
-    std::vector<ERROR_T> errTypes_corr = l2_corr.backtrackDP<Compi>(comp);
-    std::vector<ERROR_T> errTypes_incorr = l2_incorr.backtrackDP<Compi>(comp);
+    std::vector<ERROR_T> errTypes_corr;
+    l2_corr.backtrackDP<Compi>(comp, errTypes_corr);
+    std::vector<ERROR_T> errTypes_incorr;
+    l2_incorr.backtrackDP<Compi>(comp, errTypes_incorr);
 
-    ASSERT_EQ(std::vector<ERROR_T>({MATCHING, MATCHING, MISMATCH, MISMATCH}), errTypes_corr);
-    ASSERT_EQ(std::vector<ERROR_T>({INSERTION, MATCHING, MISMATCH, MISMATCH}), errTypes_incorr);
+    ASSERT_EQ(std::vector<ERROR_T>({MATCHING, MATCHING}), errTypes_corr);
+    ASSERT_EQ(std::vector<ERROR_T>({INSERTION, MATCHING}), errTypes_incorr);
 
     // introduce another error
     s2_ic[4] = 'T';
@@ -89,9 +91,11 @@ TEST(matching_test, simpleSeq)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING});
+    std::vector<ERROR_T> backtrace;
+    lev.backtrackDP<Compi>(comp, backtrace);
 
-    ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
+    ASSERT_EQ(trace, backtrace);
 
 }
 // test simple sequence for reverse query
@@ -132,9 +136,11 @@ TEST(matching_test, simpleSeqRev)
 
     ASSERT_EQ(1, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MISMATCH, MATCHING});
+    std::vector<ERROR_T> backtrace;
+    lev.backtrackDPRev<Compi>(comp, backtrace);
 
-    ASSERT_EQ(trace, lev.backtrackDPRev<Compi>(comp));
+    ASSERT_EQ(trace, backtrace);
 
 }
 
@@ -158,9 +164,11 @@ TEST(matching_test, complexSeqIns)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, INSERTION, INSERTION, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MISMATCH, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, INSERTION, INSERTION, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING});
+    std::vector<ERROR_T> backtrace;
+    lev.backtrackDP<Compi>(comp, backtrace);
 
-    ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
+    ASSERT_EQ(trace, backtrace);
 }
 
 // test a more complex sequence with deletions
@@ -184,8 +192,10 @@ TEST(matching_test, complexSeqDel)
     ASSERT_EQ(2, lev.getEditDist());
 
     std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, DELETION, DELETION, MATCHING});
+    std::vector<ERROR_T> backtrace;
+    lev.backtrackDP<Compi>(comp, backtrace);
 
-    ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
+    ASSERT_EQ(trace, backtrace);
 }
 
 // test sequence with different types of errors
@@ -208,9 +218,11 @@ TEST(matching_test, complexSeqAll)
 
     ASSERT_EQ(2, lev.getEditDist());
 
-    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, DELETION, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, MATCHING, MATCHING, MISMATCH});
+    std::vector<ERROR_T> trace ({MATCHING, MATCHING, MATCHING, DELETION, MATCHING, MATCHING, MATCHING, MATCHING, MATCHING, INSERTION, MATCHING, MATCHING});
+    std::vector<ERROR_T> backtrace;
+    lev.backtrackDP<Compi>(comp, backtrace);
 
-    ASSERT_EQ(trace, lev.backtrackDP<Compi>(comp));
+    ASSERT_EQ(trace, backtrace);
 }
 
 // TODO test indels for reverse
