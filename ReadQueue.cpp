@@ -676,6 +676,45 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 }
 
 
+void ReadQueue::printMethylationLevels(std::string& filename)
+{
+
+    std::ofstream cpgFile(filename + "_cpg_start.tsv");
+
+    // go over CpGs close to start of a chromosome
+    for (size_t cpgID = 0; cpgID < ref.cpgStartTable.size(); ++cpgID)
+    {
+
+        // print the position of the (C of the) CpG
+        cpgFile << ref.cpgStartTable[cpgID].chrom << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
+
+        // print the counts
+        // fwd counts
+        cpgFile << methLevelsStart[cpgID].methFwd << "\t" << methLevelsStart[cpgID].unmethFwd << "\t";
+        // rev counts
+        cpgFile << methLevelsStart[cpgID].methRev << "\t" << methLevelsStart[cpgID].unmethRev << "\n";
+    }
+    cpgFile.close();
+
+    cpgFile.open(filename + "_cpg.tsv");
+
+    // go over remaining CpGs
+    for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
+    {
+
+        // print the position of the (C of the) CpG
+        cpgFile << ref.cpgTable[cpgID].chrom << "\t" << ref.cpgTable[cpgID].pos << "\t";
+
+        // print the counts
+        // fwd counts
+        cpgFile << methLevels[cpgID].methFwd << "\t" << methLevels[cpgID].unmethFwd << "\t";
+        // rev counts
+        cpgFile << methLevels[cpgID].methRev << "\t" << methLevels[cpgID].unmethRev << "\n";
+    }
+    cpgFile.close();
+}
+
+
 void ReadQueue::printStatistics(std::vector<std::vector<KMER::kmer> > seedsK)
 {
 

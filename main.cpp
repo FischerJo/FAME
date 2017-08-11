@@ -17,6 +17,7 @@ int main(int argc, char** argv)
 
     std::string indexFile = "";
     std::string genomeFile = "";
+    std::string outputFile = "cpgInfo";
     char* readFile = NULL;
 
     // true iff index should be loaded from file
@@ -55,7 +56,7 @@ int main(int argc, char** argv)
             continue;
         }
 
-        if (std::string(argv[i]) == "--genome")
+        if (std::string(argv[i]) == "--genome" || std::string(argv[i]) == "-g")
         {
             if (i + 1 < argc)
             {
@@ -113,6 +114,20 @@ int main(int argc, char** argv)
             continue;
         }
 
+        if (std::string(argv[i]) == "-o" || std::string(argv[i]) == "--out_basename")
+        {
+            if (i + 1 < argc)
+            {
+
+                outputFile = argv[i+1];
+
+            } else {
+
+                std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+                exit(1);
+            }
+            continue;
+        }
 
 
 
