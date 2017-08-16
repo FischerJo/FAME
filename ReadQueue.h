@@ -874,8 +874,6 @@ class ReadQueue
             std::unordered_map<uint32_t, uint16_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
             std::unordered_map<uint32_t, uint16_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
-            // of << "\nmapsizes: " << fwdMetaIDs_t.size() << "/" << revMetaIDs_t.size() << "\n";
-
             // counter for how often we had a match
             std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
             multiMatch.fill(0);
@@ -1471,14 +1469,26 @@ class ReadQueue
                         if (isFwd)
                         {
                             if (seq[readCpGPos] == 'T')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevelsStart[cpgId].unmethFwd;
                             else
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevelsStart[cpgId].methFwd;
                         } else {
 
                             if (seq[seq.size() - readCpGPos - 1] == 'T')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevelsStart[cpgId].unmethRev;
                             else
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevelsStart[cpgId].methRev;
                         }
                     }
@@ -1505,14 +1515,26 @@ class ReadQueue
                         if (isFwd)
                         {
                             if (seq[readCpGPos] == 'T')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevels[cpgId].unmethFwd;
                             else
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevels[cpgId].methFwd;
                         } else {
 
                             if (seq[seq.size() - readCpGPos - 1] == 'T')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevels[cpgId].unmethRev;
                             else
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                 ++methLevels[cpgId].methRev;
                         }
                     }
@@ -1588,8 +1610,14 @@ class ReadQueue
                                 {
                                     // check for unmethylated C
                                     if (seq[readSeqPos] == 'C')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevelsStart[cpgID].unmethFwd;
                                     else if (seq[readSeqPos] == 'T')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevelsStart[cpgID].methFwd;
 
                                 }
@@ -1631,8 +1659,14 @@ class ReadQueue
                                 {
                                     // check for unmethylated C (on reverse!)
                                     if (seq[readSeqPos] == 'G')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevelsStart[cpgID].unmethRev;
                                     else if (seq[readSeqPos] == 'A')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevelsStart[cpgID].methRev;
 
                                 }
@@ -1713,8 +1747,14 @@ class ReadQueue
                                 {
                                     // check for unmethylated C
                                     if (seq[readSeqPos] == 'C')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevels[cpgID].unmethFwd;
                                     else if (seq[readSeqPos] == 'T')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevels[cpgID].methFwd;
 
                                 }
@@ -1761,8 +1801,14 @@ class ReadQueue
                                 {
                                     // check for unmethylated C (on reverse!)
                                     if (seq[readSeqPos] == 'G')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevels[cpgID].unmethRev;
                                     else if (seq[readSeqPos] == 'A')
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                                         ++methLevels[cpgID].methRev;
 
                                 }

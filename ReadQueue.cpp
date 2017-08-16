@@ -167,7 +167,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
     uint64_t pCount = 0;
 
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
+#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,10000)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
@@ -178,13 +178,16 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
         // TODO
         // if (readSize < MyConst::KMERLEN)
-        // if (readSize < 85)
-        // {
-        //
+        if (readSize < 85)
+        {
+
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
             ++readCount;
-        //     r.isInvalid = true;
-        //     continue;
-        // }
+            r.isInvalid = true;
+            continue;
+        }
         // RETRIEVE SEEDS
         //
         // std::vector<char> redSeq (readSize);
@@ -197,7 +200,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // get correct offset for reverse strand (strand orientation must be correct)
         size_t revPos = readSize - 1;
 
-        std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+        // std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
         // string containing reverse complement (under FULL alphabet)
         std::string revSeq;
         revSeq.resize(readSize);
@@ -262,30 +265,18 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             continue;
         }
 
-        std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-        auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-
-        of << "+" << runtime << "\n";
+        // std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+        // auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        //
+        // of << "+" << runtime << "\n";
 
         // TODO
-        startTime = std::chrono::high_resolution_clock::now();
+        // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
         bool succFlag = getSeedRefs(r.seq, readSize);
-        // if (!succFlag)
-        // {
-        //     ++readCount;
-        //     // of << "\n";
-        //     r.isInvalid = true;
-        //     continue;
-        // }
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // if (runtime > 100)
-        // {
-        //     of << r.seq << "\n";
-        //     of << "Overall meta CpGs: " << fwdMetaIDs[omp_get_thread_num()].size() + revMetaIDs[omp_get_thread_num()].size() << "\n";
-        // }
-        of << "+" << runtime << "\t";
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        // of << "+" << runtime << "\t";
         // of << "\nMeta id 59623 count fwd: "  << fwdMetaIDs[omp_get_thread_num()][59623] << "\n";
         // of << "\nMeta id 59623 count rev: "  << revMetaIDs[omp_get_thread_num()][59623] << "\n";
         // startTime = std::chrono::high_resolution_clock::now();
@@ -293,12 +284,12 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
         // of << runtime << "\t";
-        startTime = std::chrono::high_resolution_clock::now();
+        // startTime = std::chrono::high_resolution_clock::now();
         // int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, computeQgramThresh(r.seq));
         int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd);
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        of << runtime << "\n";
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        // of << runtime << "\n";
         // if (runtime > 5000)
         // {
             // of << r.seq << "\n";
@@ -321,7 +312,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             // of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
         // }
 
-        startTime = std::chrono::high_resolution_clock::now();
+        // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchRev = 0;
         succFlag = getSeedRefs(revSeq, readSize);
         // if (!succFlag)
@@ -331,9 +322,9 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         //     r.isInvalid = true;
         //     continue;
         // }
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        of << "+" << runtime << "\t";
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        // of << "+" << runtime << "\t";
         // of << "\nMeta id count fwd: "  << fwdMetaIDs[omp_get_thread_num()][319746] << "\n";
         // of << "\nMeta id count rev: "  << revMetaIDs[omp_get_thread_num()][319746] << "\n";
         // if (runtime > 100)
@@ -347,12 +338,12 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
-        startTime = std::chrono::high_resolution_clock::now();
+        // startTime = std::chrono::high_resolution_clock::now();
         // int succQueryRev = saQuerySeedSetRef(saRev, matchRev, computeQgramThresh(revSeq));
         int succQueryRev = saQuerySeedSetRef(saRev, matchRev);
-        endTime = std::chrono::high_resolution_clock::now();
-        runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        of << runtime << "\n";
+        // endTime = std::chrono::high_resolution_clock::now();
+        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        // of << runtime << "\n";
         // if (runtime > 5000)
         // {
             // of << r.seq << "\n";
@@ -403,28 +394,34 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
             uint8_t fwdErr = MATCH::getErrNum(matchFwd);
             uint8_t revErr = MATCH::getErrNum(matchRev);
-            of << "Found match with read and reverse complement. Errors (fwd/rev): " << fwdErr << "/" << revErr;
-            of << "\nMatching strands are (fwd/rev): " << MATCH::isFwd(matchFwd) << "/" << MATCH::isFwd(matchRev) << "\n";
+            // of << "Found match with read and reverse complement. Errors (fwd/rev): " << fwdErr << "/" << revErr;
+            // of << "\nMatching strands are (fwd/rev): " << MATCH::isFwd(matchFwd) << "/" << MATCH::isFwd(matchRev) << "\n";
 
             // check which one has fewer errors
             if (fwdErr < revErr)
             {
 
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                 ++succMatchFwd;
                 r.mat = matchFwd;
+                computeMethLvl(matchFwd, r.seq);
 
             } else {
 
                 if (fwdErr > revErr)
                 {
 
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                     ++succMatchRev;
                     r.mat = matchRev;
+                    computeMethLvl(matchRev, revSeq);
 
                 // if same number of errors, then not unique
                 } else {
-
-                    // of << MATCH::getOffset(matchFwd) << " match fwdAutomaton " << MATCH::getErrNum(matchFwd) << "errors --- strand " << MATCH::isFwd << "\n" << MATCH::getOffset(matchRev) << " match revAutomaton " << MATCH::getErrNum(matchRev) << "errors --- strand: " << MATCH::isFwd << "\n";
 
                     const uint32_t metaFwd = MATCH::getMetaID(matchFwd);
                     const uint32_t metaRev = MATCH::getMetaID(matchRev);
@@ -447,19 +444,23 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                         m1_pos = ref.cpgTable[ref.metaCpGs[metaFwd].start].pos + offFwd;
                         m2_pos = ref.cpgTable[ref.metaCpGs[metaRev].start].pos + offRev;
                     }
-                    // est if same match in same region
+                    // test if same match in same region
                     if ((m1_isStart == m2_isStart) && (m1_isFwd == m2_isFwd) && (m1_pos == m2_pos))
                     {
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                         ++succMatchFwd;
                         r.mat = matchFwd;
+                        computeMethLvl(matchFwd, r.seq);
 
                     } else {
 
-                        // of << "Nonunique match.\n";
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                         ++nonUniqueMatch;
-                        of << "\nNonunique1: " << m1_pos << "\t\t" << m2_pos;
 
-                        // std::cout << "Nonunique match: fwd and rev with same errorcount in match\n";
                         r.isInvalid = true;
                     }
                 }
@@ -467,30 +468,43 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // unique match on forward strand
         } else if (succQueryFwd == 1) {
 
-            of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
+            // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
             ++succMatchFwd;
             r.mat = matchFwd;
+            computeMethLvl(matchFwd, r.seq);
 
         // unique match on backward strand
         } else if (succQueryRev == 1) {
 
-            of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
+            // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
             ++succMatchRev;
             r.mat = matchRev;
+            computeMethLvl(matchRev, revSeq);
 
         // no match found at all
         } else {
 
             r.isInvalid = true;
-            // TODO
             if (succQueryFwd == -1 || succQueryRev == -1)
             {
 
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                 ++nonUniqueMatch;
 
             } else {
 
-                of << "No match.\n";
+                // of << "No match.\n";
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
                 ++unSuccMatch;
 
             }
@@ -669,7 +683,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
     // }
 
-    of.close();
+    // of.close();
     std::cout << "Successfully matched (Fwd|Rev): " << succMatchFwd << "|" << succMatchRev << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << " / Discarded because of length < 85: " << readCount << "\n\n";
     // TODO: Go over read set once and register the CpG matchings
     return true;
