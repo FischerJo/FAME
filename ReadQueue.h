@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <array>
+#include <algorithm> // reverse
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -16,6 +17,7 @@
 #include "RefGenome.h"
 #include "Read.h"
 #include "ShiftAnd.h"
+#include "LevenshtDP.h"
 
 class ReadQueue
 {
@@ -47,6 +49,32 @@ class ReadQueue
         // Filter seeds using filterHeuSeeds(...) according to simple heuristic
         // Extend remaining seeds with BitMatch(...)
         bool matchReads(const unsigned int& procReads);
+
+        // Print the CpG methylation levels to the given filename
+        // Two files are generated, one called filename_cpg.tsv
+        // the other one called filename_cpg_start.tsv
+        // The latter file contaings the CpGs very close to the border of the chromosomes.
+        // Such CpGs are rarely found in large genome assemblys
+        //
+        // Both contain methylation counts for each CpG in the reference genome
+        // using the following (tab separated) format:
+        //
+        // Chromosome   Position    Fwd_methylated  Fwd_unmethylated    Rev_methylated  Rev_unmethylated
+        //
+        //, where
+        // Chromosome is the chromosome ID
+        //
+        // Position is the offset of the (C on the forward strand of the) CpG inside the
+        // chromosome, measured from the start of the chromosomal sequence and is zero based
+        //
+        // Fwd_methylated is the number of aligned methylated CpGs on the forward strand CpG
+        // Fwd_unmethylated  -------" " ---------- unmeethylated --------- " " ------------
+        // Rev_methylated is the number of aligned methylated CpGs on the reverse strand CpG
+        // Rev_unmethylated  -------" " ---------- unmeethylated --------- " " ------------
+        //
+        // ARGUMENT:
+        //          filename    desired basename for the output files
+        void printMethylationLevels(std::string& filename);
 
 
     private:
@@ -250,203 +278,203 @@ class ReadQueue
         // MODIFICATIONS:
         //              function will filter seedsK and seedsS to contain only reference kmers that match read kmer under bitmask
         //              comparison
-        inline void bitMatching(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
-        {
-
-            // masking for actual kmer bits
-            constexpr uint64_t signiBits = 0xffffffffffffffffULL >> (64 - (2*MyConst::KMERLEN));
-            // bit representation of current kmer of read
-            uint64_t kmerBits = 0;
-            // generate bit representation of first kmerlen - 1 letters of read
-            for (unsigned int i = 0; i < (MyConst::KMERLEN - 1); ++i)
-            {
-
-                kmerBits = kmerBits << 2;
-                kmerBits |= BitFun::getBitRepr(r.seq[i]);
-
-            }
-
-            // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
-            std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
-            std::vector<std::vector<bool> > newSeedsS(seedsK.size());
-
-            // go over each read kmer and compare with reference seeds
-            for (unsigned int offset = 0; offset < (r.seq.size() - MyConst::KMERLEN + 1); ++offset)
-            {
-
-                // retrieve seeds for current kmer
-                std::vector<KMER::kmer>& localSeedsK = seedsK[offset];
-                std::vector<bool>& localSeedsS = seedsS[offset];
-                // reserve some space for result seedlist
-                newSeedsK[offset].reserve(localSeedsK.size());
-                newSeedsS[offset].reserve(localSeedsK.size());
-
-                // update current read kmer representation
-                kmerBits = kmerBits << 2;
-                kmerBits = (kmerBits | BitFun::getBitRepr(r.seq[offset + MyConst::KMERLEN - 1])) & signiBits;
-
-                // iterate over corresponding seeds for reference
-                for (unsigned int i = 0; i < localSeedsK.size(); ++i)
-                {
-
-                    KMER::kmer& refKmer = localSeedsK[i];
-
-                    // will hold the first CpG in metaCpG after retrieving the meta CpG info
-                    uint8_t chrom;
-                    // will hold the position of the meta CpG in the genome (chromosomal region specified by chrom of the genome)
-                    uint32_t pos = 0;
-                    // retrieve reference bit representation
-                    //
-                    // First retrieve meta CpG info
-                    if (KMER::isStartCpG(refKmer))
-                    {
-
-                        const uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
-                        chrom = ref.cpgStartTable[cpgInd].chrom;
-
-                    } else {
-
-                        const uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
-                        chrom = ref.cpgTable[cpgInd].chrom;
-                        pos = ref.cpgTable[cpgInd].pos;
-
-                    }
+        // inline void bitMatching(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        // {
+        //
+        //     // masking for actual kmer bits
+        //     constexpr uint64_t signiBits = 0xffffffffffffffffULL >> (64 - (2*MyConst::KMERLEN));
+        //     // bit representation of current kmer of read
+        //     uint64_t kmerBits = 0;
+        //     // generate bit representation of first kmerlen - 1 letters of read
+        //     for (unsigned int i = 0; i < (MyConst::KMERLEN - 1); ++i)
+        //     {
+        //
+        //         kmerBits = kmerBits << 2;
+        //         kmerBits |= BitFun::getBitRepr(r.seq[i]);
+        //
+        //     }
+        //
+        //     // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
+        //     std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
+        //     std::vector<std::vector<bool> > newSeedsS(seedsK.size());
+        //
+        //     // go over each read kmer and compare with reference seeds
+        //     for (unsigned int offset = 0; offset < (r.seq.size() - MyConst::KMERLEN + 1); ++offset)
+        //     {
+        //
+        //         // retrieve seeds for current kmer
+        //         std::vector<KMER::kmer>& localSeedsK = seedsK[offset];
+        //         std::vector<bool>& localSeedsS = seedsS[offset];
+        //         // reserve some space for result seedlist
+        //         newSeedsK[offset].reserve(localSeedsK.size());
+        //         newSeedsS[offset].reserve(localSeedsK.size());
+        //
+        //         // update current read kmer representation
+        //         kmerBits = kmerBits << 2;
+        //         kmerBits = (kmerBits | BitFun::getBitRepr(r.seq[offset + MyConst::KMERLEN - 1])) & signiBits;
+        //
+        //         // iterate over corresponding seeds for reference
+        //         for (unsigned int i = 0; i < localSeedsK.size(); ++i)
+        //         {
+        //
+        //             KMER::kmer& refKmer = localSeedsK[i];
+        //
+        //             // will hold the first CpG in metaCpG after retrieving the meta CpG info
+        //             uint8_t chrom;
+        //             // will hold the position of the meta CpG in the genome (chromosomal region specified by chrom of the genome)
+        //             uint32_t pos = 0;
+        //             // retrieve reference bit representation
+        //             //
+        //             // First retrieve meta CpG info
+        //             if (KMER::isStartCpG(refKmer))
+        //             {
+        //
+        //                 const uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+        //                 chrom = ref.cpgStartTable[cpgInd].chrom;
+        //
+        //             } else {
+        //
+        //                 const uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+        //                 chrom = ref.cpgTable[cpgInd].chrom;
+        //                 pos = ref.cpgTable[cpgInd].pos;
+        //
+        //             }
+        //             // will hold bit representation of seed
+        //             uint64_t refKmerBit;
+        //             // decide if forward or reverse strand of reference
+        //             //
+        //             // if forward
+        //             if (localSeedsS[i])
+        //             {
+        //                 // retrieve sequence in forward strand
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
+        //
+        //             // is reverse
+        //             } else {
+        //
+        //                 // retrieve sequence in forward strand
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
+        //             }
+        //
+        //             // COMPARE read kmer and seed
+        //             //  matching is 0 iff full match
+        //             if ( !( refKmerBit ^ (kmerBits & BitFun::getMask(refKmerBit)) ) )
+        //             {
+        //
+        //                 // if we have a match, keep this kmer and strand flag in list
+        //                 newSeedsK[offset].emplace_back(refKmer);
+        //                 newSeedsS[offset].emplace_back(localSeedsS[i]);
+        //             }
+        //         }
+        //         newSeedsK[offset].shrink_to_fit();
+        //         newSeedsS[offset].shrink_to_fit();
+        //
+        //     }
+        //
+        //     seedsK = std::move(newSeedsK);
+        //     seedsS = std::move(newSeedsS);
+        //
+        // }
+        // inline void bitMatchingRev(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        // {
+        //
+            // const unsigned int readSize = r.seq.size();
+            // // masking for actual kmer bits
+            // constexpr uint64_t signiBits = 0xffffffffffffffffULL >> (64 - (2*MyConst::KMERLEN));
+            // // bit representation of current kmer of read
+            // uint64_t kmerBits = 0;
+            // // generate bit representation of first kmerlen - 1 letters of reverse complement of read
+            // // Not that we start reading from right
+            // for (unsigned int i = readSize - 1; i > readSize - MyConst::KMERLEN; --i)
+            // {
+            //
+            //     kmerBits = kmerBits << 2;
+            //     kmerBits |= BitFun::getBitReprRev(r.seq[i]);
+            //
+            // }
+            //
+            // // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
+            // std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
+            // std::vector<std::vector<bool> > newSeedsS(seedsK.size());
+            //
+            // // index for seed vector for current read kmer
+            // unsigned int kmerInd = 0;
+            // // go over each read kmer and compare with reference seeds
+            // for (unsigned int offset = readSize - MyConst::KMERLEN; offset > 0; --offset, ++kmerInd)
+            // {
+            //
+            //     std::vector<KMER::kmer>& localSeedsK = seedsK[kmerInd];
+            //     std::vector<bool>& localSeedsS = seedsS[kmerInd];
+            //     // reserve some space for seedlist
+            //     newSeedsK[kmerInd].reserve(localSeedsK.size());
+            //     newSeedsS[kmerInd].reserve(localSeedsK.size());
+            //
+            //     // update current read kmer representation
+            //     kmerBits = kmerBits << 2;
+            //     kmerBits = (kmerBits | BitFun::getBitReprRev(r.seq[offset - 1])) & signiBits;
+            //
+            //     // iterate over corresponding seeds for reference
+            //     for (unsigned int i = 0; i < localSeedsK.size(); ++i)
+            //     {
+            //
+            //         KMER::kmer& refKmer = localSeedsK[i];
+            //
+            //         // will hold the chromosome index in metaCpG after retrieving the meta CpG info
+            //         uint8_t chrom;
+            //         // will hold the position of the meta CpG in the genome (chromosomal region specified by chrom of the genome)
+            //         uint32_t pos = 0;
+            //         // retrieve reference bit representation
+            //         //
+            //         // First retrieve meta CpG info
+            //         if (KMER::isStartCpG(refKmer))
+            //         {
+            //
+            //             uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+            //             chrom = ref.cpgStartTable[cpgInd].chrom;
+            //
+            //         } else {
+            //
+            //             uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+            //             chrom = ref.cpgTable[cpgInd].chrom;
+            //             pos = ref.cpgTable[cpgInd].pos;
+            //
+                    // }
                     // will hold bit representation of seed
-                    uint64_t refKmerBit;
+                    // uint64_t refKmerBit;
                     // decide if forward or reverse strand of reference
                     //
                     // if forward
-                    if (localSeedsS[i])
-                    {
-                        // retrieve sequence in forward strand
-                        refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
-
-                    // is reverse
-                    } else {
-
-                        // retrieve sequence in forward strand
-                        refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
-                    }
-
-                    // COMPARE read kmer and seed
-                    //  matching is 0 iff full match
-                    if ( !( refKmerBit ^ (kmerBits & BitFun::getMask(refKmerBit)) ) )
-                    {
-
-                        // if we have a match, keep this kmer and strand flag in list
-                        newSeedsK[offset].emplace_back(refKmer);
-                        newSeedsS[offset].emplace_back(localSeedsS[i]);
-                    }
-                }
-                newSeedsK[offset].shrink_to_fit();
-                newSeedsS[offset].shrink_to_fit();
-
-            }
-
-            seedsK = std::move(newSeedsK);
-            seedsS = std::move(newSeedsS);
-
-        }
-        inline void bitMatchingRev(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
-        {
-
-            const unsigned int readSize = r.seq.size();
-            // masking for actual kmer bits
-            constexpr uint64_t signiBits = 0xffffffffffffffffULL >> (64 - (2*MyConst::KMERLEN));
-            // bit representation of current kmer of read
-            uint64_t kmerBits = 0;
-            // generate bit representation of first kmerlen - 1 letters of reverse complement of read
-            // Not that we start reading from right
-            for (unsigned int i = readSize - 1; i > readSize - MyConst::KMERLEN; --i)
-            {
-
-                kmerBits = kmerBits << 2;
-                kmerBits |= BitFun::getBitReprRev(r.seq[i]);
-
-            }
-
-            // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
-            std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
-            std::vector<std::vector<bool> > newSeedsS(seedsK.size());
-
-            // index for seed vector for current read kmer
-            unsigned int kmerInd = 0;
-            // go over each read kmer and compare with reference seeds
-            for (unsigned int offset = readSize - MyConst::KMERLEN; offset > 0; --offset, ++kmerInd)
-            {
-
-                std::vector<KMER::kmer>& localSeedsK = seedsK[kmerInd];
-                std::vector<bool>& localSeedsS = seedsS[kmerInd];
-                // reserve some space for seedlist
-                newSeedsK[kmerInd].reserve(localSeedsK.size());
-                newSeedsS[kmerInd].reserve(localSeedsK.size());
-
-                // update current read kmer representation
-                kmerBits = kmerBits << 2;
-                kmerBits = (kmerBits | BitFun::getBitReprRev(r.seq[offset - 1])) & signiBits;
-
-                // iterate over corresponding seeds for reference
-                for (unsigned int i = 0; i < localSeedsK.size(); ++i)
-                {
-
-                    KMER::kmer& refKmer = localSeedsK[i];
-
-                    // will hold the chromosome index in metaCpG after retrieving the meta CpG info
-                    uint8_t chrom;
-                    // will hold the position of the meta CpG in the genome (chromosomal region specified by chrom of the genome)
-                    uint32_t pos = 0;
-                    // retrieve reference bit representation
-                    //
-                    // First retrieve meta CpG info
-                    if (KMER::isStartCpG(refKmer))
-                    {
-
-                        uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
-                        chrom = ref.cpgStartTable[cpgInd].chrom;
-
-                    } else {
-
-                        uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
-                        chrom = ref.cpgTable[cpgInd].chrom;
-                        pos = ref.cpgTable[cpgInd].pos;
-
-                    }
-                    // will hold bit representation of seed
-                    uint64_t refKmerBit;
-                    // decide if forward or reverse strand of reference
-                    //
-                    // if forward
-                    if (localSeedsS[i])
-                    {
-                        // retrieve sequence in forward strand
-                        refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
-
-                    // is reverse
-                    } else {
-
-                        // retrieve sequence in forward strand
-                        refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
-                    }
-
-                    // COMPARE read kmer and seed
-                    //  matching is 0 iff full match
-                    if ( !( refKmerBit ^ (kmerBits & BitFun::getMask(refKmerBit)) ) )
-                    {
-
-                        // if we have a match, keep this kmer and strand flag in list
-                        newSeedsK[kmerInd].emplace_back(refKmer);
-                        newSeedsS[kmerInd].emplace_back(localSeedsS[i]);
-                    }
-                }
-                newSeedsK[kmerInd].shrink_to_fit();
-                newSeedsS[kmerInd].shrink_to_fit();
-
-            }
-
-            seedsK = std::move(newSeedsK);
-            seedsS = std::move(newSeedsS);
-        }
-
+        //             if (localSeedsS[i])
+        //             {
+        //                 // retrieve sequence in forward strand
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
+        //
+        //             // is reverse
+        //             } else {
+        //
+        //                 // retrieve sequence in forward strand
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
+        //             }
+        //
+        //             // COMPARE read kmer and seed
+        //             //  matching is 0 iff full match
+        //             if ( !( refKmerBit ^ (kmerBits & BitFun::getMask(refKmerBit)) ) )
+        //             {
+        //
+        //                 // if we have a match, keep this kmer and strand flag in list
+        //                 newSeedsK[kmerInd].emplace_back(refKmer);
+        //                 newSeedsS[kmerInd].emplace_back(localSeedsS[i]);
+        //             }
+        //         }
+        //         newSeedsK[kmerInd].shrink_to_fit();
+        //         newSeedsS[kmerInd].shrink_to_fit();
+        //
+        //     }
+        //
+        //     seedsK = std::move(newSeedsK);
+        //     seedsS = std::move(newSeedsS);
+        // }
+        //
 
         // query seeds to a given shift-and automaton
         //
@@ -465,378 +493,379 @@ class ReadQueue
         //              updates the match mat
         //              shift-and automaton is used - needs a reset (implicitly done when querying a new sequence internally)
         //
-        inline int saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
-        {
+        // inline int saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
+        // {
 
             // use counters to flag what has been processed so far
             // 0 if not processed at all
             // 1 if start metaCpG has been processed before
             // 2 if metaCpG with this index has been proc. before
             // 3 if both
-            std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
-            std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
-
-            // fill with zeroes
-            threadCountFwd.assign(ref.metaCpGs.size(), 0);
-            threadCountRev.assign(ref.metaCpGs.size(), 0);
-
-            // counter for how often we had a match
-            std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
-            multiMatch.fill(0);
-
-            // will contain matches iff match is found for number of errors specified by index
-            std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
-
-            for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
-            {
-
-                for (size_t innerNdx = 0; innerNdx < seedsK[outerNdx].size(); ++innerNdx)
-                {
-
-                    // retrieve kmer
-                    KMER::kmer& k = seedsK[outerNdx][innerNdx];
-
-                    // retrieve meta CpG
-                    const uint64_t m = KMER::getMetaCpG(k);
-
-                    // retrieve if start meta CpG
-                    const bool isStart = KMER::isStartCpG(k);
-
-                    // retrieve strand
-                    const bool isFwd = seedsS[outerNdx][innerNdx];
-
-                    if (isStart)
-                    {
-
-                        if (isFwd)
-                        {
-                            // check if we queried this meta CpG it before
-                            if (threadCountFwd[m] == 1 || threadCountFwd[m] >= 3)
-                            {
-                                continue;
-
-                            } else {
-
-                                // state that we queried this
-                                threadCountFwd[m] += 1;
-                                // retrieve it
-                                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[m].start];
-                                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
-
-                                auto startIt = ref.fullSeq[startCpg.chrom].begin();
-                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
-
-                                // check if CpG was too near to the end
-                                if (endIt > ref.fullSeq[startCpg.chrom].end())
-                                {
-                                    // if so move end iterator appropriately
-                                    endIt = ref.fullSeq[startCpg.chrom].end();
-                                }
-
-                                // use shift and to find all matchings
-                                std::vector<uint64_t> matchings;
-                                std::vector<uint8_t> errors;
-                                sa.querySeq(startIt, endIt, matchings, errors);
-
-                                // go through matching and see if we had such a match (with that many errors) before - if so,
-                                // return to caller reporting no match
-                                for (size_t i = 0; i < matchings.size(); ++i)
-                                {
-
-                                    // check if we had a match with that many errors before
-                                    if (multiMatch[errors[i]])
-                                    {
-
-                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
-                                        // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && (MATCH::isFwd(m_2)))
-                                        {
-                                            continue;
-
-                                        } else {
-
-                                            // check if this is a match without errors
-                                            if (!errors[i])
-                                            {
-
-                                                // if so, return without a match
-                                                return -1;
-
-                                            }
-                                            // set the number of matches with that many errors to 2
-                                            // indicating that we do not have a unique match with that many errors
-                                            multiMatch[errors[i]] = 2;
-                                        }
-
-
-                                    } else {
-
-                                        // we don't have such a match yet,
-                                        // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
-                                        multiMatch[errors[i]] = 1;
-                                    }
-
-
-                                }
-
-                            }
-
-                        // is not forward strand meta CpG
-                        } else {
-
-                            // check if we queried it before
-                            if (threadCountRev[m] == 1 || threadCountRev[m] >= 3)
-                            {
-                                continue;
-
-                            } else {
-
-                                threadCountRev[m] += 1;
-                                // retrieve it
-                                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[m].start];
-                                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
-
-                                auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
-
-                                // check if CpG was too near to the end
-                                if (startIt >= ref.fullSeq[startCpg.chrom].end())
-                                {
-                                    // if so move end iterator appropriately
-                                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-                                }
-
-                                // use shift and to find all matchings
-                                std::vector<uint64_t> matchings;
-                                std::vector<uint8_t> errors;
-                                sa.queryRevSeq(startIt, endIt, matchings, errors);
-
-                                // go through matching and see if we had such a match (with that many errors) before - if so,
-                                // return to caller reporting no match
-                                for (size_t i = 0; i < matchings.size(); ++i)
-                                {
-
-                                    // check if we had a match with that many errors before
-                                    if (multiMatch[errors[i]])
-                                    {
-
-                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
-                                        // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && !(MATCH::isFwd(m_2)))
-                                        {
-                                            continue;
-
-                                        } else {
-
-                                            // check if this is a match without errors
-                                            if (!errors[i])
-                                            {
-
-                                                // if so, return without a match
-                                                return -1;
-
-                                            }
-                                            // set the number of matches with that many errors to 2
-                                            // indicating that we do not have a unique match with that many errors
-                                            multiMatch[errors[i]] = 2;
-                                        }
-
-
-                                    } else {
-
-                                        // we don't have such a match yet,
-                                        // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 0);
-                                        multiMatch[errors[i]] = 1;
-                                    }
-
-                                }
-
-                            }
-
-                        }
-
-                    // if is not start metaCpG
-                    } else {
-
-                        if (isFwd)
-                        {
-
-                            // check if we queried this meta CpG it before
-                            if (threadCountFwd[m] >= 2)
-                            {
-                                continue;
-
-                            } else {
-
-
-                                // state that we queried this
-                                threadCountFwd[m] += 2;
-                                // retrieve it
-                                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
-
-                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
-
-                                // check if CpG was too near to the end
-                                if (endIt > ref.fullSeq[startCpg.chrom].end())
-                                {
-                                    // if so move end iterator appropriately
-                                    endIt = ref.fullSeq[startCpg.chrom].end();
-                                }
-
-                                // use shift and to find all matchings
-                                std::vector<uint64_t> matchings;
-                                std::vector<uint8_t> errors;
-                                sa.querySeq(startIt, endIt, matchings, errors);
-
-                                // go through matching and see if we had such a match (with that many errors) before - if so,
-                                // return to caller reporting no match
-                                for (size_t i = 0; i < matchings.size(); ++i)
-                                {
-
-                                    // check if we had a match with that many errors before
-                                    if (multiMatch[errors[i]])
-                                    {
-
-                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
-                                        // check if same k-mer (borders of meta CpGs)
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && (MATCH::isFwd(m_2)))
-                                        {
-                                            continue;
-
-                                        } else {
-
-                                            // check if this is a match without errors
-                                            if (!errors[i])
-                                            {
-
-                                                // if so, return without a match
-                                                // std::cout << "Nonunique no-error match\n";
-                                                return -1;
-
-                                            }
-                                            // set the number of matches with that many errors to 2
-                                            // indicating that we do not have a unique match with that many errors
-                                            multiMatch[errors[i]] = 2;
-                                        }
-
-
-                                    } else {
-
-                                        // we don't have such a match yet,
-                                        // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
-                                        multiMatch[errors[i]] = 1;
-                                    }
-                                }
-                            }
-
-                        // kmer is on backward strand
-                        } else {
-
-                            // check if we queried this meta CpG it before
-                            if (threadCountRev[m] >= 2)
-                            {
-                                continue;
-
-                            } else {
-
-                                // state that we queried this
-                                threadCountRev[m] += 2;
-                                // retrieve it
-                                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
-
-                                auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-                                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
-
-                                // check if CpG was too near to the end
-                                if (startIt >= ref.fullSeq[startCpg.chrom].end())
-                                {
-                                    // if so move end iterator appropriately
-                                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-                                }
-
-                                // use shift and to find all matchings
-                                std::vector<uint64_t> matchings;
-                                std::vector<uint8_t> errors;
-                                sa.queryRevSeq(startIt, endIt, matchings, errors);
-
-                                // go through matching and see if we had such a match (with that many errors) before - if so,
-                                // return to caller reporting no match
-                                for (size_t i = 0; i < matchings.size(); ++i)
-                                {
-
-                                    // check if we had a match with that many errors before
-                                    if (multiMatch[errors[i]])
-                                    {
-
-                                        MATCH::match& m_2 = uniqueMatches[errors[i]];
-                                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && !(MATCH::isFwd(m_2)))
-                                        {
-                                            continue;
-
-                                        } else {
-
-                                            // check if this is a match without errors
-                                            if (!errors[i])
-                                            {
-
-                                                // if so, return without a match
-                                                return -1;
-
-                                            }
-                                            // set the number of matches with that many errors to 2
-                                            // indicating that we do not have a unique match with that many errors
-                                            multiMatch[errors[i]] = 2;
-                                        }
-
-
-                                    } else {
-
-                                        // we don't have such a match yet,
-                                        // so save this match at the correct position
-                                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 0);
-                                        multiMatch[errors[i]] = 1;
-                                    }
-                                }
-
-                            } // end else for visited meta CpG test
-                        } // end else isFwd
-                    } // end else isStart
-                } // end inner kmer loop
-            } // end outer kmer loop
-
-
-            // go through found matches for each [0,maxErrorNumber] and see if it is unique
-            for (size_t i = 0; i < multiMatch.size(); ++i)
-            {
-                // there is no match with that few errors, search the one with more errors
-                if (multiMatch[i] == 0)
-                {
-                    continue;
-                }
-                // if match is not unique, return unsuccessfull to caller
-                if (multiMatch[i] > 1)
-                {
-                    // of << "Too bad, multimatch in internal\n";
-                    return -1;
-
-                } else {
-
-                    mat = uniqueMatches[i];
-                    return 1;
-                }
-
-            }
-            // we have not a single match at all, return unsuccessfull to caller
-            // of << "No match at all\t";
-            return 0;
-        }
-        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, const uint16_t& qThreshold)
+            // std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
+            // std::vector<uint16_t>& threadCountRev = countsRev[omp_get_thread_num()];
+            //
+            // // fill with zeroes
+            // threadCountFwd.assign(ref.metaCpGs.size(), 0);
+            // threadCountRev.assign(ref.metaCpGs.size(), 0);
+            //
+            // // counter for how often we had a match
+            // std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
+            // multiMatch.fill(0);
+            //
+            // // will contain matches iff match is found for number of errors specified by index
+            // std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
+            //
+            // for (size_t outerNdx = 0; outerNdx < seedsK.size(); ++outerNdx)
+            // {
+            //
+            //     for (size_t innerNdx = 0; innerNdx < seedsK[outerNdx].size(); ++innerNdx)
+            //     {
+            //
+            //         // retrieve kmer
+            //         KMER::kmer& k = seedsK[outerNdx][innerNdx];
+            //
+            //         // retrieve meta CpG
+            //         const uint64_t m = KMER::getMetaCpG(k);
+            //
+            //         // retrieve if start meta CpG
+            //         const bool isStart = KMER::isStartCpG(k);
+            //
+            //         // retrieve strand
+            //         const bool isFwd = seedsS[outerNdx][innerNdx];
+            //
+            //         if (isStart)
+            //         {
+            //
+            //             if (isFwd)
+            //             {
+            //                 // check if we queried this meta CpG it before
+            //                 if (threadCountFwd[m] == 1 || threadCountFwd[m] >= 3)
+            //                 {
+            //                     continue;
+            //
+            //                 } else {
+            //
+            //                     // state that we queried this
+            //                     threadCountFwd[m] += 1;
+            //                     // retrieve it
+            //                     const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[m].start];
+            //                     const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
+            //
+            //                     auto startIt = ref.fullSeq[startCpg.chrom].begin();
+            //                     auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+            //
+            //                     // check if CpG was too near to the end
+            //                     if (endIt > ref.fullSeq[startCpg.chrom].end())
+            //                     {
+            //                         // if so move end iterator appropriately
+            //                         endIt = ref.fullSeq[startCpg.chrom].end();
+            //                     }
+            //
+                        //         // use shift and to find all matchings
+                        //         std::vector<uint64_t> matchings;
+                        //         std::vector<uint8_t> errors;
+                        //         sa.querySeq(startIt, endIt, matchings, errors);
+                        //
+                        //         // go through matching and see if we had such a match (with that many errors) before - if so,
+                        //         // return to caller reporting no match
+                        //         for (size_t i = 0; i < matchings.size(); ++i)
+                        //         {
+                        //
+                        //             // check if we had a match with that many errors before
+                        //             if (multiMatch[errors[i]])
+                        //             {
+                        //
+                        //                 MATCH::match& match_2 = uniqueMatches[errors[i]];
+                        //                 // check if same k-mer (borders of meta CpGs)
+                        //                 if ((MATCH::getChrom(match_2) == startCpg.chrom) && (MATCH::getOffset(match_2) == matchings[i]) && (MATCH::isFwd(match_2)))
+                        //                 {
+                        //                     continue;
+                        //
+                        //                 } else {
+                        //
+                        //                     // check if this is a match without errors
+                        //                     if (!errors[i])
+                        //                     {
+                        //
+                        //                         // if so, return without a match
+                        //                         return -1;
+                        //
+                        //                     }
+                        //                     // set the number of matches with that many errors to 2
+                        //                     // indicating that we do not have a unique match with that many errors
+                        //                     multiMatch[errors[i]] = 2;
+                        //                 }
+                        //
+                        //
+                        //             } else {
+                        //
+                        //                 // we don't have such a match yet,
+                        //                 // so save this match at the correct position
+                        //                 uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
+                        //                 multiMatch[errors[i]] = 1;
+                        //             }
+                        //
+                        //
+                        //         }
+                        //
+                        //     }
+                        //
+                        // // is not forward strand meta CpG
+                        // } else {
+                        //
+                        //     // check if we queried it before
+                        //     if (threadCountRev[m] == 1 || threadCountRev[m] >= 3)
+                        //     {
+                        //         continue;
+                        //
+                        //     } else {
+                        //
+                        //         threadCountRev[m] += 1;
+                        //         // retrieve it
+                        //         const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[m].start];
+                        //         const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[m].end];
+                        //
+                        //         auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
+                        //         auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+                        //
+                        //         // check if CpG was too near to the end
+                        //         if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                        //         {
+                        //             // if so move end iterator appropriately
+                        //             startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                        //         }
+                        //
+                        //         // use shift and to find all matchings
+                        //         std::vector<uint64_t> matchings;
+                        //         std::vector<uint8_t> errors;
+                        //         sa.queryRevSeq(startIt, endIt, matchings, errors);
+                        //
+                        //         // go through matching and see if we had such a match (with that many errors) before - if so,
+                        //         // return to caller reporting no match
+                        //         for (size_t i = 0; i < matchings.size(); ++i)
+                        //         {
+                        //
+                        //             // check if we had a match with that many errors before
+                        //             if (multiMatch[errors[i]])
+                        //             {
+                        //
+                        //                 MATCH::match& match_2 = uniqueMatches[errors[i]];
+                        //                 // check if same k-mer (borders of meta CpGs)
+                        //                 if ((MATCH::getChrom(match_2) == startCpg.chrom) && (MATCH::getOffset(match_2) == matchings[i]) && !(MATCH::isFwd(match_2)))
+                        //                 {
+                        //                     continue;
+                        //
+                        //                 } else {
+                        //
+                        //                     // check if this is a match without errors
+                        //                     if (!errors[i])
+                        //                     {
+                        //
+                    //                             // if so, return without a match
+                    //                             return -1;
+                    //
+                    //                         }
+                    //                         // set the number of matches with that many errors to 2
+                    //                         // indicating that we do not have a unique match with that many errors
+                    //                         multiMatch[errors[i]] = 2;
+                    //                     }
+                    //
+                    //
+                    //                 } else {
+                    //
+                    //                     // we don't have such a match yet,
+                    //                     // so save this match at the correct position
+                    //                     uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 0);
+                    //                     multiMatch[errors[i]] = 1;
+                    //                 }
+                    //
+                    //             }
+                    //
+                    //         }
+                    //
+                    //     }
+                    //
+                    // // if is not start metaCpG
+                    // } else {
+                    //
+                    //     if (isFwd)
+                    //     {
+                    //
+                    //         // check if we queried this meta CpG it before
+                    //         if (threadCountFwd[m] >= 2)
+                    //         {
+                    //             continue;
+                    //
+                    //         } else {
+                    //
+                    //
+                    //             // state that we queried this
+                    //             threadCountFwd[m] += 2;
+                    //             // retrieve it
+                    //             const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+                    //             const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
+                    //
+                    //             auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+                    //             auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+                    //
+                    //             // check if CpG was too near to the end
+                    //             if (endIt > ref.fullSeq[startCpg.chrom].end())
+                    //             {
+                    //                 // if so move end iterator appropriately
+                    //                 endIt = ref.fullSeq[startCpg.chrom].end();
+                    //             }
+                    //
+                    //             // use shift and to find all matchings
+                    //             std::vector<uint64_t> matchings;
+                    //             std::vector<uint8_t> errors;
+                    //             sa.querySeq(startIt, endIt, matchings, errors);
+                    //
+                    //             // go through matching and see if we had such a match (with that many errors) before - if so,
+                        //         // return to caller reporting no match
+                        //         for (size_t i = 0; i < matchings.size(); ++i)
+                        //         {
+                        //
+                        //             // check if we had a match with that many errors before
+                        //             if (multiMatch[errors[i]])
+                        //             {
+                        //
+                        //                 MATCH::match& match_2 = uniqueMatches[errors[i]];
+                        //                 // check if same k-mer (borders of meta CpGs)
+                        //                 if ((MATCH::getChrom(match_2) == startCpg.chrom) && (MATCH::getOffset(match_2) == matchings[i] + startCpg.pos) && (MATCH::isFwd(match_2)))
+                        //                 {
+                        //                     continue;
+                        //
+                        //                 } else {
+                        //
+                        //                     // check if this is a match without errors
+                        //                     if (!errors[i])
+                        //                     {
+                        //
+                        //                         // if so, return without a match
+                        //                         // std::cout << "Nonunique no-error match\n";
+                        //                         return -1;
+                        //
+                        //                     }
+                        //                     // set the number of matches with that many errors to 2
+                        //                     // indicating that we do not have a unique match with that many errors
+                        //                     multiMatch[errors[i]] = 2;
+                        //                 }
+                        //
+                        //
+                        //             } else {
+                        //
+                        //                 // we don't have such a match yet,
+                        //                 // so save this match at the correct position
+                        //                 uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
+                        //                 multiMatch[errors[i]] = 1;
+                        //             }
+                        //         }
+                        //     }
+                        //
+                        // // kmer is on backward strand
+                        // } else {
+                        //
+                        //     // check if we queried this meta CpG it before
+                        //     if (threadCountRev[m] >= 2)
+                        //     {
+                        //         continue;
+                        //
+                        //     } else {
+                        //
+                        //         // state that we queried this
+                        //         threadCountRev[m] += 2;
+                        //         // retrieve it
+                        //         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+                        //         const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m].end];
+                        //
+                        //         auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
+                        //         auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+                        //
+                        //         // check if CpG was too near to the end
+                        //         if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                        //         {
+                        //             // if so move end iterator appropriately
+                        //             startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                        //         }
+                        //
+                        //         // use shift and to find all matchings
+                        //         std::vector<uint64_t> matchings;
+                        //         std::vector<uint8_t> errors;
+                        //         sa.queryRevSeq(startIt, endIt, matchings, errors);
+                        //
+                        //         // go through matching and see if we had such a match (with that many errors) before - if so,
+                        //         // return to caller reporting no match
+                        //         for (size_t i = 0; i < matchings.size(); ++i)
+                        //         {
+                        //
+                        //             // check if we had a match with that many errors before
+                        //             if (multiMatch[errors[i]])
+                        //             {
+                        //
+                        //                 MATCH::match& match_2 = uniqueMatches[errors[i]];
+                        //                 if ((MATCH::getChrom(match_2) == startCpg.chrom) && (MATCH::getOffset(match_2) == matchings[i] + startCpg.pos) && !(MATCH::isFwd(match_2)))
+                        //                 {
+                        //                     continue;
+                        //
+                        //                 } else {
+                        //
+                        //                     // check if this is a match without errors
+                        //                     if (!errors[i])
+                        //                     {
+                        //
+                        //                         // if so, return without a match
+                        //                         return -1;
+                        //
+                        //                     }
+                        //                     // set the number of matches with that many errors to 2
+                        //                     // indicating that we do not have a unique match with that many errors
+                        //                     multiMatch[errors[i]] = 2;
+                        //                 }
+        //
+        //
+        //                             } else {
+        //
+        //                                 // we don't have such a match yet,
+        //                                 // so save this match at the correct position
+        //                                 uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 0);
+        //                                 multiMatch[errors[i]] = 1;
+        //                             }
+        //                         }
+        //
+        //                     } // end else for visited meta CpG test
+        //                 } // end else isFwd
+        //             } // end else isStart
+        //         } // end inner kmer loop
+        //     } // end outer kmer loop
+        //
+        //
+        //     // go through found matches for each [0,maxErrorNumber] and see if it is unique
+        //     for (size_t i = 0; i < multiMatch.size(); ++i)
+        //     {
+        //         // there is no match with that few errors, search the one with more errors
+        //         if (multiMatch[i] == 0)
+        //         {
+        //             continue;
+        //         }
+        //         // if match is not unique, return unsuccessfull to caller
+        //         if (multiMatch[i] > 1)
+        //         {
+        //             // of << "Too bad, multimatch in internal\n";
+        //             return -1;
+        //
+        //         } else {
+        //
+        //             mat = uniqueMatches[i];
+        //             return 1;
+        //         }
+        //
+        //     }
+        //     // we have not a single match at all, return unsuccessfull to caller
+        //     // of << "No match at all\t";
+        //     return 0;
+        // }
+        // inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, const uint16_t& qThreshold)
+        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat)
         {
 
             // use counters to flag what has been processed so far
@@ -854,17 +883,15 @@ class ReadQueue
             // will contain matches iff match is found for number of errors specified by index
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
 
-            // uint16_t qThreshold = 1;
             // set q-gram lemma threshold
-            // uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
             // check for overflow (i.e. read is to small for lemma)
-            // if (qThreshold > sa.size())
-            //     qThreshold = 0;
+            if (qThreshold > sa.size())
+                qThreshold = 0;
 
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
             {
-
                 // apply qgram lemma
                 if (m.second < qThreshold)
                     continue;
@@ -872,14 +899,9 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
-                // TODO
-                // of << std::string(startIt, endIt)<< "\n";
-                // const struct CpG& startCpg2 = ref.cpgTable[ref.metaCpGs[m.first + 1].start];
-                // auto startIt2 = ref.fullSeq[startCpg2.chrom].begin() + startCpg2.pos;
-                // auto endIt2 = ref.fullSeq[startCpg2.chrom].begin() + startCpg2.pos + 200;
-                // of << std::string(startIt2, endIt2)<< "\n";
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
 
+                // std::cout << std::string(startIt + 220, endIt) << "\n";
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
                 {
@@ -901,9 +923,11 @@ class ReadQueue
                     if (multiMatch[errors[i]])
                     {
 
-                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        MATCH::match& match_2 = uniqueMatches[errors[i]];
+                        const bool isStart = MATCH::isStart(match_2);
+                        const bool isFwd = MATCH::isFwd(match_2);
                         // check if same k-mer (borders of meta CpGs)
-                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && (MATCH::isFwd(m_2)))
+                        if (isFwd && !isStart && ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(match_2)].start].pos + MATCH::getOffset(match_2) == startCpg.pos + matchings[i])
                         {
                             continue;
 
@@ -925,9 +949,16 @@ class ReadQueue
 
                     } else {
 
+                        // update qgram lemma
+                        uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
+                        // check for overflow and if we improved old q
+                        if (newQ < sa.size() && newQ > qThreshold)
+                            qThreshold = newQ;
+
+
                         // we don't have such a match yet,
                         // so save this match at the correct position
-                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 1);
+                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], errors[i], 1, 0, m.first);
                         multiMatch[errors[i]] = 1;
                     }
                 }
@@ -944,7 +975,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -967,9 +998,11 @@ class ReadQueue
                     if (multiMatch[errors[i]])
                     {
 
-                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        MATCH::match& match_2 = uniqueMatches[errors[i]];
+                        const bool isStart = MATCH::isStart(match_2);
+                        const bool isFwd = MATCH::isFwd(match_2);
                         // check if same k-mer (borders of meta CpGs)
-                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i] + startCpg.pos) && !(MATCH::isFwd(m_2)))
+                        if (!isFwd && !isStart && ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(match_2)].start].pos + MATCH::getOffset(match_2) == startCpg.pos + matchings[i])
                         {
                             continue;
 
@@ -991,9 +1024,15 @@ class ReadQueue
 
                     } else {
 
+                        // update qgram lemma
+                        uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
+                        // check for overflow and if we improved old q
+                        if (newQ < sa.size() && newQ > qThreshold)
+                            qThreshold = newQ;
+
                         // we don't have such a match yet,
                         // so save this match at the correct position
-                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i] + startCpg.pos, startCpg.chrom, errors[i], 0);
+                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], errors[i], 0, 0, m.first);
                         multiMatch[errors[i]] = 1;
                     }
                 }
@@ -1012,7 +1051,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin();
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2);
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -1028,23 +1067,24 @@ class ReadQueue
 
                 // go through matching and see if we had such a match (with that many errors) before - if so,
                 // return to caller reporting no match
-                for (size_t i = 0; i < matchings.size(); ++i)
+                for (size_t j = 0; j < matchings.size(); ++j)
                 {
 
                     // check if we had a match with that many errors before
-                    if (multiMatch[errors[i]])
+                    if (multiMatch[errors[j]])
                     {
 
-                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        MATCH::match& match_2 = uniqueMatches[errors[j]];
+                        const bool isStart = MATCH::isStart(match_2);
                         // check if same k-mer (borders of meta CpGs)
-                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && (MATCH::isFwd(m_2)))
+                        if (isStart && MATCH::getOffset(match_2) == matchings[i])
                         {
                             continue;
 
                         } else {
 
                             // check if this is a match without errors
-                            if (!errors[i])
+                            if (!errors[j])
                             {
 
                                 // if so, return without a match
@@ -1053,7 +1093,7 @@ class ReadQueue
                             }
                             // set the number of matches with that many errors to 2
                             // indicating that we do not have a unique match with that many errors
-                            multiMatch[errors[i]] = 2;
+                            multiMatch[errors[j]] = 2;
                         }
 
 
@@ -1061,8 +1101,8 @@ class ReadQueue
 
                         // we don't have such a match yet,
                         // so save this match at the correct position
-                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 1);
-                        multiMatch[errors[i]] = 1;
+                        uniqueMatches[errors[j]] = MATCH::constructMatch(matchings[j], errors[j], 1, 1, i);
+                        multiMatch[errors[j]] = 1;
                     }
                 }
             }
@@ -1080,7 +1120,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -1096,23 +1136,24 @@ class ReadQueue
 
                 // go through matching and see if we had such a match (with that many errors) before - if so,
                 // return to caller reporting no match
-                for (size_t i = 0; i < matchings.size(); ++i)
+                for (size_t j = 0; j < matchings.size(); ++j)
                 {
 
                     // check if we had a match with that many errors before
-                    if (multiMatch[errors[i]])
+                    if (multiMatch[errors[j]])
                     {
 
-                        MATCH::match& m_2 = uniqueMatches[errors[i]];
+                        MATCH::match& match_2 = uniqueMatches[errors[j]];
+                        const bool isStart = MATCH::isStart(match_2);
                         // check if same k-mer (borders of meta CpGs)
-                        if ((MATCH::getChrom(m_2) == startCpg.chrom) && (MATCH::getOffset(m_2) == matchings[i]) && !(MATCH::isFwd(m_2)))
+                        if (isStart && MATCH::getOffset(match_2) == matchings[i])
                         {
                             continue;
 
                         } else {
 
                             // check if this is a match without errors
-                            if (!errors[i])
+                            if (!errors[j])
                             {
 
                                 // if so, return without a match
@@ -1121,7 +1162,7 @@ class ReadQueue
                             }
                             // set the number of matches with that many errors to 2
                             // indicating that we do not have a unique match with that many errors
-                            multiMatch[errors[i]] = 2;
+                            multiMatch[errors[j]] = 2;
                         }
 
 
@@ -1129,8 +1170,8 @@ class ReadQueue
 
                         // we don't have such a match yet,
                         // so save this match at the correct position
-                        uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], startCpg.chrom, errors[i], 0);
-                        multiMatch[errors[i]] = 1;
+                        uniqueMatches[errors[j]] = MATCH::constructMatch(matchings[j], errors[j], 0, 1, i);
+                        multiMatch[errors[j]] = 1;
                     }
                 }
             }
@@ -1228,14 +1269,10 @@ class ReadQueue
                 {
                     if (isFwd)
                     {
-                        // if (++threadCountFwdStart[metaId] > qThreshold)
-                        //     ++passCount;
                         ++threadCountFwdStart[metaId];
 
                     } else {
 
-                        // if (++threadCountRevStart[metaId] > qThreshold)
-                        //     ++passCount;
                         ++threadCountRevStart[metaId];
 
                     }
@@ -1244,31 +1281,21 @@ class ReadQueue
 
                     if (isFwd)
                     {
-                        // if (++threadCountFwd[metaId] > qThreshold)
-                        // {
-                        //     ++passCount;
-                        //     fwdMetaIDs_t.emplace(metaId);
-                        // }
                         ++fwdMetaIDs_t[metaId];
 
                     } else {
 
-                        // if (++threadCountRev[metaId] > qThreshold)
-                        // {
-                        //     ++passCount;
-                        //     revMetaIDs_t.emplace(metaId);
-                        // }
                         ++revMetaIDs_t[metaId];
 
                     }
                 }
             }
 
-            for (unsigned int i = 0; i < (seq.size() - MyConst::KMERLEN); ++i)
+            for (unsigned int cIdx = 0; cIdx < (seq.size() - MyConst::KMERLEN); ++cIdx)
             {
 
                 // use rolling hash
-                ntHash::NTP64(fhVal, seq[i], seq[i + MyConst::KMERLEN]);
+                ntHash::NTP64(fhVal, seq[cIdx], seq[cIdx + MyConst::KMERLEN]);
 
                 key = fhVal % MyConst::HTABSIZE;
 
@@ -1297,14 +1324,10 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            // if (++threadCountFwdStart[metaId] > qThreshold)
-                            //     ++passCount;
                             ++threadCountFwdStart[metaId];
 
                         } else {
 
-                            // if (++threadCountRevStart[metaId] > qThreshold)
-                            //     ++passCount;
                             ++threadCountRevStart[metaId];
 
                         }
@@ -1313,20 +1336,10 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            // if (++threadCountFwd[metaId] > qThreshold)
-                            // {
-                            //     ++passCount;
-                            //     fwdMetaIDs_t.emplace(metaId);
-                            // }
                             ++fwdMetaIDs_t[metaId];
 
                         } else {
 
-                            // if (++threadCountRev[metaId] > qThreshold)
-                            // {
-                            //     ++passCount;
-                            //     revMetaIDs_t.emplace(metaId);
-                            // }
                             ++revMetaIDs_t[metaId];
 
                         }
@@ -1352,6 +1365,7 @@ class ReadQueue
         {
 
             uint16_t qThresh = seq.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            of << qThresh << "\t";
 
             uint64_t kSeq = 0;
 
@@ -1399,13 +1413,364 @@ class ReadQueue
                 }
                 // test if kmer was filtered -> if yes, reduce qgram lemma threshold
                 if (ref.filteredKmers.count(kSeq & MyConst::KMERMASK))
+                {
                     --qThresh;
+                    of << "okay now it happened\t";
+                }
 
             }
             // if underflow, reset
             if (qThresh > seq.size())
                 qThresh = 0;
+            of << qThresh << "\n\n";
             return qThresh;
+        }
+
+
+        // compute the methylation levels for the given read by traversing the CpGs of the matched meta CpG
+        //
+        // ARGUMENTS:
+        //          mat     match to process
+        //          seq     sequence that was matched (i.e. r.seq or revSeq in main query routine)
+        //
+        // MODIFICATIONS:
+        //              will modify internal methLevel counters
+        inline void computeMethLvl(MATCH::match& mat, std::string& seq)
+        {
+
+            // retrieve matched metaId
+            bool isFwd = MATCH::isFwd(mat);
+            bool isStart = MATCH::isStart(mat);
+            uint32_t metaID = MATCH::getMetaID(mat);
+            uint16_t offset = MATCH::getOffset(mat);
+            uint8_t errNum = MATCH::getErrNum(mat);
+
+            // if no errors -> simple lookup of sequences
+            if (errNum == 0)
+            {
+
+                // retrieve chromosome and position of match
+                if (isStart)
+                {
+                    struct metaCpG& m = ref.metaStartCpGs[metaID];
+                    uint8_t chrom = ref.cpgStartTable[m.start].chrom;
+                    for (uint32_t cpgId = m.start; cpgId <= m.end; ++cpgId)
+                    {
+                        // check if CpG is too far downstream of read match
+                        // i.e. no overlap
+                        if (ref.cpgStartTable[cpgId].pos < offset - seq.size())
+                            continue;
+                        // check if too far upstream
+                        if (ref.cpgStartTable[cpgId].pos + 1 > offset)
+                            break;
+
+
+                        // position of CpG in read
+                        // last term represents position of start of read in reference sequence
+                        uint32_t readCpGPos = ref.cpgStartTable[cpgId].pos - (offset - seq.size() + 1);
+                        if (isFwd)
+                        {
+                            if (seq[readCpGPos] == 'T')
+                                ++methLevelsStart[cpgId].unmethFwd;
+                            else
+                                ++methLevelsStart[cpgId].methFwd;
+                        } else {
+
+                            if (seq[seq.size() - readCpGPos - 1] == 'T')
+                                ++methLevelsStart[cpgId].unmethRev;
+                            else
+                                ++methLevelsStart[cpgId].methRev;
+                        }
+                    }
+
+
+                // normal match
+                } else {
+
+                    struct metaCpG& m = ref.metaCpGs[metaID];
+                    uint8_t chrom = ref.cpgTable[m.start].chrom;
+                    for (uint32_t cpgId = m.start; cpgId <= m.end; ++cpgId)
+                    {
+                        // check if CpG is too far downstream of read match
+                        // i.e. no overlap
+                        if (ref.cpgTable[cpgId].pos < ref.cpgTable[m.start].pos + offset - seq.size())
+                            continue;
+                        // check if too far upstream
+                        if (ref.cpgTable[cpgId].pos + 1 > ref.cpgTable[m.start].pos + offset)
+                            break;
+
+
+                        // position of CpG in read
+                        uint32_t readCpGPos = ref.cpgTable[cpgId].pos + MyConst::READLEN - 3 - (offset - seq.size());
+                        if (isFwd)
+                        {
+                            if (seq[readCpGPos] == 'T')
+                                ++methLevels[cpgId].unmethFwd;
+                            else
+                                ++methLevels[cpgId].methFwd;
+                        } else {
+
+                            if (seq[seq.size() - readCpGPos - 1] == 'T')
+                                ++methLevels[cpgId].unmethRev;
+                            else
+                                ++methLevels[cpgId].methRev;
+                        }
+                    }
+
+                }
+
+            // if match was errornous
+            } else {
+
+                if (isStart)
+                {
+                    struct metaCpG& m = ref.metaStartCpGs[metaID];
+                    uint8_t chrom = ref.cpgStartTable[m.start].chrom;
+
+                    const char* refSeq = ref.fullSeq[chrom].data() + offset;
+
+                    // init levenshtein DP algo
+                    LevenshtDP<uint16_t, MyConst::MISCOUNT> lev(seq, refSeq);
+                    std::vector<ERROR_T> alignment;
+
+                    // minimum position for overlap
+                    uint32_t minPos = offset - seq.size() - 1;
+                    uint32_t maxPos = offset - 1;
+                    // positions of first/ last overlapping CpG
+                    uint32_t minIndex = m.start;
+                    uint32_t maxIndex = m.end;
+                    for (uint32_t cpgID = m.start; cpgID <= m.end; ++cpgID)
+                    {
+                        if (ref.cpgStartTable[cpgID].pos < minPos)
+                        {
+                            ++minIndex;
+                        } else if (ref.cpgStartTable[cpgID].pos + 1 > maxPos)
+                        {
+                            maxIndex = cpgID - 1;
+                            break;
+                        }
+                    }
+
+                    if (isFwd)
+                    {
+
+                        // compute alignment
+                        lev.runDPFill<CompiFwd>(cmpFwd);
+                        lev.backtrackDP<CompiFwd>(cmpFwd, alignment);
+                        uint32_t refSeqPos = offset;
+                        uint32_t readSeqPos = seq.size() - 1;
+                        uint32_t alignPos = alignment.size() - 1;
+
+                        // go through all overlapping CpGs from back,
+                        // move through read and reference according to alignment
+                        // if position of CpG is hit, compare and count
+                        for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+                        {
+                            // align until this CpG
+                            while (ref.cpgStartTable[cpgID].pos < refSeqPos)
+                            {
+                                switch (alignment[alignPos--])
+                                {
+                                    case (MATCHING):
+                                    case (MISMATCH):
+                                        --readSeqPos;
+                                        --refSeqPos;
+                                        break;
+                                    case (DELETION):
+                                        --refSeqPos;
+                                        break;
+                                    case(INSERTION):
+                                        --readSeqPos;
+                                        break;
+                                }
+                                // check if we have a CpG aligned to the reference CpG
+                                if (seq[readSeqPos + 1] == 'G')
+                                {
+                                    // check for unmethylated C
+                                    if (seq[readSeqPos] == 'C')
+                                        ++methLevelsStart[cpgID].unmethFwd;
+                                    else if (seq[readSeqPos] == 'T')
+                                        ++methLevelsStart[cpgID].methFwd;
+
+                                }
+                            }
+                        }
+
+                    } else {
+
+                        lev.runDPFillRev<CompiRev>(cmpRev);
+                        lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
+                        uint32_t refSeqPos = offset;
+                        uint32_t readSeqPos = seq.size() - 1;
+                        uint32_t alignPos = alignment.size() - 1;
+
+                        // go through all overlapping CpGs from back,
+                        // move through read and reference according to alignment
+                        // if position of CpG is hit, compare and count
+                        for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+                        {
+                            // align until this CpG
+                            while (ref.cpgStartTable[cpgID].pos < refSeqPos)
+                            {
+                                switch (alignment[alignPos--])
+                                {
+                                    case (MATCHING):
+                                    case (MISMATCH):
+                                        --readSeqPos;
+                                        --refSeqPos;
+                                        break;
+                                    case (DELETION):
+                                        --refSeqPos;
+                                        break;
+                                    case(INSERTION):
+                                        --readSeqPos;
+                                        break;
+                                }
+                                // check if we have a CpG aligned to the reference CpG
+                                if (seq[readSeqPos + 1] == 'C')
+                                {
+                                    // check for unmethylated C (on reverse!)
+                                    if (seq[readSeqPos] == 'G')
+                                        ++methLevelsStart[cpgID].unmethRev;
+                                    else if (seq[readSeqPos] == 'A')
+                                        ++methLevelsStart[cpgID].methRev;
+
+                                }
+                            }
+                        }
+                    }
+
+
+                // normal match
+                } else {
+
+                    struct metaCpG& m = ref.metaCpGs[metaID];
+                    uint8_t chrom = ref.cpgTable[m.start].chrom;
+
+                    const char* refSeq = ref.fullSeq[chrom].data() + ref.cpgTable[m.start].pos + offset;
+
+                    // init levenshtein DP algo
+                    LevenshtDP<uint16_t, MyConst::MISCOUNT> lev(seq, refSeq);
+                    std::vector<ERROR_T> alignment;
+
+                    // minimum position for overlap
+                    uint32_t minPos = offset - seq.size() - 1;
+                    uint32_t maxPos = offset - 1;
+                    // positions of first/ last overlapping CpG
+                    uint32_t minIndex = m.start;
+                    uint32_t maxIndex = m.end;
+                    for (uint32_t cpgID = m.start; cpgID <= m.end; ++cpgID)
+                    {
+                        if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < minPos)
+                        {
+                            ++minIndex;
+                        } else if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 1 > maxPos)
+                        {
+                            maxIndex = cpgID - 1;
+                            break;
+                        }
+                    }
+
+                    if (isFwd)
+                    {
+
+                        // compute alignment
+                        lev.runDPFill<CompiFwd>(cmpFwd);
+                        // sanity check
+                        if (lev.getEditDist() != errNum)
+                        {
+                            std::cout << "Alignment seems to be wrong!\n\n";
+                        }
+                        lev.backtrackDP<CompiFwd>(cmpFwd, alignment);
+                        uint32_t refSeqPos = ref.cpgTable[m.start].pos + offset;
+                        uint32_t readSeqPos = seq.size() - 1;
+                        uint32_t alignPos = alignment.size() - 1;
+
+                        // go through all overlapping CpGs from back,
+                        // move through read and reference according to alignment
+                        // if position of CpG is hit, compare and count
+                        for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+                        {
+                            // align until this CpG
+                            while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos)
+                            {
+                                switch (alignment[alignPos--])
+                                {
+                                    case (MATCHING):
+                                    case (MISMATCH):
+                                        --readSeqPos;
+                                        --refSeqPos;
+                                        break;
+                                    case (DELETION):
+                                        --refSeqPos;
+                                        break;
+                                    case(INSERTION):
+                                        --readSeqPos;
+                                        break;
+                                }
+                                // check if we have a CpG aligned to the reference CpG
+                                if (seq[readSeqPos + 1] == 'G')
+                                {
+                                    // check for unmethylated C
+                                    if (seq[readSeqPos] == 'C')
+                                        ++methLevels[cpgID].unmethFwd;
+                                    else if (seq[readSeqPos] == 'T')
+                                        ++methLevels[cpgID].methFwd;
+
+                                }
+                            }
+                        }
+
+                    } else {
+
+                        lev.runDPFillRev<CompiRev>(cmpRev);
+                        // sanity check
+                        if (lev.getEditDist() != errNum)
+                        {
+                            std::cout << "Alignment seems to be wrong!\n\n";
+                        }
+                        lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
+                        uint32_t refSeqPos = ref.cpgTable[m.start].pos + offset;
+                        uint32_t readSeqPos = seq.size() - 1;
+                        uint32_t alignPos = alignment.size() - 1;
+
+                        // go through all overlapping CpGs from back,
+                        // move through read and reference according to alignment
+                        // if position of CpG is hit, compare and count
+                        for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+                        {
+                            // align until this CpG
+                            while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos)
+                            {
+                                switch (alignment[alignPos--])
+                                {
+                                    case (MATCHING):
+                                    case (MISMATCH):
+                                        --readSeqPos;
+                                        --refSeqPos;
+                                        break;
+                                    case (DELETION):
+                                        --refSeqPos;
+                                        break;
+                                    case(INSERTION):
+                                        --readSeqPos;
+                                        break;
+                                }
+                                // check if we have a CpG aligned to the reference CpG
+                                if (seq[readSeqPos + 1] == 'C')
+                                {
+                                    // check for unmethylated C (on reverse!)
+                                    if (seq[readSeqPos] == 'G')
+                                        ++methLevels[cpgID].unmethRev;
+                                    else if (seq[readSeqPos] == 'A')
+                                        ++methLevels[cpgID].methRev;
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // print statistics over seed set to statFile and countFile
@@ -1477,6 +1842,68 @@ class ReadQueue
         std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
         // TODO
         std::ofstream of;
+
+
+        // comparison for match
+        struct CompiFwd {
+
+            inline uint16_t operator() (const char& cRead, const char& cRef)
+            {
+                // bisulfite antisymmetry
+                if (cRead == 'T')
+                {
+                    if (cRef == 'C')
+                        return 0;
+                }
+                return cRead == cRef ? 0 : 1;
+            }
+
+        } cmpFwd;
+        // reverse complement matching using the original strand
+        struct CompiRev {
+
+            inline uint16_t operator() (const char& cRead, const char& cRef)
+            {
+                switch (cRead)
+                {
+                    case ('T') :
+                        // bisulfite antisymmetry
+                        if (cRef == 'A' || cRef == 'G')
+                            return 0;
+                        break;
+                    case ('G') :
+                        if (cRef == 'C')
+                            return 0;
+                        break;
+                    case ('A'):
+                        if (cRef == 'T')
+                            return 0;
+                        break;
+                    case ('C'):
+                        if (cRef == 'G')
+                            return 0;
+                        break;
+                }
+
+                return 1;
+            }
+
+        } cmpRev;
+
+        // holding the counts for a single CpG
+        struct methLvl
+        {
+            // for forward strand
+            uint16_t methFwd;
+            uint16_t unmethFwd;
+
+            // for reverse strand
+            uint16_t methRev;
+            uint16_t unmethRev;
+        };
+        // holds the counts for each CpG
+        std::vector<struct methLvl> methLevels;
+        std::vector<struct methLvl> methLevelsStart;
 };
 
 #endif /* READQUEUE_H */
