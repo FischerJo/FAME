@@ -693,6 +693,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 void ReadQueue::printMethylationLevels(std::string& filename)
 {
 
+    std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg_start.tsv\" and \"" << filename << "_cpg.tsv\"\n\n";
     std::ofstream cpgFile(filename + "_cpg_start.tsv");
 
     // go over CpGs close to start of a chromosome
@@ -726,6 +727,7 @@ void ReadQueue::printMethylationLevels(std::string& filename)
         cpgFile << methLevels[cpgID].methRev << "\t" << methLevels[cpgID].unmethRev << "\n";
     }
     cpgFile.close();
+    std::cout << "Finished writing methylation levels to file\n\n";
 }
 
 
