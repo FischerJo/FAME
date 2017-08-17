@@ -119,7 +119,7 @@ int main(int argc, char** argv)
             if (i + 1 < argc)
             {
 
-                outputFile = argv[i+1];
+                outputFile = argv[++i];
 
             } else {
 
@@ -156,6 +156,8 @@ int main(int argc, char** argv)
 
         queryRoutine(rQue, readsGZ);
 
+        rQue.printMethylationLevels(outputFile);
+
     } else {
 
         if (genomeFile == "")
@@ -187,6 +189,7 @@ int main(int argc, char** argv)
         {
             ReadQueue rQue(readFile, ref, readsGZ);
             queryRoutine(rQue, readsGZ);
+            rQue.printMethylationLevels(outputFile);
         }
     }
     return 0;
@@ -209,10 +212,10 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
     {
         ++i;
         // TODO
-        if (i >= 1)
-            break;
+        // if (i >= 1)
+        //     break;
         rQue.matchReads(readCounter);
-        // std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
+        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
     }
     // match remaining reads
     rQue.matchReads(readCounter);
@@ -258,6 +261,13 @@ void printHelp()
     std::cout << "\t                 \t\tas used in the current CONST.h. This will be checked\n";
     std::cout << "\t                 \t\twhile loading.\n\n";
 
+    std::cout << "\t--out_basename\n";
+    std::cout << "\t-o            [.]\t\tStore CpG methylation leves in specified filepath,\n";
+    std::cout << "\t                 \t\tgenerating two files, one with specified basename.tsv\n";
+    std::cout << "\t                 \t\tand one with \"_start\" tag. The latter contains info\n";
+    std::cout << "\t                 \t\tabout CpGs close to chromosome boundaries (i.e.\n";
+    std::cout << "\t                 \t\tless then readlen away from boundary).\n";
+    std::cout << "\t                 \t\tFormat is specified as header in first line of file.\n\n";
 
     std::cout << "\nEXAMPLES\n\n";
 
