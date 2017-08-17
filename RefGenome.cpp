@@ -44,9 +44,9 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     // std::cout << "\nStarting filtering process for Index\nThrowing out highly repetetive kmers...\n";
     // filter out highly repetitive sequences
     // filterHashTable();
-    // std::cout << "\nThrowing out kmers of single metaCpG with same hash...\n";
-    // filterRedundancyInHashTable();
-    // std::cout << "\nFinished index processing.\n";
+    std::cout << "\nThrowing out kmers of single metaCpG with same hash...\n";
+    filterRedundancyInHashTable();
+    std::cout << "\nFinished index processing.\n";
 }
 
 
@@ -1249,7 +1249,7 @@ void RefGenome::filterRedundancyInHashTable()
     // iterator to the element that we process
     auto srcItK = kmerTable.begin();
     auto srcItS = strandTable.begin();
-    // iterator to the position of the last inserted FILTERED element, always at most as far as srcIt
+    // iterator to the position one after the last inserted FILTERED element, always at most as far as srcIt
     auto filterItK = kmerTable.begin();
     auto filterItS = strandTable.begin();
 
@@ -1289,7 +1289,7 @@ void RefGenome::filterRedundancyInHashTable()
 
     // shrink to new size
     kmerTable.resize(filterItK - kmerTable.begin());
-    strandTable.resize(filterItS - stradTable.begin());
+    strandTable.resize(filterItS - strandTable.begin());
 
     std::chrono::high_resolution_clock::time_point filterEndTime = std::chrono::high_resolution_clock::now();
 
