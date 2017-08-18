@@ -12,9 +12,9 @@
 // --------------- PARAMS ---------------
 
 constexpr size_t refLen = 1000000000;
-constexpr double mthRate = 0.5;
+constexpr double mthRate = 0.6;
 constexpr size_t readLen = 100;
-constexpr size_t readNum = 10000000;
+constexpr size_t readNum = 20000000;
 constexpr unsigned int errNum = 2;
 #define CORENUM  1
 
@@ -79,7 +79,7 @@ class SynthDS
         std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateRev;
 
 
-    private:
+    // private:
 
         // generate the reference sequence using a rng initialized with the given seed
         void initReference(const size_t refLen, const unsigned int seed);
