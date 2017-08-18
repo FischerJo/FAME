@@ -176,6 +176,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
         const size_t readSize = r.seq.size();
 
+
+
         // TODO
         // if (readSize < MyConst::KMERLEN)
         if (readSize < 85)
@@ -285,7 +287,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
         // of << runtime << "\t";
         // startTime = std::chrono::high_resolution_clock::now();
-        // int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, computeQgramThresh(r.seq));
         int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -339,7 +340,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
         // startTime = std::chrono::high_resolution_clock::now();
-        // int succQueryRev = saQuerySeedSetRef(saRev, matchRev, computeQgramThresh(revSeq));
         int succQueryRev = saQuerySeedSetRef(saRev, matchRev);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -371,11 +371,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
 
 
-        // startTime = std::chrono::high_resolution_clock::now();
-        // int succQueryRev = saQuerySeedSet(saRev, revSeedsK, revSeedsS, matchRev);
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-        // of <<  runtime << "\n";
         // if (runtime > 100)
         // {
         //     of << "REV---:" << r.seq << std::endl;
@@ -406,7 +401,11 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 #endif
                 ++succMatchFwd;
                 r.mat = matchFwd;
+                // startTime = std::chrono::high_resolution_clock::now();
                 computeMethLvl(matchFwd, r.seq);
+                // endTime = std::chrono::high_resolution_clock::now();
+                // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                // of << runtime << "\n";
 
             } else {
 
@@ -418,7 +417,11 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 #endif
                     ++succMatchRev;
                     r.mat = matchRev;
+                    // startTime = std::chrono::high_resolution_clock::now();
                     computeMethLvl(matchRev, revSeq);
+                    // endTime = std::chrono::high_resolution_clock::now();
+                    // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                    // of << runtime << "\n";
 
                 // if same number of errors, then not unique
                 } else {
@@ -452,7 +455,11 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 #endif
                         ++succMatchFwd;
                         r.mat = matchFwd;
+                        // startTime = std::chrono::high_resolution_clock::now();
                         computeMethLvl(matchFwd, r.seq);
+                        // endTime = std::chrono::high_resolution_clock::now();
+                        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                        // of << runtime << "\n";
 
                     } else {
 
@@ -474,7 +481,11 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 #endif
             ++succMatchFwd;
             r.mat = matchFwd;
+            // startTime = std::chrono::high_resolution_clock::now();
             computeMethLvl(matchFwd, r.seq);
+            // endTime = std::chrono::high_resolution_clock::now();
+            // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+            // of << runtime << "\n";
 
         // unique match on backward strand
         } else if (succQueryRev == 1) {
@@ -485,7 +496,11 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 #endif
             ++succMatchRev;
             r.mat = matchRev;
+            // startTime = std::chrono::high_resolution_clock::now();
             computeMethLvl(matchRev, revSeq);
+            // endTime = std::chrono::high_resolution_clock::now();
+            // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+            // of << runtime << "\n";
 
         // no match found at all
         } else {
@@ -676,10 +691,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // bitMatching(r, fwdSeedsK, fwdSeedsS);
         // bitMatchingRev(r, revSeedsK, revSeedsS);
 
-        // compute methylation counts
-        // if (!r.isInvalid)
-        //     computeMethLvl(r);
-
 
     // }
 
@@ -701,7 +712,7 @@ void ReadQueue::printMethylationLevels(std::string& filename)
     {
 
         // print the position of the (C of the) CpG
-        cpgFile << ref.cpgStartTable[cpgID].chrom << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
+        cpgFile << static_cast<uint16_t>(ref.cpgStartTable[cpgID].chrom) << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
 
         // print the counts
         // fwd counts
@@ -718,7 +729,7 @@ void ReadQueue::printMethylationLevels(std::string& filename)
     {
 
         // print the position of the (C of the) CpG
-        cpgFile << ref.cpgTable[cpgID].chrom << "\t" << ref.cpgTable[cpgID].pos << "\t";
+        cpgFile << static_cast<uint16_t>(ref.cpgTable[cpgID].chrom) << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\t";
 
         // print the counts
         // fwd counts

@@ -1443,6 +1443,9 @@ class ReadQueue
             uint16_t offset = MATCH::getOffset(mat);
             uint8_t errNum = MATCH::getErrNum(mat);
 
+            //TODO
+            // std::cout << "------------------\n\n" << seq << "\n\n";
+
             // if no errors -> simple lookup of sequences
             if (errNum == 0)
             {
@@ -1499,19 +1502,22 @@ class ReadQueue
 
                     struct metaCpG& m = ref.metaCpGs[metaID];
                     uint8_t chrom = ref.cpgTable[m.start].chrom;
+                    uint32_t metaPos = ref.cpgTable[m.start].pos;
+                    const uint32_t minPos = metaPos + offset - (seq.size() - 1);
+                    const uint32_t maxPos = metaPos + offset;
                     for (uint32_t cpgId = m.start; cpgId <= m.end; ++cpgId)
                     {
                         // check if CpG is too far downstream of read match
                         // i.e. no overlap
-                        if (ref.cpgTable[cpgId].pos < ref.cpgTable[m.start].pos + offset - seq.size())
+                        if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 < minPos)
                             continue;
                         // check if too far upstream
-                        if (ref.cpgTable[cpgId].pos + 1 > ref.cpgTable[m.start].pos + offset)
+                        if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 1 > maxPos)
                             break;
 
 
                         // position of CpG in read
-                        uint32_t readCpGPos = ref.cpgTable[cpgId].pos + MyConst::READLEN - 3 - (offset - seq.size());
+                        uint32_t readCpGPos = ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 - (metaPos + offset - (seq.size() - 1));
                         if (isFwd)
                         {
                             if (seq[readCpGPos] == 'T')
@@ -1556,7 +1562,7 @@ class ReadQueue
                     std::vector<ERROR_T> alignment;
 
                     // minimum position for overlap
-                    uint32_t minPos = offset - seq.size() - 1;
+                    uint32_t minPos = offset - (seq.size() - 1);
                     uint32_t maxPos = offset - 1;
                     // positions of first/ last overlapping CpG
                     uint32_t minIndex = m.start;
@@ -1566,7 +1572,7 @@ class ReadQueue
                         if (ref.cpgStartTable[cpgID].pos < minPos)
                         {
                             ++minIndex;
-                        } else if (ref.cpgStartTable[cpgID].pos + 1 > maxPos)
+                        } else if (ref.cpgStartTable[cpgID].pos > maxPos)
                         {
                             maxIndex = cpgID - 1;
                             break;
@@ -1680,24 +1686,26 @@ class ReadQueue
 
                     struct metaCpG& m = ref.metaCpGs[metaID];
                     uint8_t chrom = ref.cpgTable[m.start].chrom;
+                    uint32_t metaPos = ref.cpgTable[m.start].pos;
 
-                    const char* refSeq = ref.fullSeq[chrom].data() + ref.cpgTable[m.start].pos + offset;
+                    const char* refSeq = ref.fullSeq[chrom].data() + metaPos + offset;
 
                     // init levenshtein DP algo
                     LevenshtDP<uint16_t, MyConst::MISCOUNT> lev(seq, refSeq);
                     std::vector<ERROR_T> alignment;
 
                     // minimum position for overlap
-                    uint32_t minPos = offset - seq.size() - 1;
-                    uint32_t maxPos = offset - 1;
+                    const uint32_t minPos = metaPos + offset - (seq.size() - 1);
+                    const uint32_t maxPos = metaPos + offset;
                     // positions of first/ last overlapping CpG
-                    uint32_t minIndex = m.start;
-                    uint32_t maxIndex = m.end;
-                    for (uint32_t cpgID = m.start; cpgID <= m.end; ++cpgID)
+                    int32_t minIndex = m.start;
+                    int32_t maxIndex = m.end;
+                    for (int32_t cpgID = m.start; cpgID <= m.end; ++cpgID)
                     {
                         if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < minPos)
                         {
                             ++minIndex;
+
                         } else if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 1 > maxPos)
                         {
                             maxIndex = cpgID - 1;
@@ -1710,25 +1718,55 @@ class ReadQueue
 
                         // compute alignment
                         lev.runDPFill<CompiFwd>(cmpFwd);
-                        // sanity check
-                        if (lev.getEditDist() != errNum)
-                        {
-                            std::cout << "Alignment seems to be wrong!\n\n";
-                        }
                         lev.backtrackDP<CompiFwd>(cmpFwd, alignment);
-                        uint32_t refSeqPos = ref.cpgTable[m.start].pos + offset;
-                        uint32_t readSeqPos = seq.size() - 1;
-                        uint32_t alignPos = alignment.size() - 1;
+                        // current position in read and reference
+                        uint32_t refSeqPos = metaPos + offset;
+                        int32_t readSeqPos = seq.size() - 1;
+                        // current position in alignment (note that we align from right to left)
+                        int32_t alignPos = alignment.size() - 1;
+                        // sanity check
+                        // if (lev.getEditDist() != errNum)
+                        // {
+                        //     // Report error and print out found alignment
+                        //     std::cout << "Editdist: " << lev.getEditDist() << " shiftand: " << errNum << "\n";
+                        //     std::string readAl (alignment.size(),'+');
+                        //     std::string refAl (alignment.size(), '+');
+                        //     for (auto rIt = alignment.rbegin(); rIt != alignment.rend(); ++rIt, --alignPos)
+                        //     {
+                        //         switch (*rIt)
+                        //         {
+                        //             case (MATCHING):
+                        //             case (MISMATCH):
+                        //                 readAl[alignPos] = seq[readSeqPos];
+                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                        //                 --readSeqPos;
+                        //                 --refSeqPos;
+                        //                 break;
+                        //             case (DELETION):
+                        //                 readAl[alignPos] = '-';
+                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                        //                 --refSeqPos;
+                        //                 break;
+                        //             case(INSERTION):
+                        //                 readAl[alignPos] = seq[readSeqPos];
+                        //                 refAl[alignPos] = '-';
+                        //                 --readSeqPos;
+                        //                 break;
+                        //         }
+                        //     }
+                        //     std::cout << "Alignment seems to be wrong! (Read top, reference bottom)\n" << readAl << "\n" << refAl << "\n\n";
+                        //     exit(1);
+                        // }
 
                         // go through all overlapping CpGs from back,
                         // move through read and reference according to alignment
                         // if position of CpG is hit, compare and count
-                        for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+                        for (int32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
                         {
                             // align until this CpG
-                            while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos)
+                            while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
                             {
-                                switch (alignment[alignPos--])
+                                switch (alignment[alignPos])
                                 {
                                     case (MATCHING):
                                     case (MISMATCH):
@@ -1742,6 +1780,10 @@ class ReadQueue
                                         --readSeqPos;
                                         break;
                                 }
+                                if (readSeqPos < 0)
+                                    break;
+                                if (readSeqPos == seq.size() - 1)
+                                    continue;
                                 // check if we have a CpG aligned to the reference CpG
                                 if (seq[readSeqPos + 1] == 'G')
                                 {
@@ -1758,31 +1800,62 @@ class ReadQueue
                                         ++methLevels[cpgID].methFwd;
 
                                 }
+                                --alignPos;
                             }
                         }
 
                     } else {
 
                         lev.runDPFillRev<CompiRev>(cmpRev);
-                        // sanity check
-                        if (lev.getEditDist() != errNum)
-                        {
-                            std::cout << "Alignment seems to be wrong!\n\n";
-                        }
                         lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
-                        uint32_t refSeqPos = ref.cpgTable[m.start].pos + offset;
-                        uint32_t readSeqPos = seq.size() - 1;
-                        uint32_t alignPos = alignment.size() - 1;
+                        uint32_t refSeqPos = metaPos + offset;
+                        int32_t readSeqPos = seq.size() - 1;
+                        int32_t alignPos = alignment.size() - 1;
+                        std::reverse(seq.begin(),seq.end());
+                        // sanity check
+                        // if (lev.getEditDist() != errNum)
+                        // {
+                        //     // Report error and print out found alignment
+                        //     std::cout << "Editdist: " << lev.getEditDist() << " shiftand: " << static_cast<uint16_t>(errNum) << "\n";
+                        //     std::string readAl (alignment.size(),'+');
+                        //     std::string refAl (alignment.size(), '+');
+                        //     for (auto rIt = alignment.rbegin(); rIt != alignment.rend(); ++rIt, --alignPos)
+                        //     {
+                        //         switch (*rIt)
+                        //         {
+                        //             case (MATCHING):
+                        //             case (MISMATCH):
+                        //                 readAl[alignPos] = seq[readSeqPos];
+                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                        //                 --readSeqPos;
+                        //                 --refSeqPos;
+                        //                 break;
+                        //             case (DELETION):
+                        //                 readAl[alignPos] = '-';
+                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                        //                 --refSeqPos;
+                        //                 break;
+                        //             case(INSERTION):
+                        //                 readAl[alignPos] = seq[readSeqPos];
+                        //                 refAl[alignPos] = '-';
+                        //                 --readSeqPos;
+                        //                 break;
+                        //         }
+                        //     }
+                        //     std::cout << "Alignment seems to be wrong! (Read top, reference bottom)\n" << readAl << "\n" << refAl << "\n";
+                        //     std::cout << "Full reference: " << std::string(ref.fullSeq[chrom].begin() + metaPos + offset - 102, ref.fullSeq[chrom].begin() + metaPos + offset) << "\n\n";
+                        //     exit(1);
+                        // }
 
                         // go through all overlapping CpGs from back,
                         // move through read and reference according to alignment
                         // if position of CpG is hit, compare and count
-                        for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+                        for (int32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
                         {
                             // align until this CpG
-                            while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos)
+                            while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
                             {
-                                switch (alignment[alignPos--])
+                                switch (alignment[alignPos])
                                 {
                                     case (MATCHING):
                                     case (MISMATCH):
@@ -1796,6 +1869,10 @@ class ReadQueue
                                         --readSeqPos;
                                         break;
                                 }
+                                if (readSeqPos < 0)
+                                    break;
+                                if (readSeqPos == seq.size() - 1)
+                                    continue;
                                 // check if we have a CpG aligned to the reference CpG
                                 if (seq[readSeqPos + 1] == 'C')
                                 {
@@ -1812,6 +1889,7 @@ class ReadQueue
                                         ++methLevels[cpgID].methRev;
 
                                 }
+                                --alignPos;
                             }
                         }
                     }
@@ -1948,6 +2026,7 @@ class ReadQueue
             uint16_t unmethRev;
         };
         // holds the counts for each CpG
+        // indexed by the same indices as of the cpgTable vector in RefGenome class
         std::vector<struct methLvl> methLevels;
         std::vector<struct methLvl> methLevelsStart;
 };
