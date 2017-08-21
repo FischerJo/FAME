@@ -288,6 +288,15 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // of << runtime << "\t";
         // startTime = std::chrono::high_resolution_clock::now();
         int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd);
+        if (succQueryFwd == -1)
+        {
+
+            r.isInvalid = true;
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+            ++nonUniqueMatch;
+        }
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
