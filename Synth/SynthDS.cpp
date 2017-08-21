@@ -8,6 +8,8 @@
 
 SynthDS::SynthDS(const size_t refLen) :
         toIndex(0,3)
+    ,   hasZeroErr(0.75)
+    ,   hasOneErr(0.7)
     ,   alphabet {{ 'A', 'C', 'G', 'T' }}
 {
     std::random_device seedGen;
@@ -23,6 +25,8 @@ SynthDS::SynthDS(const size_t refLen) :
 
 SynthDS::SynthDS(const size_t refLen, const unsigned int seed) :
         toIndex(0,3)
+    ,   hasZeroErr(0.75)
+    ,   hasOneErr(0.7)
     ,   alphabet {{ 'A', 'C', 'G', 'T' }}
 {
     std::random_device seedGen;
@@ -38,6 +42,8 @@ SynthDS::SynthDS(const size_t refLen, const unsigned int seed) :
 
 SynthDS::SynthDS(const char* genFile, const double methRate, const double convRate) :
         toIndex(0,3)
+    ,   hasZeroErr(0.75)
+    ,   hasOneErr(0.7)
     ,   methToss(methRate)
     ,   convToss(convRate)
     ,   alphabet {{ 'A', 'C', 'G', 'T' }}
@@ -53,155 +59,166 @@ SynthDS::SynthDS(const char* genFile, const double methRate, const double convRa
     loadRefSeq(genFile);
 }
 
-std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<size_t>& offsets)
+// std::vector<std::string> SynthDS::genReadsFwdFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<size_t>& offsets)
+// {
+//
+//     // will hold the generated reads
+//     std::vector<std::string> readSet(readNum);
+//     offsets.resize(readNum);
+//
+//     // range of indices allowed to be drawn for the reference
+//     std::uniform_int_distribution<int> toOffset (0, refFwd.size() - readLen);
+//
+//     // range of indices allowed to be drawn for errors in read
+//     std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
+//
+//     // range of errors allowed to be drawn
+//     std::uniform_int_distribution<int> toErr(0, maxErrNum);
+//
+//     // coin flip for conversion type
+//     std::uniform_int_distribution<int> coin(0, 1);
+//
+// #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
+//     for (size_t i = 0; i < readNum; ++i)
+//     {
+//         std::mt19937& MT = randGen[omp_get_thread_num()];
+//         // draw an offset where to draw the read
+//         const size_t offset = toOffset(MT);
+//         // generate sequence
+//         std::string read(refFwd, offset, readLen);
+//
+//         // draw number of errors
+//         const unsigned int err = toErr(MT);
+//         // introduce errors at random positions
+//         for (unsigned int e = 0; e < err; ++e)
+//         {
+//             read[toOffRead(MT)] = alphabet[toIndex(MT)];
+//
+//         }
+//         // introduce C->T  OR  G->A conversions
+//         if (coin(MT))
+//         {
+//
+//             for (size_t j = 0; j < readLen; ++j)
+//             {
+//                 if (read[j] == 'C')
+//                 {
+//                     // try conversion
+//                     if (coin(MT))
+//                     {
+//                         read[j] = 'T';
+//                     }
+//
+//                 }
+//             }
+//
+//         } else {
+//
+//             for (size_t j = 0; j < readLen; ++j)
+//             {
+//                 if (read[j] == 'G')
+//                 {
+//                     // try conversion
+//                     if (coin(MT))
+//                     {
+//                         read[j] = 'A';
+//                     }
+//
+//                 }
+//             }
+//         }
+//
+//         readSet[i] = std::move(read);
+//         offsets[i] = offset;
+//     }
+//
+//     std::cout << "Generated forward strand read set\n\n";
+//     return readSet;
+// }
+//
+// std::vector<std::string> SynthDS::genReadsRevFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum)
+// {
+//
+//     // will hold the generated reads
+//     std::vector<std::string> readSet(readNum);
+//
+//     // range of indices allowed to be drawn for the reference
+//     std::uniform_int_distribution<int> toOffset (0, refRev.size() - readLen);
+//
+//     // range of indices allowed to be drawn for errors in read
+//     std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
+//
+//     // range of errors allowed to be drawn
+//     std::uniform_int_distribution<int> toErr(0, maxErrNum);
+//
+//     // coin flip for conversion type
+//     std::uniform_int_distribution<int> coin(0, 1);
+//
+// #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
+//     for (size_t i = 0; i < readNum; ++i)
+//     {
+//         std::mt19937& MT = randGen[omp_get_thread_num()];
+//         // draw an offset where to draw the read
+//         const size_t offset = toOffset(MT);
+//         // generate sequence
+//         std::string read(refRev, offset, readLen);
+//
+//         // draw number of errors
+//         const unsigned int err = toErr(MT);
+//         // introduce errors at random positions
+//         for (unsigned int e = 0; e < err; ++e)
+//         {
+//             read[toOffRead(MT)] = alphabet[toIndex(MT)];
+//
+//         }
+//         // introduce C->T  OR  G->A conversions
+//         if (coin(MT))
+//         {
+//
+//             for (size_t j = 0; j < readLen; ++j)
+//             {
+//                 if (read[j] == 'C')
+//                 {
+//                     // try conversion
+//                     if (coin(MT))
+//                     {
+//                         read[j] = 'T';
+//                     }
+//
+//                 }
+//             }
+//
+//         } else {
+//
+//             for (size_t j = 0; j < readLen; ++j)
+//             {
+//                 if (read[j] == 'G')
+//                 {
+//                     // try conversion
+//                     if (coin(MT))
+//                     {
+//                         read[j] = 'A';
+//                     }
+//
+//                 }
+//             }
+//         }
+//         readSet[i] = std::move(read);
+//     }
+//
+//     std::cout << "Generated reverse complement strand read set\n\n";
+//     return readSet;
+// }
+
+unsigned int SynthDS::getErrNum()
 {
-
-    // will hold the generated reads
-    std::vector<std::string> readSet(readNum);
-    offsets.resize(readNum);
-
-    // range of indices allowed to be drawn for the reference
-    std::uniform_int_distribution<int> toOffset (0, refFwd.size() - readLen);
-
-    // range of indices allowed to be drawn for errors in read
-    std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
-
-    // range of errors allowed to be drawn
-    std::uniform_int_distribution<int> toErr(0, maxErrNum);
-
-    // coin flip for conversion type
-    std::uniform_int_distribution<int> coin(0, 1);
-
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
-    for (size_t i = 0; i < readNum; ++i)
-    {
-        std::mt19937& MT = randGen[omp_get_thread_num()];
-        // draw an offset where to draw the read
-        const size_t offset = toOffset(MT);
-        // generate sequence
-        std::string read(refFwd, offset, readLen);
-
-        // draw number of errors
-        const unsigned int err = toErr(MT);
-        // introduce errors at random positions
-        for (unsigned int e = 0; e < err; ++e)
-        {
-            read[toOffRead(MT)] = alphabet[toIndex(MT)];
-
-        }
-        // introduce C->T  OR  G->A conversions
-        if (coin(MT))
-        {
-
-            for (size_t j = 0; j < readLen; ++j)
-            {
-                if (read[j] == 'C')
-                {
-                    // try conversion
-                    if (coin(MT))
-                    {
-                        read[j] = 'T';
-                    }
-
-                }
-            }
-
-        } else {
-
-            for (size_t j = 0; j < readLen; ++j)
-            {
-                if (read[j] == 'G')
-                {
-                    // try conversion
-                    if (coin(MT))
-                    {
-                        read[j] = 'A';
-                    }
-
-                }
-            }
-        }
-
-        readSet[i] = std::move(read);
-        offsets[i] = offset;
-    }
-
-    std::cout << "Generated forward strand read set\n\n";
-    return readSet;
-}
-
-std::vector<std::string> SynthDS::genReadsRevFixed(const size_t readLen, const size_t readNum, const unsigned int maxErrNum)
-{
-
-    // will hold the generated reads
-    std::vector<std::string> readSet(readNum);
-
-    // range of indices allowed to be drawn for the reference
-    std::uniform_int_distribution<int> toOffset (0, refRev.size() - readLen);
-
-    // range of indices allowed to be drawn for errors in read
-    std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
-
-    // range of errors allowed to be drawn
-    std::uniform_int_distribution<int> toErr(0, maxErrNum);
-
-    // coin flip for conversion type
-    std::uniform_int_distribution<int> coin(0, 1);
-
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
-    for (size_t i = 0; i < readNum; ++i)
-    {
-        std::mt19937& MT = randGen[omp_get_thread_num()];
-        // draw an offset where to draw the read
-        const size_t offset = toOffset(MT);
-        // generate sequence
-        std::string read(refRev, offset, readLen);
-
-        // draw number of errors
-        const unsigned int err = toErr(MT);
-        // introduce errors at random positions
-        for (unsigned int e = 0; e < err; ++e)
-        {
-            read[toOffRead(MT)] = alphabet[toIndex(MT)];
-
-        }
-        // introduce C->T  OR  G->A conversions
-        if (coin(MT))
-        {
-
-            for (size_t j = 0; j < readLen; ++j)
-            {
-                if (read[j] == 'C')
-                {
-                    // try conversion
-                    if (coin(MT))
-                    {
-                        read[j] = 'T';
-                    }
-
-                }
-            }
-
-        } else {
-
-            for (size_t j = 0; j < readLen; ++j)
-            {
-                if (read[j] == 'G')
-                {
-                    // try conversion
-                    if (coin(MT))
-                    {
-                        read[j] = 'A';
-                    }
-
-                }
-            }
-        }
-        readSet[i] = std::move(read);
-    }
-
-    std::cout << "Generated reverse complement strand read set\n\n";
-    return readSet;
+    std::mt19937& MT = randGen[omp_get_thread_num()];
+    if (hasZeroErr(MT))
+        return 0;
+    else if (hasOneErr(MT))
+        return 1;
+    else
+        return 2;
 }
 
 std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs)
@@ -220,13 +237,15 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
     for (size_t chr = 0; chr < refSeqFwd.size(); ++chr)
         genomeSize += refSeqFwd[chr].size();
 
-    std::cout << "Chroms: " << refSeqFwd.size() << " CpGs: " << cpgMethRateFwd.size() << "\n";
     // go over all chromosomes
     for (size_t chr = 0; chr < refSeqFwd.size(); ++chr)
     {
 
+        if (chr != 21)
+            continue;
         // compute proportion of reads that should be generated by this chromosome
-        const size_t chrReadNum = ((double)refSeqFwd[chr].size() / (double)genomeSize) * readNum;
+        // const size_t chrReadNum = ((double)refSeqFwd[chr].size() / (double)genomeSize) * readNum;
+        const size_t chrReadNum = readNum;
 
         // range of indices allowed to be drawn for the reference
         std::uniform_int_distribution<int> toOffset (0, refSeqFwd[chr].size() - readLen);
@@ -234,8 +253,6 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
         // range of indices allowed to be drawn for errors in read
         std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
 
-        // range of errors allowed to be drawn
-        std::uniform_int_distribution<int> toErr(0, maxErrNum);
 
         // coin flip for conversion type (G to A or C to T)
         // i.e. forward or reverse of PCR of genomic fragment treated with bisulfite
@@ -284,32 +301,34 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                 {
                     if (read[j] == 'C')
                     {
-                        // try conversion
-                        if (!methToss(MT))
+                        if (j < readLen - 1)
                         {
-                            if (convToss(MT))
-                                read[j] = 'T';
-                            // if necessary, count up methylation counters
-                            if (j < readLen - 1)
+                            // if G follows, update CpG structure and methylate according to sampling rate
+                            if (read[j+1] == 'G')
                             {
-                                if (read[j+1] == 'G')
+                                struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ];
+                                std::bernoulli_distribution methIt(met.sampleRate);
+                                if (!methIt(MT))
                                 {
+                                    read[j] = 'T';
 #pragma omp atomic
-                                    cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ].first += 1;
+                                    ++met.unmethCount;
+                                } else {
+#pragma omp atomic
+                                    ++met.methCount;
                                 }
-                            }
-                        } else {
-                            // if necessary, count up methylation counters
-                            if (j < readLen - 1)
-                            {
-                                if (read[j+1] == 'G')
+
+
+                            } else {
+                                // see if methylated
+                                if (!methToss(MT))
                                 {
-#pragma omp atomic
-                                    cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ].second += 1;
+                                    // if not, try bisulfite conversion
+                                    if (convToss(MT))
+                                        read[j] = 'T';
                                 }
                             }
                         }
-
                     }
                 }
 
@@ -323,36 +342,38 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                         // C will generate G on reverse strand -> test for G to A conversion
                         case ('C') :
 
-                            // try conversion
-                            if (!methToss(MT))
+                            if (j > 0)
                             {
-                                if (convToss(MT))
-                                    read[j] = 'A';
-                                else
-                                    read[j] = 'T';
-                                // if necessary, count up methylation counters
-                                if (j > 0)
+                                if (read[j-1] == 'C')
                                 {
-                                    if (read[j-1] == 'C')
+                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ];
+                                    std::bernoulli_distribution methIt(met.sampleRate);
+                                    if (!methIt(MT))
                                     {
+                                        read[j] = 'A';
 #pragma omp atomic
-                                        cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].first += 1;
+                                        ++met.unmethCount;
+                                    } else {
+                                        read[j] = 'G';
+#pragma omp atomic
+                                        ++met.methCount;
+                                    }
+
+
+                                } else {
+                                    // see if methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read[j] = 'A';
+                                        else
+                                            read[j] = 'G';
+                                    } else {
+
+                                        read[j] = 'G';
                                     }
                                 }
-
-                            } else {
-
-                                // if necessary, count up methylation counters
-                                read[j] = 'G';
-                                if (j > 0)
-                                {
-                                    if (read[j-1] == 'C')
-                                    {
-#pragma omp atomic
-                                        cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
-                                    }
-                                }
-
                             }
                             break;
 
@@ -374,7 +395,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                 }
             }
             // draw number of errors
-            const unsigned int err = toErr(MT);
+            const unsigned int err = getErrNum();
             // introduce errors at random positions
             size_t errID = 0;
             for (unsigned int e = 0; e < err; ++e)
@@ -399,200 +420,203 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
     return readSet;
 }
 
-std::vector<std::string> SynthDS::genReadsRevRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs)
-{
-
-    std::cout << "Start generating reverse strand read set\n\n";
-    // will hold the generated reads
-    std::vector<std::string> readSet(readNum);
-    offsets.resize(readNum);
-    errOffs.resize(readNum);
-
-    size_t processedReads = 0;
-
-    // size of the genome
-    size_t genomeSize = 0;
-    for (size_t chr = 0; chr < refSeqFwd.size(); ++chr)
-        genomeSize += refSeqFwd[chr].size();
-
-    // go over all chromosomes
-    for (size_t chr = 0; chr < refSeqFwd.size(); ++chr)
-    {
-
-        // compute proportion of reads that should be generated by this chromosome
-        const size_t chrReadNum = ((double)refSeqFwd[chr].size() / (double)genomeSize) * readNum;
-
-        // range of indices allowed to be drawn for the reference
-        std::uniform_int_distribution<int> toOffset (0, refSeqFwd[chr].size() - readLen);
-
-        // range of indices allowed to be drawn for errors in read
-        std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
-
-        // range of errors allowed to be drawn
-        std::uniform_int_distribution<int> toErr(0, maxErrNum);
-
-        // coin flip for conversion type (G to A or C to T)
-        // i.e. forward or reverse of PCR of genomic fragment treated with bisulfite
-        std::uniform_int_distribution<int> coin(0, 1);
-
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
-        for (size_t i = processedReads; i < ((chr == refSeqFwd.size() - 1) ? readNum : processedReads + chrReadNum); ++i)
-        {
-
-            std::mt19937& MT = randGen[omp_get_thread_num()];
-            // draw an offset where to draw the read
-            const size_t offset = toOffset(MT);
-            // generate sequence
-            std::string read(refSeqFwd[chr], offset, readLen);
-            // test if CpG is contained
-            bool prevC = false;
-            bool hasCpG = false;
-            // search for CpGs
-            for (const char c : read)
-            {
-                if (c == 'C')
-                {
-                    prevC = true;
-                    continue;
-                }
-                if (c == 'G')
-                {
-                    if (prevC)
-                        hasCpG = true;
-                }
-                prevC = false;
-            }
-
-            // produce only reads with CpG
-            if (!hasCpG)
-            {
-                --i;
-                continue;
-            }
-
-            // introduce C->T  OR  G->A conversions
-            if (coin(MT))
-            {
-
-                for (size_t j = 0; j < readLen; ++j)
-                {
-                    if (read[j] == 'G')
-                    {
-                        // try conversion
-                        if (!methToss(MT))
-                        {
-                            if (convToss(MT))
-                                read[j] = 'A';
-                            // if necessary, count up methylation counters
-                            if (j > 0)
-                            {
-                                if (read[j-1] == 'C')
-                                {
-#pragma omp atomic
-                                    cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + j - 1) ].first += 1;
-                                }
-                            }
-                        } else {
-                            // if necessary, count up methylation counters
-                            if (j > 0)
-                            {
-                                if (read[j-1] == 'C')
-                                {
-#pragma omp atomic
-                                    cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + j - 1) ].second += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-
-            } else {
-
-                std::reverse(read.begin(), read.end());
-                for (size_t j = 0; j < readLen; ++j)
-                {
-                    switch (read[j])
-                    {
-                        // G will generate C on reverse strand -> test for C to T conversion
-                        case ('G') :
-
-                            // try conversion
-                            if (!methToss(MT))
-                            {
-                                if (convToss(MT))
-                                    read[j] = 'T';
-                                else
-                                    read[j] = 'C';
-
-                                // if necessary, count up methylation counters
-                                if (j > 0)
-                                {
-                                    if (read[j-1] == 'C')
-                                    {
-#pragma omp atomic
-                                        cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].first += 1;
-                                    }
-                                }
-
-                            } else {
-
-                                // if necessary, count up methylation counters
-                                read[j] = 'C';
-                                if (j > 0)
-                                {
-                                    if (read[j-1] == 'C')
-                                    {
-#pragma omp atomic
-                                        cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
-                                    }
-                                }
-
-                            }
-                            break;
-
-                        case ('C') :
-
-                            read[j] = 'G';
-                            break;
-
-                        case ('A') :
-
-                            read[j] = 'T';
-                            break;
-
-                        case ('T') :
-
-                            read[j] = 'A';
-                            break;
-                    }
-                }
-            }
-
-            // draw number of errors
-            const unsigned int err = toErr(MT);
-            // introduce errors at random positions
-            size_t errID = 0;
-            for (unsigned int e = 0; e < err; ++e)
-            {
-                int eOff = toOffRead(MT);
-                read[eOff] = alphabet[toIndex(MT)];
-                errOffs[i][errID] = eOff;
-                ++errID;
-            }
-            for (; errID < errNum; ++errID)
-            {
-                errOffs[i][errID] = -1;
-            }
-
-            readSet[i] = std::move(read);
-            offsets[i] = std::move(std::pair<size_t,size_t>(offset, chr));
-        }
-        processedReads += chrReadNum;
-
-    }
-    std::cout << "Generated reverse strand read set\n\n";
-    return readSet;
-}
+// std::vector<std::string> SynthDS::genReadsRevRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs)
+// {
+//
+//     std::cout << "Start generating reverse strand read set\n\n";
+//     // will hold the generated reads
+//     std::vector<std::string> readSet(readNum);
+//     offsets.resize(readNum);
+//     errOffs.resize(readNum);
+//
+//     size_t processedReads = 0;
+//
+//     // size of the genome
+//     size_t genomeSize = 0;
+//     for (size_t chr = 0; chr < refSeqFwd.size(); ++chr)
+//         genomeSize += refSeqFwd[chr].size();
+//
+//     // go over all chromosomes
+//     for (size_t chr = 0; chr < refSeqFwd.size(); ++chr)
+//     {
+//
+//         if (chr != 21)
+//             continue;
+//         // compute proportion of reads that should be generated by this chromosome
+//         // const size_t chrReadNum = ((double)refSeqFwd[chr].size() / (double)genomeSize) * readNum;
+//         const size_t chrReadNum = readNum;
+//
+//         // range of indices allowed to be drawn for the reference
+//         std::uniform_int_distribution<int> toOffset (0, refSeqFwd[chr].size() - readLen);
+//
+//         // range of indices allowed to be drawn for errors in read
+//         std::uniform_int_distribution<int> toOffRead (0, readLen - 1);
+//
+//         // range of errors allowed to be drawn
+//         std::uniform_int_distribution<int> toErr(0, maxErrNum);
+//
+//         // coin flip for conversion type (G to A or C to T)
+//         // i.e. forward or reverse of PCR of genomic fragment treated with bisulfite
+//         std::uniform_int_distribution<int> coin(0, 1);
+//
+// #pragma omp parallel for num_threads(CORENUM) schedule(dynamic,1000)
+//         for (size_t i = processedReads; i < ((chr == refSeqFwd.size() - 1) ? readNum : processedReads + chrReadNum); ++i)
+//         {
+//
+//             std::mt19937& MT = randGen[omp_get_thread_num()];
+//             // draw an offset where to draw the read
+//             const size_t offset = toOffset(MT);
+//             // generate sequence
+//             std::string read(refSeqFwd[chr], offset, readLen);
+//             // test if CpG is contained
+//             bool prevC = false;
+//             bool hasCpG = false;
+//             // search for CpGs
+//             for (const char c : read)
+//             {
+//                 if (c == 'C')
+//                 {
+//                     prevC = true;
+//                     continue;
+//                 }
+//                 if (c == 'G')
+//                 {
+//                     if (prevC)
+//                         hasCpG = true;
+//                 }
+//                 prevC = false;
+//             }
+//
+//             // produce only reads with CpG
+//             if (!hasCpG)
+//             {
+//                 --i;
+//                 continue;
+//             }
+//
+//             // introduce C->T  OR  G->A conversions
+//             if (coin(MT))
+//             {
+//
+//                 for (size_t j = 0; j < readLen; ++j)
+//                 {
+//                     if (read[j] == 'G')
+//                     {
+//                         // try conversion
+//                         if (!methToss(MT))
+//                         {
+//                             if (convToss(MT))
+//                                 read[j] = 'A';
+//                             // if necessary, count up methylation counters
+//                             if (j > 0)
+//                             {
+//                                 if (read[j-1] == 'C')
+//                                 {
+// #pragma omp atomic
+//                                     cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + j - 1) ].first += 1;
+//                                 }
+//                             }
+//                         } else {
+//                             // if necessary, count up methylation counters
+//                             if (j > 0)
+//                             {
+//                                 if (read[j-1] == 'C')
+//                                 {
+// #pragma omp atomic
+//                                     cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + j - 1) ].second += 1;
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//
+//             } else {
+//
+//                 std::reverse(read.begin(), read.end());
+//                 for (size_t j = 0; j < readLen; ++j)
+//                 {
+//                     switch (read[j])
+//                     {
+//                         // G will generate C on reverse strand -> test for C to T conversion
+//                         case ('G') :
+//
+//                             // try conversion
+//                             if (!methToss(MT))
+//                             {
+//                                 if (convToss(MT))
+//                                     read[j] = 'T';
+//                                 else
+//                                     read[j] = 'C';
+//
+//                                 // if necessary, count up methylation counters
+//                                 if (j > 0)
+//                                 {
+//                                     if (read[j-1] == 'C')
+//                                     {
+// #pragma omp atomic
+//                                         cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].first += 1;
+//                                     }
+//                                 }
+//
+//                             } else {
+//
+//                                 // if necessary, count up methylation counters
+//                                 read[j] = 'C';
+//                                 if (j > 0)
+//                                 {
+//                                     if (read[j-1] == 'C')
+//                                     {
+// #pragma omp atomic
+//                                         cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ].second += 1;
+//                                     }
+//                                 }
+//
+//                             }
+//                             break;
+//
+//                         case ('C') :
+//
+//                             read[j] = 'G';
+//                             break;
+//
+//                         case ('A') :
+//
+//                             read[j] = 'T';
+//                             break;
+//
+//                         case ('T') :
+//
+//                             read[j] = 'A';
+//                             break;
+//                     }
+//                 }
+//             }
+//
+//             // draw number of errors
+//             const unsigned int err = toErr(MT);
+//             // introduce errors at random positions
+//             size_t errID = 0;
+//             for (unsigned int e = 0; e < err; ++e)
+//             {
+//                 int eOff = toOffRead(MT);
+//                 read[eOff] = alphabet[toIndex(MT)];
+//                 errOffs[i][errID] = eOff;
+//                 ++errID;
+//             }
+//             for (; errID < errNum; ++errID)
+//             {
+//                 errOffs[i][errID] = -1;
+//             }
+//
+//             readSet[i] = std::move(read);
+//             offsets[i] = std::move(std::pair<size_t,size_t>(offset, chr));
+//         }
+//         processedReads += chrReadNum;
+//
+//     }
+//     std::cout << "Generated reverse strand read set\n\n";
+//     return readSet;
+// }
 
 void SynthDS::loadRefSeq(const char* genFile)
 {
@@ -623,6 +647,11 @@ void SynthDS::loadRefSeq(const char* genFile)
     std::ifstream ifs (genFile);
 
     std::cout << "Start reading reference file " << genFile << "\n";
+
+    // fair coin flip
+    std::uniform_int_distribution<int> coin(0, 1);
+    std::normal_distribution<double> unmethDist(0.2,0.1);
+    std::normal_distribution<double> methDist(0.8,0.1);
 
     while (getline(ifs, line)) {
 
@@ -680,8 +709,10 @@ void SynthDS::loadRefSeq(const char* genFile)
 
                         if (lastC)
                         {
-                            cpgMethRateFwd[(static_cast<uint64_t>(chrIndex - 1) << 32 | (seqFwd.size() - 1))] = {0,0};
-                            cpgMethRateRev[(static_cast<uint64_t>(chrIndex - 1) << 32 | (seqFwd.size() - 1))] = {0,0};
+                            // sample the methylation rates from bimodal distribution
+                            double methRate = coin(randGen[0]) ? methDist(randGen[0]) : unmethDist(randGen[0]);
+                            cpgMethRateFwd[(static_cast<uint64_t>(chrIndex - 1) << 32 | (seqFwd.size() - 1))] = {0,0,methRate};
+                            cpgMethRateRev[(static_cast<uint64_t>(chrIndex - 1) << 32 | (seqFwd.size() - 1))] = {0,0,methRate};
                             lastC = false;
                         }
                         seqFwd.push_back('G');
@@ -739,6 +770,7 @@ void SynthDS::loadRefSeq(const char* genFile)
         std::reverse(seqRev.begin(), seqFwd.end());
         refSeqRev.emplace_back(move(seqRev));
     }
+
 
     std::cout << "Done reading reference file\n\n";
 }

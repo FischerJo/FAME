@@ -12,12 +12,115 @@
 int main(int argc, char** argv)
 {
 
-    if (argc < 2)
-    {
-        std::cerr << "Output filename required! Terminating...\n";
-        exit(1);
-    }
-    // SynthDS synthGen(refLen);
+    // std::string genomeFile = "";
+    // std::string outputFile = "out";
+    //
+    // unsigned int errNum = 0;
+    // double methRate = 0.5;
+    // double convRate = 1.0;
+    // unsigned long readLen = 100;
+    // unsigned long refLen = 1000000000;
+    // unsigned long readNum = 10000000;
+    //
+    // // flags for parameters
+    // bool hasErrNum = false;
+    // bool hasMethRate = false;
+    // bool hasConvRate = false;
+    // bool hasReadLen = false;
+    // bool hasRefLen = false;
+    // bool hasReadNum = false;
+    //
+    // if (argc == 1)
+    // {
+    //     printHelp();
+    //     return 0;
+    // }
+    //
+    // for (int i = 1; i < argc; ++i)
+    // {
+    //
+    //     if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help")
+    //     {
+    //         printHelp();
+    //         return 0;
+    //     }
+    //
+    //     if (std::string(argv[i]) == "--genome" || std::string(argv[i]) == "-g")
+    //     {
+    //         if (i + 1 < argc)
+    //         {
+    //             genomeFile = std::string(argv[++i]);
+    //
+    //         } else {
+    //
+    //             std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+    //             exit(1);
+    //         }
+    //         continue;
+    //     }
+    //
+    //     if (std::string(argv[i]) == "-o" || std::string(argv[i]) == "--out_basename")
+    //     {
+    //         if (i + 1 < argc)
+    //         {
+    //
+    //             outputFile = argv[++i];
+    //
+    //         } else {
+    //
+    //             std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+    //             exit(1);
+    //         }
+    //         continue;
+    //     }
+    //
+    //     if (std::string(argv[i]) == "-e" || std::string(argv[i]) == "--max_err")
+    //     {
+    //         if (i + 1 < argc)
+    //         {
+    //             errNum = std::stoui(argv[i+1]);
+    //
+    //         } else {
+    //
+    //             std::cerr << "No integer following option \"" << argv[i] << "\"! Terminating...\n\n";
+    //             exit(1);
+    //         }
+    //     }
+    //
+    //     if (std::string(argv[i]) == "--meth_rate")
+    //     {
+    //         if (i + 1 < argc)
+    //         {
+    //             methRate = std::stod(argv[i+1]);
+    //
+    //         } else {
+    //
+    //             std::cerr << "No probability following option \"" << argv[i] << "\"! Terminating...\n\n";
+    //             exit(1);
+    //         }
+    //     }
+    //
+    //     if (std::string(argv[i]) == "--conv_rate")
+    //     {
+    //         if (i + 1 < argc)
+    //         {
+    //             convRate = std::stod(argv[i+1]);
+    //
+    //         } else {
+    //
+    //             std::cerr << "No probability following option \"" << argv[i] << "\"! Terminating...\n\n";
+    //             exit(1);
+    //         }
+    //     }
+    //
+    //     // no such option
+    //     std::cerr << "Don't know the option \"" << std::string(argv[i]) << "\", maybe you forgot a flag?\n\n";
+    //     exit(1);
+    //
+    // }
+    //
+    //
+    // Start processing
     SynthDS synthGen(argv[1], mthRate);
 
     std::vector<std::pair<size_t,size_t> > offsets;
@@ -49,36 +152,38 @@ int main(int argc, char** argv)
 
 
 
-    std::vector<std::string> revReads = synthGen.genReadsRevRef(readLen, readNum, errNum, offsets, errOffs);
-    ofsReads.open(std::string(argv[2]) + "_rev.fastq");
-    for (size_t i = 0; i < revReads.size(); ++i)
-    {
-        // generate fastq format of reads
-        ofsReads << '@' << i;
-        for (unsigned int e = 0; e < errNum; ++e)
-            ofsReads << "_" << errOffs[i][e];
-        ofsReads << "_CHR" << offsets[i].second << "_" << offsets[i].first << "\n";
-        ofsReads << revReads[i] << "\n";
-        ofsReads << '+' << i << "\n";
-        // produce dummy quality scores
-        for (size_t i = 0; i < readLen; ++i)
-            ofsReads << "%";
-        ofsReads << "\n";
-    }
-    ofsReads.close();
+    // std::vector<std::string> revReads = synthGen.genReadsRevRef(readLen, readNum, errNum, offsets, errOffs);
+    // ofsReads.open(std::string(argv[2]) + "_rev.fastq");
+    // for (size_t i = 0; i < revReads.size(); ++i)
+    // {
+    //     // generate fastq format of reads
+    //     ofsReads << '@' << i;
+    //     for (unsigned int e = 0; e < errNum; ++e)
+    //         ofsReads << "_" << errOffs[i][e];
+    //     ofsReads << "_CHR" << offsets[i].second << "_" << offsets[i].first << "\n";
+    //     ofsReads << revReads[i] << "\n";
+    //     ofsReads << '+' << i << "\n";
+    //     // produce dummy quality scores
+    //     for (size_t i = 0; i < readLen; ++i)
+    //         ofsReads << "%";
+    //     ofsReads << "\n";
+    // }
+    // ofsReads.close();
     ofsReads.open(std::string(argv[2]) + "_cpginfo_fwd.tsv");
-    ofsReads << "Chromosome\tPosition\tUnmethylated\tMethylated\n";
+    ofsReads << "Chromosome\tPosition\tUnmethylated\tMethylated\tSampleRate\n";
     for (auto& cpg : synthGen.cpgMethRateFwd)
     {
-        ofsReads << (cpg.first >> 32) << "\t" << (cpg.first & 0x00000000ffffffffULL) << "\t" << cpg.second.first << "\t" << cpg.second.second << "\n";
+        const uint64_t offset = cpg.first & 0x00000000ffffffffULL;
+        ofsReads << (cpg.first >> 32) << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
     }
     ofsReads.close();
-    ofsReads.open(std::string(argv[2]) + "_cpginfo_rev.tsv");
-    ofsReads << "Chromosome\tPosition\tUnmethylated\tMethylated\n";
-    for (auto& cpg : synthGen.cpgMethRateRev)
-    {
-        ofsReads << (cpg.first >> 32) << "\t" << (cpg.first & 0x00000000ffffffffULL) << "\t" << cpg.second.first << "\t" << cpg.second.second << "\n";
-    }
+    // ofsReads.open(std::string(argv[2]) + "_cpginfo_rev.tsv");
+    // ofsReads << "Chromosome\tPosition\tUnmethylated\tMethylated\n";
+    // for (auto& cpg : synthGen.cpgMethRateRev)
+    // {
+    //     ofsReads << (cpg.first >> 32) << "\t" << (cpg.first & 0x00000000ffffffffULL) << "\t" << cpg.second.first << "\t" << cpg.second.second << "\n";
+    // }
+    // ofsReads.close();
     return 0;
 
 }

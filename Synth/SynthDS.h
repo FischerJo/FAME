@@ -14,7 +14,7 @@
 constexpr size_t refLen = 1000000000;
 constexpr double mthRate = 0.6;
 constexpr size_t readLen = 100;
-constexpr size_t readNum = 20000000;
+constexpr size_t readNum = 10000000;
 constexpr unsigned int errNum = 2;
 #define CORENUM  1
 
@@ -75,12 +75,21 @@ class SynthDS
         // storing methylation rates the same way we do in Metal
         // key is 32bit most significant chromosome; 32bit least significant position in chromosome
         // value is first: unmethylated second: methylated count
-        std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateFwd;
-        std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateRev;
+        struct MethInfo
+        {
+            uint16_t methCount;
+            uint16_t unmethCount;
+            double sampleRate;
+        };
+        // std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateFwd;
+        // std::unordered_map<uint64_t, std::pair<uint16_t, uint16_t> > cpgMethRateRev;
+        std::unordered_map<uint64_t, struct MethInfo> cpgMethRateFwd;
+        std::unordered_map<uint64_t, struct MethInfo> cpgMethRateRev;
 
 
     // private:
 
+        unsigned int getErrNum();
         // generate the reference sequence using a rng initialized with the given seed
         void initReference(const size_t refLen, const unsigned int seed);
 
@@ -100,6 +109,10 @@ class SynthDS
 
         // alphabet mapping from random numbers to letters
         std::uniform_int_distribution<int> toIndex;
+        // error functions
+        std::bernoulli_distribution hasZeroErr;
+        std::bernoulli_distribution hasOneErr;
+
         std::bernoulli_distribution methToss;
         std::bernoulli_distribution convToss;
         const std::array<char, 4> alphabet;
