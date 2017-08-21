@@ -711,6 +711,10 @@ void SynthDS::loadRefSeq(const char* genFile)
                         {
                             // sample the methylation rates from bimodal distribution
                             double methRate = coin(randGen[0]) ? methDist(randGen[0]) : unmethDist(randGen[0]);
+                            if (methRate < 0)
+                                methRate = 0;
+                            else if (methRate > 1)
+                                methRate = 1;
                             cpgMethRateFwd[(static_cast<uint64_t>(chrIndex - 1) << 32 | (seqFwd.size() - 1))] = {0,0,methRate};
                             cpgMethRateRev[(static_cast<uint64_t>(chrIndex - 1) << 32 | (seqFwd.size() - 1))] = {0,0,methRate};
                             lastC = false;
