@@ -328,6 +328,15 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
                                         read[j] = 'T';
                                 }
                             }
+                        } else {
+
+                            // see if methylated
+                            if (!methToss(MT))
+                            {
+                                // if not, try bisulfite conversion
+                                if (convToss(MT))
+                                    read[j] = 'T';
+                            }
                         }
                     }
                 }
@@ -344,6 +353,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 
                             if (j > 0)
                             {
+                                // letter j-1 was already processed and hence converted from G to C
                                 if (read[j-1] == 'C')
                                 {
                                     struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ];
@@ -373,6 +383,19 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 
                                         read[j] = 'G';
                                     }
+                                }
+                            } else {
+                                // see if methylated
+                                if (!methToss(MT))
+                                {
+                                    // if not, try bisulfite conversion
+                                    if (convToss(MT))
+                                        read[j] = 'A';
+                                    else
+                                        read[j] = 'G';
+                                } else {
+
+                                    read[j] = 'G';
                                 }
                             }
                             break;
@@ -650,8 +673,8 @@ void SynthDS::loadRefSeq(const char* genFile)
 
     // fair coin flip
     std::uniform_int_distribution<int> coin(0, 1);
-    std::normal_distribution<double> unmethDist(0.2,0.1);
-    std::normal_distribution<double> methDist(0.8,0.1);
+    std::normal_distribution<double> unmethDist(0.2,0.08);
+    std::normal_distribution<double> methDist(0.8,0.08);
 
     while (getline(ifs, line)) {
 
