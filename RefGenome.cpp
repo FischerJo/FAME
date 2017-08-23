@@ -4,7 +4,7 @@
 #include "RefGenome.h"
 
 
-RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genomeSeq) :
+RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genomeSeq, const bool noloss) :
         cpgTable(cpgTab)
     ,   cpgStartTable(cpgStartTab)
     ,   genomeBit()
@@ -41,9 +41,12 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "\nDone hashing CpGs (" << runtime << "s)\n";
-    // std::cout << "\nStarting filtering process for Index\nThrowing out highly repetetive kmers...\n";
-    // filter out highly repetitive sequences
-    // filterHashTable();
+    if (!noloss)
+    {
+        std::cout << "\nStarting filtering process for Index\nThrowing out highly repetetive kmers...\n";
+        // filter out highly repetitive sequences
+        filterHashTable();
+    }
     std::cout << "\nThrowing out kmers of single metaCpG with same hash...\n";
     filterRedundancyInHashTable();
     std::cout << "\nFinished index processing.\n";
@@ -224,7 +227,7 @@ void RefGenome::load(const std::string& filepath)
     ifs.read(reinterpret_cast<char*>(&kmerc), sizeof(kmerc));
     if (kmerc != MyConst::KMERCUTOFF)
     {
-        std::cerr << "k-mer length used in source code and index file are different!\n\n";
+        std::cerr << "k-mer cutoff used in source code and index file are different!\n\n";
         exit(1);
     }
 
@@ -1363,7 +1366,8 @@ void RefGenome::filterHashTable()
 
                 } else {
 
-                    filteredKmers.emplace(kHash);
+                    // TODO
+                    // filteredKmers.emplace(kHash);
                 }
             }
 

@@ -17,15 +17,17 @@ int main(int argc, char** argv)
 
     std::string indexFile = "";
     std::string genomeFile = "";
-    std::string outputFile = "cpgInfo";
+    std::string outputFile = "out";
     char* readFile = NULL;
 
     // true iff index should be loaded from file
     bool loadIndexFlag = false;
     // true iff index should be stored
     bool storeIndexFlag = false;
-    // ture iff reads are in .gz format
+    // true iff reads are in .gz format
     bool readsGZ = false;
+    // true iff index should be filtered only lossless
+    bool noloss = false;
 
     if (argc == 1)
     {
@@ -129,6 +131,11 @@ int main(int argc, char** argv)
             continue;
         }
 
+        if (std::string(argv[i]) == "--no_loss")
+        {
+            noloss = true;
+        }
+
 
 
         // no such option
@@ -171,7 +178,7 @@ int main(int argc, char** argv)
         std::vector<std::vector<char>> genSeq;
 
         readReference(genomeFile, cpgTab, cpgStartTab, genSeq);
-        RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq);
+        RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq, noloss);
 
         if (storeIndexFlag)
         {
@@ -212,8 +219,8 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
     {
         ++i;
         // TODO
-        // if (i >= 1)
-        //     break;
+        if (i >= 1)
+            break;
         rQue.matchReads(readCounter);
         std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
     }
@@ -261,13 +268,15 @@ void printHelp()
     std::cout << "\t                 \t\tas used in the current CONST.h. This will be checked\n";
     std::cout << "\t                 \t\twhile loading.\n\n";
 
-    std::cout << "\t--out_basename\n";
+    std::cout << "\t--out_basename[.]\n";
     std::cout << "\t-o            [.]\t\tStore CpG methylation leves in specified filepath,\n";
     std::cout << "\t                 \t\tgenerating two files, one with specified basename.tsv\n";
     std::cout << "\t                 \t\tand one with \"_start\" tag. The latter contains info\n";
     std::cout << "\t                 \t\tabout CpGs close to chromosome boundaries (i.e.\n";
     std::cout << "\t                 \t\tless then readlen away from boundary).\n";
     std::cout << "\t                 \t\tFormat is specified as header in first line of file.\n\n";
+
+    std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n";
 
     std::cout << "\nEXAMPLES\n\n";
 
@@ -276,7 +285,7 @@ void printHelp()
     std::cout << "\t /path/to/Metal --genome /path/to/reference.fasta --store_index index.bin \\\n";
     std::cout << "\t\t-r /path/to/reads.fastq\n\n\n";
 
-    std::cout << "Setting: Load index from previously stored index, maap reads stored in .gz\n";
+    std::cout << "Setting: Load index from previously stored index, map reads stored in .gz\n";
     std::cout << "format.\n\n";
     std::cout << "\t /path/to/Metal --load_index index.bin -r /path/to/reads.fastq.gz\n\n\n";
 

@@ -28,7 +28,8 @@ class RefGenome
         //      cpgTab      table of all CpGs in reference genome except for the ones near the start of a sequence (i.e. less then READLEN away from start)
         //      cpgStartTab table of CpGs near the start
         //      genSeq      genomic sequence seperated by chromosome
-        RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genSeq);
+        //      noloss      flag that is true iff index must be lossless
+        RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genSeq, const bool noloss);
         // ARGUMENTS:
         //      filepath    file where index was saved before using RefGenome::save(...)
         RefGenome(std::string filePath);
