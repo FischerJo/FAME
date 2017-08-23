@@ -134,12 +134,13 @@ int main(int argc, char** argv)
         if (std::string(argv[i]) == "--no_loss")
         {
             noloss = true;
+            continue;
         }
 
 
 
         // no such option
-        std::cerr << "Don't know the option \"" << std::string(argv[i]) << "\", maybe you forgot a flag?\n\n";
+        std::cerr << "Don't know the option \"" << argv[i] << "\". Terminating...\n\n";
         exit(1);
 
     }
@@ -149,6 +150,11 @@ int main(int argc, char** argv)
 
     if (loadIndexFlag)
     {
+
+        if (noloss)
+        {
+            std::cout << "\nWARNING: You are reading an index from file. The option \"--no_loss\" has no effect.\n\n";
+        }
 
         RefGenome ref(indexFile);
 
@@ -276,7 +282,7 @@ void printHelp()
     std::cout << "\t                 \t\tless then readlen away from boundary).\n";
     std::cout << "\t                 \t\tFormat is specified as header in first line of file.\n\n";
 
-    std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n";
+    std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n\n";
 
     std::cout << "\nEXAMPLES\n\n";
 
