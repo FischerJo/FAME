@@ -220,23 +220,28 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
 
     unsigned int readCounter = 0;
     unsigned int i = 0;
+    // counter
+    uint64_t succMatch = 0;
+    uint64_t nonUniqueMatch = 0;
+    uint64_t unSuccMatch = 0;
     std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
         // TODO
-        if (i >= 1)
-            break;
-        rQue.matchReads(readCounter);
+        // if (i >= 1)
+        //     break;
+        rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
         std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
     }
     // match remaining reads
-    rQue.matchReads(readCounter);
+    rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
 
     std::cout << "Done processing in " << runtime << "s\n";
+    std::cout << "Successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch;
 
 }
 
