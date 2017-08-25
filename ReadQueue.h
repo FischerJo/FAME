@@ -48,7 +48,7 @@ class ReadQueue
         // First retrieve seeds using getSeeds(...)
         // Filter seeds using filterHeuSeeds(...) according to simple heuristic
         // Extend remaining seeds with BitMatch(...)
-        bool matchReads(const unsigned int& procReads);
+        bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
 
         // Print the CpG methylation levels to the given filename
         // Two files are generated, one called filename_cpg.tsv
@@ -865,7 +865,7 @@ class ReadQueue
         //     return 0;
         // }
         // inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, const uint16_t& qThreshold)
-        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat)
+        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, uint16_t qThreshold)
         {
 
             // use counters to flag what has been processed so far
@@ -882,10 +882,10 @@ class ReadQueue
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
 
             // set q-gram lemma threshold
-            uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
-            // check for overflow (i.e. read is to small for lemma)
-            if (qThreshold > sa.size())
-                qThreshold = 0;
+            // uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
+            // // check for overflow (i.e. read is to small for lemma)
+            // if (qThreshold > sa.size())
+            //     qThreshold = 0;
 
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
@@ -1213,7 +1213,7 @@ class ReadQueue
         //          The threadCount* fields are modified such that they have the count of metaCpGs after
         //          a call to this function
         // inline bool getSeedRefs(const std::vector<char>& seq, const size_t& readSize)
-        inline bool getSeedRefs(const std::string& seq, const size_t& readSize)
+        inline bool getSeedRefs(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
         {
 
             // std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
@@ -1230,6 +1230,8 @@ class ReadQueue
             std::unordered_map<uint32_t, uint16_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
             fwdMetaIDs_t.clear();
             revMetaIDs_t.clear();
+            fwdMetaIDs_t.reserve(50000);
+            revMetaIDs_t.reserve(50000);
 
             // retrieve kmers for first hash
             uint64_t fhVal = ntHash::NTP64(seq.data());
@@ -1240,11 +1242,13 @@ class ReadQueue
             bool wasFwd = false;
             bool wasStart = false;
 
+            // maximum position until we can insert completely new meta cpgs
+            uint32_t maxQPos = seq.size() - MyConst::KMERLEN - qThreshold;
             // set q-gram lemma threshold
-            uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+            // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
             // if too small we get an overflow -> set to zero
-            if (qThreshold > readSize)
-                qThreshold = 0;
+            // if (qThreshold > readSize)
+            //     qThreshold = 0;
             // unsigned int passCount = 0;
 
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
@@ -1334,11 +1338,34 @@ class ReadQueue
 
                         if (isFwd)
                         {
-                            ++fwdMetaIDs_t[metaId];
+                            // check if it is at all possible to have newly inserted element passing q
+                            if (cIdx < maxQPos)
+                            {
+                                ++fwdMetaIDs_t[metaId];
+
+                            } else {
+
+                                auto it = fwdMetaIDs_t.find(metaId);
+                                if (it != fwdMetaIDs_t.end())
+                                {
+                                    ++it->second;
+                                }
+                            }
 
                         } else {
 
-                            ++revMetaIDs_t[metaId];
+                            if (cIdx < maxQPos)
+                            {
+                                ++revMetaIDs_t[metaId];
+
+                            } else {
+
+                                auto it = revMetaIDs_t.find(metaId);
+                                if (it != revMetaIDs_t.end())
+                                {
+                                    ++it->second;
+                                }
+                            }
 
                         }
                     }
@@ -1442,9 +1469,6 @@ class ReadQueue
             uint32_t metaID = MATCH::getMetaID(mat);
             uint16_t offset = MATCH::getOffset(mat);
             uint8_t errNum = MATCH::getErrNum(mat);
-
-            //TODO
-            // std::cout << "------------------\n\n" << seq << "\n\n";
 
             // if no errors -> simple lookup of sequences
             if (errNum == 0)
@@ -1614,17 +1638,17 @@ class ReadQueue
                                 // check if we have a CpG aligned to the reference CpG
                                 if (seq[readSeqPos + 1] == 'G')
                                 {
-                                    // check for unmethylated C
+                                    // check for methylated C
                                     if (seq[readSeqPos] == 'C')
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevelsStart[cpgID].unmethFwd;
+                                        ++methLevelsStart[cpgID].methFwd;
                                     else if (seq[readSeqPos] == 'T')
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevelsStart[cpgID].methFwd;
+                                        ++methLevelsStart[cpgID].unmethFwd;
 
                                 }
                             }
@@ -1663,17 +1687,17 @@ class ReadQueue
                                 // check if we have a CpG aligned to the reference CpG
                                 if (seq[readSeqPos + 1] == 'C')
                                 {
-                                    // check for unmethylated C (on reverse!)
+                                    // check for methylated C (on reverse!)
                                     if (seq[readSeqPos] == 'G')
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevelsStart[cpgID].unmethRev;
+                                        ++methLevelsStart[cpgID].methRev;
                                     else if (seq[readSeqPos] == 'A')
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevelsStart[cpgID].methRev;
+                                        ++methLevelsStart[cpgID].unmethRev;
 
                                 }
                             }
@@ -1792,12 +1816,12 @@ class ReadQueue
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevels[cpgID].unmethFwd;
+                                        ++methLevels[cpgID].methFwd;
                                     else if (seq[readSeqPos] == 'T')
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevels[cpgID].methFwd;
+                                        ++methLevels[cpgID].unmethFwd;
 
                                 }
                                 --alignPos;
@@ -1881,12 +1905,12 @@ class ReadQueue
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevels[cpgID].unmethRev;
+                                        ++methLevels[cpgID].methRev;
                                     else if (seq[readSeqPos] == 'A')
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
-                                        ++methLevels[cpgID].methRev;
+                                        ++methLevels[cpgID].unmethRev;
 
                                 }
                                 --alignPos;
@@ -2029,6 +2053,11 @@ class ReadQueue
         // indexed by the same indices as of the cpgTable vector in RefGenome class
         std::vector<struct methLvl> methLevels;
         std::vector<struct methLvl> methLevelsStart;
+
+        // holds matching info
+        std::array<uint64_t, CORENUM> matchStats;
+        std::array<uint64_t, CORENUM> nonUniqueStats;
+        std::array<uint64_t, CORENUM> noMatchStats;
 };
 
 #endif /* READQUEUE_H */

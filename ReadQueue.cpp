@@ -9,7 +9,7 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     ,   ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
         // TODO
-    ,   of("test_nohashfilter2.txt")
+    ,   of("test_lossyfilter_k25_m2048_reserve50k_nolock.txt")
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
 {
@@ -155,23 +155,28 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
     return false;
 }
 
-bool ReadQueue::matchReads(const unsigned int& procReads)
+bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch)
 {
 
-    // TODO
-    uint64_t succMatchFwd = 0;
-    uint64_t succMatchRev = 0;
-    uint64_t unSuccMatch = 0;
-    uint64_t nonUniqueMatch = 0;
-    uint64_t readCount = 0;
-    uint64_t pCount = 0;
+    // reset all counters
+    for (unsigned int i = 0; i < CORENUM; ++i)
+    {
+        matchStats[i] = 0;
+        nonUniqueStats[i] = 0;
+        noMatchStats[i] = 0;
+    }
 
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,10000)
+#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,20000)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
 
+        int threadnum = omp_get_thread_num();
+
+        uint64_t& succMatch = matchStats[threadnum];
+        uint64_t& nonUniqueMatch = nonUniqueStats[threadnum];
+        uint64_t& unSuccMatch = noMatchStats[threadnum];
         Read& r = readBuffer[i];
 
         const size_t readSize = r.seq.size();
@@ -180,16 +185,16 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
         // TODO
         // if (readSize < MyConst::KMERLEN)
-        if (readSize < 85)
-        {
-
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-            ++readCount;
-            r.isInvalid = true;
-            continue;
-        }
+//         if (readSize < 85)
+//         {
+//
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+//             ++readCount;
+//             r.isInvalid = true;
+//             continue;
+//         }
         // RETRIEVE SEEDS
         //
         // std::vector<char> redSeq (readSize);
@@ -270,61 +275,60 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
         // auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         //
-        // of << "+" << runtime << "\n";
+        // of << runtime << "\n";
 
+        // set qgram threshold
+        uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
+        if (qThreshold > readSize)
+            qThreshold = 0;
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
-        bool succFlag = getSeedRefs(r.seq, readSize);
+        bool succFlag = getSeedRefs(r.seq, readSize, qThreshold);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << "+" << runtime << "\t";
-        // of << "\nMeta id 59623 count fwd: "  << fwdMetaIDs[omp_get_thread_num()][59623] << "\n";
-        // of << "\nMeta id 59623 count rev: "  << revMetaIDs[omp_get_thread_num()][59623] << "\n";
+        // of << runtime << "\n";
+        // if (runtime > 3000)
+        // {
+        //     of << r.seq << "\n";
+        //     of << "Overall meta CpGs: " << fwdMetaIDs[omp_get_thread_num()].size() + revMetaIDs[omp_get_thread_num()].size() << "\n";
+        //     // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+        //     // check for overflow (i.e. read is to small for lemma)
+        //     // if (qThreshold > readSize)
+        //     //     qThreshold = 0;
+        //     uint64_t qcount = 0;
+        //     for (const auto& m : fwdMetaIDs[omp_get_thread_num()])
+        //     {
+        //         if (m.second >= qThreshold)
+        //             ++qcount;
+        //     }
+        //     for (const auto& m : revMetaIDs[omp_get_thread_num()])
+        //     {
+        //         if (m.second >= qThreshold)
+        //             ++qcount;
+        //     }
+        //     of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
+        // }
         // startTime = std::chrono::high_resolution_clock::now();
         ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
         // of << runtime << "\t";
         // startTime = std::chrono::high_resolution_clock::now();
-        int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd);
+        int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
         if (succQueryFwd == -1)
         {
 
             r.isInvalid = true;
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
             ++nonUniqueMatch;
         }
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
-        // if (runtime > 5000)
-        // {
-            // of << r.seq << "\n";
-            // of << "Overall meta CpGs: " << fwdMetaIDs[omp_get_thread_num()].size() + revMetaIDs[omp_get_thread_num()].size() << "\n";
-            // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            // // check for overflow (i.e. read is to small for lemma)
-            // if (qThreshold > readSize)
-            //     qThreshold = 0;
-            // uint64_t qcount = 0;
-            // for (const auto& m : fwdMetaIDs[omp_get_thread_num()])
-            // {
-            //     if (m.second >= qThreshold)
-            //         ++qcount;
-            // }
-            // for (const auto& m : revMetaIDs[omp_get_thread_num()])
-            // {
-            //     if (m.second >= qThreshold)
-            //         ++qcount;
-            // }
-            // of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
-        // }
-
+        //
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchRev = 0;
-        succFlag = getSeedRefs(revSeq, readSize);
+        succFlag = getSeedRefs(revSeq, readSize, qThreshold);
         // if (!succFlag)
         // {
         //     ++readCount;
@@ -334,7 +338,28 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // }
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << "+" << runtime << "\t";
+        // of << runtime << "\n";
+        // if (runtime > 3000)
+        // {
+        //     of << r.seq << "\n";
+        //     of << "Overall meta CpGs: " << fwdMetaIDs[omp_get_thread_num()].size() + revMetaIDs[omp_get_thread_num()].size() << "\n";
+        //     // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+        //     // check for overflow (i.e. read is to small for lemma)
+        //     // if (qThreshold > readSize)
+        //     //     qThreshold = 0;
+        //     uint64_t qcount = 0;
+        //     for (const auto& m : fwdMetaIDs[omp_get_thread_num()])
+        //     {
+        //         if (m.second >= qThreshold)
+        //             ++qcount;
+        //     }
+        //     for (const auto& m : revMetaIDs[omp_get_thread_num()])
+        //     {
+        //         if (m.second >= qThreshold)
+        //             ++qcount;
+        //     }
+        //     of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
+        // }
         // of << "\nMeta id count fwd: "  << fwdMetaIDs[omp_get_thread_num()][319746] << "\n";
         // of << "\nMeta id count rev: "  << revMetaIDs[omp_get_thread_num()][319746] << "\n";
         // if (runtime > 100)
@@ -349,7 +374,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
         // startTime = std::chrono::high_resolution_clock::now();
-        int succQueryRev = saQuerySeedSetRef(saRev, matchRev);
+        int succQueryRev = saQuerySeedSetRef(saRev, matchRev, qThreshold);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
@@ -375,23 +400,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             // of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
         // }
 
-
-
-
-
-
-        // if (runtime > 100)
-        // {
-        //     of << "REV---:" << r.seq << std::endl;
-        //     for (auto s : revSeedsK)
-        //     {
-        //
-        //         of << s.size() << " ; ";
-        //     }
-        //
-        //     of << "\n\n";
-        // }
-
         // found match for fwd and rev strand
         if (succQueryFwd == 1 && succQueryRev == 1)
         {
@@ -405,10 +413,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             if (fwdErr < revErr)
             {
 
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                ++succMatchFwd;
+                ++succMatch;
                 r.mat = matchFwd;
                 // startTime = std::chrono::high_resolution_clock::now();
                 computeMethLvl(matchFwd, r.seq);
@@ -421,10 +426,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                 if (fwdErr > revErr)
                 {
 
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                    ++succMatchRev;
+                    ++succMatch;
                     r.mat = matchRev;
                     // startTime = std::chrono::high_resolution_clock::now();
                     computeMethLvl(matchRev, revSeq);
@@ -459,10 +461,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                     // test if same match in same region
                     if ((m1_isStart == m2_isStart) && (m1_isFwd == m2_isFwd) && (m1_pos == m2_pos))
                     {
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                        ++succMatchFwd;
+                        ++succMatch;
                         r.mat = matchFwd;
                         // startTime = std::chrono::high_resolution_clock::now();
                         computeMethLvl(matchFwd, r.seq);
@@ -472,9 +471,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
 
                     } else {
 
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
                         ++nonUniqueMatch;
 
                         r.isInvalid = true;
@@ -485,10 +481,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         } else if (succQueryFwd == 1) {
 
             // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-            ++succMatchFwd;
+            ++succMatch;
             r.mat = matchFwd;
             // startTime = std::chrono::high_resolution_clock::now();
             computeMethLvl(matchFwd, r.seq);
@@ -500,10 +493,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         } else if (succQueryRev == 1) {
 
             // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-            ++succMatchRev;
+            ++succMatch;
             r.mat = matchRev;
             // startTime = std::chrono::high_resolution_clock::now();
             computeMethLvl(matchRev, revSeq);
@@ -518,22 +508,17 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             if (succQueryFwd == -1 || succQueryRev == -1)
             {
 
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
+                // of << "Nonunique match.\n";
                 ++nonUniqueMatch;
 
             } else {
 
                 // of << "No match.\n";
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
                 ++unSuccMatch;
 
-            }
-        }
-                // // construct hash and look up the hash table entries
+        //     }
+        // }
+                // construct hash and look up the hash table entries
                 // size_t lPos = r.id.find_last_of('_');
                 // std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
                 // size_t rPos = r.id.find_last_of('R');
@@ -646,7 +631,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
                 // }
                 // of << "\n\n--------------------\n\n";
 
-            // }
+            }
 
             // if (unSuccMatch > 10)
             // {
@@ -654,6 +639,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
             //     exit(1);
             // }
         }
+        // of << "\n\n-------------------------\n\n";
         // validate
         // if (!r.isInvalid)
         // {
@@ -701,11 +687,16 @@ bool ReadQueue::matchReads(const unsigned int& procReads)
         // bitMatchingRev(r, revSeedsK, revSeedsS);
 
 
-    // }
+    }
 
+    // sum up counts
+    for (unsigned int i = 0; i < CORENUM; ++i)
+    {
+        succMatch += matchStats[i];
+        nonUniqueMatch += nonUniqueStats[i];
+        unSuccMatch += noMatchStats[i];
+    }
     // of.close();
-    std::cout << "Successfully matched (Fwd|Rev): " << succMatchFwd << "|" << succMatchRev << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << " / Discarded because of length < 85: " << readCount << "\n\n";
-    // TODO: Go over read set once and register the CpG matchings
     return true;
 }
 
