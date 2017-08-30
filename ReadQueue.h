@@ -1640,15 +1640,19 @@ class ReadQueue
                                 {
                                     // check for methylated C
                                     if (seq[readSeqPos] == 'C')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevelsStart[cpgID].methFwd;
+                                    }
                                     else if (seq[readSeqPos] == 'T')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevelsStart[cpgID].unmethFwd;
+                                    }
 
                                 }
                             }
@@ -1689,15 +1693,19 @@ class ReadQueue
                                 {
                                     // check for methylated C (on reverse!)
                                     if (seq[readSeqPos] == 'G')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevelsStart[cpgID].methRev;
+                                    }
                                     else if (seq[readSeqPos] == 'A')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevelsStart[cpgID].unmethRev;
+                                    }
 
                                 }
                             }
@@ -1813,15 +1821,19 @@ class ReadQueue
                                 {
                                     // check for unmethylated C
                                     if (seq[readSeqPos] == 'C')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevels[cpgID].methFwd;
+                                    }
                                     else if (seq[readSeqPos] == 'T')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevels[cpgID].unmethFwd;
+                                    }
 
                                 }
                                 --alignPos;
@@ -1902,15 +1914,19 @@ class ReadQueue
                                 {
                                     // check for unmethylated C (on reverse!)
                                     if (seq[readSeqPos] == 'G')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevels[cpgID].methRev;
+                                    }
                                     else if (seq[readSeqPos] == 'A')
+                                    {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevels[cpgID].unmethRev;
+                                    }
 
                                 }
                                 --alignPos;
