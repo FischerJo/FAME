@@ -167,7 +167,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
     }
 
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,20000)
+#pragma omp parallel for num_threads(CORENUM) schedule(static)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
@@ -195,10 +195,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 //             r.isInvalid = true;
 //             continue;
 //         }
-        // RETRIEVE SEEDS
-        //
-        // std::vector<char> redSeq (readSize);
-        // std::vector<char> redRevSeq (readSize);
 
         // flag stating if read contains N
         // reads with N are ignored
@@ -212,8 +208,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         std::string revSeq;
         revSeq.resize(readSize);
 
-        bool isCpG = false;
-        // bool hadCorT = false;
         // construct reduced alphabet sequence for forward and reverse strand
         for (size_t pos = 0; pos < readSize; ++pos, --revPos)
         {
@@ -222,35 +216,22 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
             {
                 case 'A':
 
-                    // redSeq[pos] = 'A';
-                    // redRevSeq[revPos] = 'T';
                     revSeq[revPos] = 'T';
-                    // hadCorT = false;
                     break;
 
                 case 'C':
 
-                    // redSeq[pos] = 'T';
-                    // redRevSeq[revPos] = 'G';
                     revSeq[revPos] = 'G';
-                    // hadCorT = true;
                     break;
 
                 case 'G':
 
-                    // redSeq[pos] = 'G';
-                    // redRevSeq[revPos] = 'T';
                     revSeq[revPos] = 'C';
-                    // hadCorT ? isCpG = true : false;
-                    // hadCorT = false;
                     break;
 
                 case 'T':
 
-                    // redSeq[pos] = 'T';
-                    // redRevSeq[revPos] = 'A';
                     revSeq[revPos] = 'A';
-                    // hadCorT = true;
                     break;
 
                 case 'N':
@@ -264,8 +245,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
             }
         }
 
-        // if N is present in read or read has no CpG, skip
-        // if (nflag || !isCpG)
         if (nflag)
         {
             r.isInvalid = true;
