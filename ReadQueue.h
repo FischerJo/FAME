@@ -91,7 +91,7 @@ class ReadQueue
 
         // filters seeds according to simple counting criteria
         // #kmers of one metaCpG should be > READLEN - KMERLEN + 1 - (KMERLEN * MISCOUNT)
-        inline void filterHeuSeeds(std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
+        inline void filterHeuSeeds(std::vector<std::vector<KMER_S::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, const unsigned int readSize)
         {
 
             std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
@@ -114,7 +114,7 @@ class ReadQueue
                 for (size_t j = 0; j < seedsK[i].size(); ++j)
                 {
 
-                    const uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
+                    const uint64_t metaId = KMER_S::getMetaCpG(seedsK[i][j]);
                     const bool metaStrand = seedsS[i][j];
                     // check if we visited meta CpG before
                     if (metaId == lastId && metaStrand == lastStrand)
@@ -165,7 +165,7 @@ class ReadQueue
                     if (seedsS[i][j])
                     {
                         // test for strict heuristic criterias
-                        if (threadCountFwd[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
+                        if (threadCountFwd[KMER_S::getMetaCpG(seedsK[i][j])] >= countCut)
                         {
 
                             *filterItK = *srcItK;
@@ -178,7 +178,7 @@ class ReadQueue
                     } else {
 
                         // test for strict heuristic criterias
-                        if (threadCountRev[KMER::getMetaCpG(seedsK[i][j])] >= countCut)
+                        if (threadCountRev[KMER_S::getMetaCpG(seedsK[i][j])] >= countCut)
                         {
 
                             *filterItK = *srcItK;
@@ -223,10 +223,10 @@ class ReadQueue
         //         {
         //
         //             // retrieve seed information
-        //             KMER::kmer& k = ref.kmerTable[j];
+        //             KMER_S::kmer& k = ref.kmerTable[j];
         //             const bool isFwd = ref.strandTable[j];
-        //             const uint64_t metaId = KMER::getMetaCpG(k);
-        //             const bool isStart = KMER::isStartCpG(k);
+        //             const uint64_t metaId = KMER_S::getMetaCpG(k);
+        //             const bool isStart = KMER_S::isStartCpG(k);
         //             // check if we visited meta CpG before
         //             if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
         //             {
@@ -278,7 +278,7 @@ class ReadQueue
         // MODIFICATIONS:
         //              function will filter seedsK and seedsS to contain only reference kmers that match read kmer under bitmask
         //              comparison
-        // inline void bitMatching(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        // inline void bitMatching(const Read& r, std::vector<std::vector<KMER_S::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
         // {
         //
         //     // masking for actual kmer bits
@@ -295,7 +295,7 @@ class ReadQueue
         //     }
         //
         //     // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
-        //     std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
+        //     std::vector<std::vector<KMER_S::kmer> > newSeedsK(seedsK.size());
         //     std::vector<std::vector<bool> > newSeedsS(seedsK.size());
         //
         //     // go over each read kmer and compare with reference seeds
@@ -303,7 +303,7 @@ class ReadQueue
         //     {
         //
         //         // retrieve seeds for current kmer
-        //         std::vector<KMER::kmer>& localSeedsK = seedsK[offset];
+        //         std::vector<KMER_S::kmer>& localSeedsK = seedsK[offset];
         //         std::vector<bool>& localSeedsS = seedsS[offset];
         //         // reserve some space for result seedlist
         //         newSeedsK[offset].reserve(localSeedsK.size());
@@ -317,7 +317,7 @@ class ReadQueue
         //         for (unsigned int i = 0; i < localSeedsK.size(); ++i)
         //         {
         //
-        //             KMER::kmer& refKmer = localSeedsK[i];
+        //             KMER_S::kmer& refKmer = localSeedsK[i];
         //
         //             // will hold the first CpG in metaCpG after retrieving the meta CpG info
         //             uint8_t chrom;
@@ -326,15 +326,15 @@ class ReadQueue
         //             // retrieve reference bit representation
         //             //
         //             // First retrieve meta CpG info
-        //             if (KMER::isStartCpG(refKmer))
+        //             if (KMER_S::isStartCpG(refKmer))
         //             {
         //
-        //                 const uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+        //                 const uint32_t& cpgInd = ref.metaStartCpGs[KMER_S::getMetaCpG(refKmer)].start;
         //                 chrom = ref.cpgStartTable[cpgInd].chrom;
         //
         //             } else {
         //
-        //                 const uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+        //                 const uint32_t& cpgInd = ref.metaCpGs[KMER_S::getMetaCpG(refKmer)].start;
         //                 chrom = ref.cpgTable[cpgInd].chrom;
         //                 pos = ref.cpgTable[cpgInd].pos;
         //
@@ -347,13 +347,13 @@ class ReadQueue
         //             if (localSeedsS[i])
         //             {
         //                 // retrieve sequence in forward strand
-        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER_S::getOffset(refKmer));
         //
         //             // is reverse
         //             } else {
         //
         //                 // retrieve sequence in forward strand
-        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER_S::getOffset(refKmer));
         //             }
         //
         //             // COMPARE read kmer and seed
@@ -375,7 +375,7 @@ class ReadQueue
         //     seedsS = std::move(newSeedsS);
         //
         // }
-        // inline void bitMatchingRev(const Read& r, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
+        // inline void bitMatchingRev(const Read& r, std::vector<std::vector<KMER_S::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS)
         // {
         //
             // const unsigned int readSize = r.seq.size();
@@ -394,7 +394,7 @@ class ReadQueue
             // }
             //
             // // Note that seedsK must have the same size as seedsS anyway, this way we may have a cache hit
-            // std::vector<std::vector<KMER::kmer> > newSeedsK(seedsK.size());
+            // std::vector<std::vector<KMER_S::kmer> > newSeedsK(seedsK.size());
             // std::vector<std::vector<bool> > newSeedsS(seedsK.size());
             //
             // // index for seed vector for current read kmer
@@ -403,7 +403,7 @@ class ReadQueue
             // for (unsigned int offset = readSize - MyConst::KMERLEN; offset > 0; --offset, ++kmerInd)
             // {
             //
-            //     std::vector<KMER::kmer>& localSeedsK = seedsK[kmerInd];
+            //     std::vector<KMER_S::kmer>& localSeedsK = seedsK[kmerInd];
             //     std::vector<bool>& localSeedsS = seedsS[kmerInd];
             //     // reserve some space for seedlist
             //     newSeedsK[kmerInd].reserve(localSeedsK.size());
@@ -417,7 +417,7 @@ class ReadQueue
             //     for (unsigned int i = 0; i < localSeedsK.size(); ++i)
             //     {
             //
-            //         KMER::kmer& refKmer = localSeedsK[i];
+            //         KMER_S::kmer& refKmer = localSeedsK[i];
             //
             //         // will hold the chromosome index in metaCpG after retrieving the meta CpG info
             //         uint8_t chrom;
@@ -426,15 +426,15 @@ class ReadQueue
             //         // retrieve reference bit representation
             //         //
             //         // First retrieve meta CpG info
-            //         if (KMER::isStartCpG(refKmer))
+            //         if (KMER_S::isStartCpG(refKmer))
             //         {
             //
-            //             uint32_t& cpgInd = ref.metaStartCpGs[KMER::getMetaCpG(refKmer)].start;
+            //             uint32_t& cpgInd = ref.metaStartCpGs[KMER_S::getMetaCpG(refKmer)].start;
             //             chrom = ref.cpgStartTable[cpgInd].chrom;
             //
             //         } else {
             //
-            //             uint32_t& cpgInd = ref.metaCpGs[KMER::getMetaCpG(refKmer)].start;
+            //             uint32_t& cpgInd = ref.metaCpGs[KMER_S::getMetaCpG(refKmer)].start;
             //             chrom = ref.cpgTable[cpgInd].chrom;
             //             pos = ref.cpgTable[cpgInd].pos;
             //
@@ -447,13 +447,13 @@ class ReadQueue
         //             if (localSeedsS[i])
         //             {
         //                 // retrieve sequence in forward strand
-        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER::getOffset(refKmer));
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmer(pos + KMER_S::getOffset(refKmer));
         //
         //             // is reverse
         //             } else {
         //
         //                 // retrieve sequence in forward strand
-        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER::getOffset(refKmer));
+        //                 refKmerBit = ref.genomeBit[chrom].getSeqKmerRev(pos + KMER_S::getOffset(refKmer));
         //             }
         //
         //             // COMPARE read kmer and seed
@@ -493,7 +493,7 @@ class ReadQueue
         //              updates the match mat
         //              shift-and automaton is used - needs a reset (implicitly done when querying a new sequence internally)
         //
-        // inline int saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
+        // inline int saQuerySeedSet(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<std::vector<KMER_S::kmer> >& seedsK, std::vector<std::vector<bool> >& seedsS, MATCH::match& mat)
         // {
 
             // use counters to flag what has been processed so far
@@ -522,13 +522,13 @@ class ReadQueue
             //     {
             //
             //         // retrieve kmer
-            //         KMER::kmer& k = seedsK[outerNdx][innerNdx];
+            //         KMER_S::kmer& k = seedsK[outerNdx][innerNdx];
             //
             //         // retrieve meta CpG
-            //         const uint64_t m = KMER::getMetaCpG(k);
+            //         const uint64_t m = KMER_S::getMetaCpG(k);
             //
             //         // retrieve if start meta CpG
-            //         const bool isStart = KMER::isStartCpG(k);
+            //         const bool isStart = KMER_S::isStartCpG(k);
             //
             //         // retrieve strand
             //         const bool isFwd = seedsS[outerNdx][innerNdx];
@@ -1254,9 +1254,9 @@ class ReadQueue
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
             {
 
-                const uint64_t metaId = KMER::getMetaCpG(ref.kmerTable[i]);
+                const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTable[i]);
                 const bool isFwd = ref.strandTable[i];
-                const bool isStart = KMER::isStartCpG(ref.kmerTable[i]);
+                const bool isStart = KMER_S::isStartCpG(ref.kmerTable[i]);
                 // check if we visited meta CpG before
                 if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
                 {
@@ -1308,9 +1308,9 @@ class ReadQueue
                 for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
                 {
 
-                    const uint64_t metaId = KMER::getMetaCpG(ref.kmerTable[i]);
+                    const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTable[i]);
                     const bool isFwd = ref.strandTable[i];
-                    const bool isStart = KMER::isStartCpG(ref.kmerTable[i]);
+                    const bool isStart = KMER_S::isStartCpG(ref.kmerTable[i]);
                     // check if we visited meta CpG before
                     if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
                     {
@@ -1974,10 +1974,10 @@ class ReadQueue
         //              none
         //
         // TODO
-        static constexpr unsigned int n = 400;
-        std::ofstream statFile;
-        std::ofstream countFile;
-        void printStatistics(const std::vector<std::vector<KMER::kmer> > SeedsK);
+        // static constexpr unsigned int n = 400;
+        // std::ofstream statFile;
+        // std::ofstream countFile;
+        // void printStatistics(const std::vector<std::vector<KMER_S::kmer> > SeedsK);
 
         // input stream of file given as path to Ctor
         std::ifstream file;

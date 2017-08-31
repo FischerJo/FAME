@@ -136,7 +136,12 @@ void RefGenome::save(const std::string& filepath)
     // store kmers
     size_t kmerNum = kmerTable.size();
     of.write(reinterpret_cast<char*>(&kmerNum), sizeof(kmerNum));
-    of.write(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
+    // of.write(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
+    for (size_t i = 0; i < kmerNum; ++i)
+    {
+        const uint32_t k = KMER::getCore(kmerTable[i]);
+        of.write(reinterpret_cast<const char*>(&k),sizeof(uint32_t));
+    }
 
     if (of.fail())
     {
@@ -261,8 +266,13 @@ void RefGenome::load(const std::string& filepath)
     // load kmers
     size_t kmerNum;
     ifs.read(reinterpret_cast<char*>(&kmerNum), sizeof(kmerNum));
-    kmerTable.resize(kmerNum);
-    ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
+    // kmerTable.resize(kmerNum);
+    // ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
+    kmerTableSmall.resize(kmerNum);
+    for (size_t i = 0; i < kmerNum; ++i)
+    {
+        ifs.read(reinterpret_cast<char*>(&(kmerTableSmall[i])),sizeof(uint32_t));
+    }
 
     // load strands
     std::ifstream ifs_bool(filepath + "_strands", std::ifstream::binary);

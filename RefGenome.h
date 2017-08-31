@@ -696,6 +696,7 @@ class RefGenome
         // strandTable hold the strand orientation of the corresponding kmer (true iff forward)
         std::vector<uint64_t> tabIndex;
         std::vector<KMER::kmer> kmerTable;
+        std::vector<KMER_S::kmer> kmerTableSmall;
         std::vector<bool> strandTable;
         //
         // meta CpG table

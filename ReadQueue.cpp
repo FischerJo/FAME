@@ -4,9 +4,9 @@
 #include "ReadQueue.h"
 
 ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
-        statFile("seedStats.tsv")
+        // statFile("seedStats.tsv")
     // ,   countFile("seedCounts.tsv")
-    ,   ref(reference)
+        ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
         // TODO
     ,   of("test_lossyfilter_k25_m2048_reserve50k_nolock.txt")
@@ -721,54 +721,54 @@ void ReadQueue::printMethylationLevels(std::string& filename)
 }
 
 
-void ReadQueue::printStatistics(std::vector<std::vector<KMER::kmer> > seedsK)
-{
-
-    unsigned int count = 0;
-
-    // statistics on metaCpG repetitions
-    std::vector<unsigned int> metaRep (n, 0);
-
-    // count occurences of meta CpGs
-    for (unsigned int i = 0; i < seedsK.size(); ++i)
-    {
-
-        std::unordered_map<uint32_t, unsigned int> metaCounts;
-
-        // count up general seed counter
-        count += seedsK[i].size();
-        for (unsigned int j = 0; j < seedsK[i].size(); ++j)
-        {
-
-            uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
-
-            auto insert = metaCounts.emplace(metaId, 1);
-
-            // if insertion fails because metaCpG is already inserted, count up everything
-            if (!insert.second)
-            {
-                ++((insert.first)->second);
-            }
-        }
-        for (auto& c : metaCounts)
-        {
-            if (c.second <= n)
-            {
-
-                ++metaRep[c.second - 1];
-
-            }
-        }
-
-    }
-
-    // print everything
-    for (unsigned int i = 0; i < metaRep.size(); ++i)
-    {
-        statFile << metaRep[i] << "\t";
-    }
-    statFile << "\n";
-
-    countFile << count << "\t";
-
-}
+// void ReadQueue::printStatistics(std::vector<std::vector<KMER::kmer> > seedsK)
+// {
+//
+//     unsigned int count = 0;
+//
+//     // statistics on metaCpG repetitions
+//     std::vector<unsigned int> metaRep (n, 0);
+//
+//     // count occurences of meta CpGs
+//     for (unsigned int i = 0; i < seedsK.size(); ++i)
+//     {
+//
+//         std::unordered_map<uint32_t, unsigned int> metaCounts;
+//
+//         // count up general seed counter
+//         count += seedsK[i].size();
+//         for (unsigned int j = 0; j < seedsK[i].size(); ++j)
+//         {
+//
+//             uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
+//
+//             auto insert = metaCounts.emplace(metaId, 1);
+//
+//             // if insertion fails because metaCpG is already inserted, count up everything
+//             if (!insert.second)
+//             {
+//                 ++((insert.first)->second);
+//             }
+//         }
+//         for (auto& c : metaCounts)
+//         {
+//             if (c.second <= n)
+//             {
+//
+//                 ++metaRep[c.second - 1];
+//
+//             }
+//         }
+//
+//     }
+//
+//     // print everything
+//     for (unsigned int i = 0; i < metaRep.size(); ++i)
+//     {
+//         statFile << metaRep[i] << "\t";
+//     }
+//     statFile << "\n";
+//
+//     countFile << count << "\t";
+//
+// }

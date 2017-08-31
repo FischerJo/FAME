@@ -178,6 +178,11 @@ int main(int argc, char** argv)
             std::cerr << "No reference genome file provided! Use \"--genome\" option to specify reference genome file path. Terminating...\n\n";
             exit(1);
         }
+        if (!storeIndexFlag)
+        {
+            std::cerr << "No path to store index provided! Use \"--store_index\" option to specify path. Terminating...\n\n";
+
+        }
 
         std::vector<struct CpG> cpgTab;
         std::vector<struct CpG> cpgStartTab;
@@ -190,21 +195,16 @@ int main(int argc, char** argv)
         {
             ref.save(indexFile);
 
-        } else if (readFile == NULL)
-        {
-
-            std::cerr << "No read file provided and no index storing option! Use \"-r\" option to specify read file path. Terminating...\n\n";
-            exit(1);
-
         }
 
-        if (readFile != NULL)
-        {
-            ReadQueue rQue(readFile, ref, readsGZ);
-            queryRoutine(rQue, readsGZ);
-            rQue.printMethylationLevels(outputFile);
-        }
+        // if (readFile != NULL)
+        // {
+        //     ReadQueue rQue(readFile, ref, readsGZ);
+        //     queryRoutine(rQue, readsGZ);
+        //     rQue.printMethylationLevels(outputFile);
+        // }
     }
+
     return 0;
 }
 
@@ -291,10 +291,9 @@ void printHelp()
 
     std::cout << "\nEXAMPLES\n\n";
 
-    std::cout << "Setting: Read a reference genome and map a set of reads, save index for\n";
+    std::cout << "Setting: Read a reference genome and save index for\n";
     std::cout << "consecutive usages.\n\n";
-    std::cout << "\t /path/to/Metal --genome /path/to/reference.fasta --store_index index.bin \\\n";
-    std::cout << "\t\t-r /path/to/reads.fastq\n\n\n";
+    std::cout << "\t /path/to/Metal --genome /path/to/reference.fasta --store_index index.bin \n\n";
 
     std::cout << "Setting: Load index from previously stored index, map reads stored in .gz\n";
     std::cout << "format.\n\n";
