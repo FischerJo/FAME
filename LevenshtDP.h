@@ -1,3 +1,21 @@
+//	Metal - A fast methylation alignment and calling tool for WGBS data.
+//	Copyright (C) 2017  Jonas Fischer
+//
+//	This program is free software: you can redistribute it and/or modify
+//	it under the terms of the GNU General Public License as published by
+//	the Free Software Foundation, either version 3 of the License, or
+//	(at your option) any later version.
+//
+//	This program is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU General Public License for more details.
+//
+//	You should have received a copy of the GNU General Public License
+//	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//	Jonas Fischer	jonaspost@web.de
+
 #ifndef LEVENSHTDP_H
 #define LEVENSHTDP_H
 
@@ -98,7 +116,7 @@ class LevenshtDP
             T mismatchTest = comp(rowPat[rowPat.size() - i], *(colPat-j+1));
             return std::min({dpMatrix(i-1,j) + 1, dpMatrix(i,j-1) + 1, dpMatrix(i-1,j-1) + mismatchTest});
         }
-        // if we want to align from right to left
+        // if we want to align reverse sequence
         template <typename C>
         inline T LevRecRev(long i, long j, C& comp)
         {

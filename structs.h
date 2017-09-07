@@ -1,3 +1,21 @@
+//	Metal - A fast methylation alignment and calling tool for WGBS data.
+//	Copyright (C) 2017  Jonas Fischer
+//
+//	This program is free software: you can redistribute it and/or modify
+//	it under the terms of the GNU General Public License as published by
+//	the Free Software Foundation, either version 3 of the License, or
+//	(at your option) any later version.
+//
+//	This program is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU General Public License for more details.
+//
+//	You should have received a copy of the GNU General Public License
+//	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//	Jonas Fischer	jonaspost@web.de
+
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
@@ -74,48 +92,33 @@ namespace KMER {
         return (k & 0x8000000000000000ULL);
     }
 
+    inline uint32_t getCore(KMER::kmer& k)
+    {
+        return k >> 32;
+    }
+
     // constructs a kmer according to its definition
     inline KMER::kmer constructKmer(uint64_t isStart, uint64_t metacpg, uint64_t off)
     {
         return  (isStart << 63) | (metacpg << 32) | off;
     }
 } // end namespace KMER
-// // TODO
-// namespace KMER {
-//
-//     // KMER DEFINITION
-//     //
-//     // metaID holds index of corresponding meta CpG
-//     // offset the offset inside the meta CpG
-//     // most significant bit of offset holds flag that is 1 <=> points to start meta CpG
-//     struct kmer {
-//
-//         uint32_t metaID;
-//         uint16_t offset;
-//     };
-//
-//     // return the offset of given kmer inside its cpg
-//     inline uint64_t getOffset(KMER::kmer& k)
-//     {
-//         return k.offset & static_cast<uint16_t>(0x7fff);
-//     }
-//
-//     inline uint32_t getMetaCpG(KMER::kmer& k)
-//     {
-//         return k.metaID;
-//     }
-//
-//     inline bool isStartCpG(KMER::kmer& k)
-//     {
-//         return k.offset & static_cast<uint16_t>(0x8000);
-//     }
-//
-//     // constructs a kmer according to its definition
-//     inline KMER::kmer constructKmer(uint16_t isStart, uint32_t metacpg, uint16_t off)
-//     {
-//         return  {metacpg, (isStart << 15 | off)};
-//     }
-// } // end namespace KMER
+namespace KMER_S {
+
+
+    typedef uint32_t kmer;
+
+    inline uint32_t getMetaCpG(KMER_S::kmer& k)
+    {
+        return (k & 0x7fffffffUL);
+    }
+
+    inline bool isStartCpG(KMER_S::kmer& k)
+    {
+        return (k & 0x80000000UL);
+    }
+
+} // end namespace KMER_S
 
 
 namespace MATCH {

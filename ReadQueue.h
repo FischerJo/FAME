@@ -1,3 +1,21 @@
+//	Metal - A fast methylation alignment and calling tool for WGBS data.
+//	Copyright (C) 2017  Jonas Fischer
+//
+//	This program is free software: you can redistribute it and/or modify
+//	it under the terms of the GNU General Public License as published by
+//	the Free Software Foundation, either version 3 of the License, or
+//	(at your option) any later version.
+//
+//	This program is distributed in the hope that it will be useful,
+//	but WITHOUT ANY WARRANTY; without even the implied warranty of
+//	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//	GNU General Public License for more details.
+//
+//	You should have received a copy of the GNU General Public License
+//	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+//	Jonas Fischer	jonaspost@web.de
+
 #ifndef READQUEUE_H
 #define READQUEUE_H
 
@@ -223,7 +241,7 @@ class ReadQueue
         //         {
         //
         //             // retrieve seed information
-        //             KMER_S::kmer& k = ref.kmerTable[j];
+        //             KMER_S::kmer& k = ref.kmerTableSmall[j];
         //             const bool isFwd = ref.strandTable[j];
         //             const uint64_t metaId = KMER_S::getMetaCpG(k);
         //             const bool isStart = KMER_S::isStartCpG(k);
@@ -1254,9 +1272,9 @@ class ReadQueue
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
             {
 
-                const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTable[i]);
+                const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
                 const bool isFwd = ref.strandTable[i];
-                const bool isStart = KMER_S::isStartCpG(ref.kmerTable[i]);
+                const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
                 // check if we visited meta CpG before
                 if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
                 {
@@ -1308,9 +1326,9 @@ class ReadQueue
                 for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
                 {
 
-                    const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTable[i]);
+                    const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
                     const bool isFwd = ref.strandTable[i];
-                    const bool isStart = KMER_S::isStartCpG(ref.kmerTable[i]);
+                    const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
                     // check if we visited meta CpG before
                     if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
                     {
