@@ -1563,30 +1563,47 @@ class ReadQueue
                         if (isFwd)
                         {
                             if (seq[readCpGPos] == 'T')
+                            {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                 ++methLevels[cpgId].unmethFwd;
-                            else
+                            }
+                            else if (seq[readCpGPos] == 'C')
+                            {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                 ++methLevels[cpgId].methFwd;
+                            }
+                            // else std::cout << "This should not happen 1!\n";
+
                         } else {
 
-                            if (seq[seq.size() - readCpGPos - 1] == 'T')
+                            if (seq[seq.size() - readCpGPos - 2] == 'T')
+                            {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                 ++methLevels[cpgId].unmethRev;
-                            else
+                            }
+                            else  if (seq[seq.size() - readCpGPos - 2] == 'C')
+                            {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                 ++methLevels[cpgId].methRev;
+                            }
+                            // else
+                            // {
+                            //     std::cout << "This should not happen 2!\n";
+                            //     std::cout << "Reference sequence (top) and read (bot):\n";
+                            //     std::cout << std::string(ref.fullSeq[chrom].data() + metaPos + offset - seq.size() + 1, seq.size()) << "\n";
+                            //     std::reverse(seq.begin(), seq.end());
+                            //     std::cout << seq << "\n\n";
+                            // }
                         }
                     }
-
                 }
 
             // if match was errornous
@@ -1707,17 +1724,17 @@ class ReadQueue
                                         break;
                                 }
                                 // check if we have a CpG aligned to the reference CpG
-                                if (seq[readSeqPos + 1] == 'C')
+                                if (seq[readSeqPos] == 'G')
                                 {
                                     // check for methylated C (on reverse!)
-                                    if (seq[readSeqPos] == 'G')
+                                    if (seq[readSeqPos + 1] == 'C')
                                     {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevelsStart[cpgID].methRev;
                                     }
-                                    else if (seq[readSeqPos] == 'A')
+                                    else if (seq[readSeqPos] == 'T')
                                     {
 #ifdef _OPENMP
 #pragma omp atomic
@@ -1731,7 +1748,7 @@ class ReadQueue
                     }
 
 
-                // normal match
+                // not start (normal)
                 } else {
 
                     struct metaCpG& m = ref.metaCpGs[metaID];
@@ -1779,33 +1796,33 @@ class ReadQueue
                         // {
                         //     // Report error and print out found alignment
                         //     std::cout << "Editdist: " << lev.getEditDist() << " shiftand: " << errNum << "\n";
-                        //     std::string readAl (alignment.size(),'+');
-                        //     std::string refAl (alignment.size(), '+');
-                        //     for (auto rIt = alignment.rbegin(); rIt != alignment.rend(); ++rIt, --alignPos)
-                        //     {
-                        //         switch (*rIt)
-                        //         {
-                        //             case (MATCHING):
-                        //             case (MISMATCH):
-                        //                 readAl[alignPos] = seq[readSeqPos];
-                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
-                        //                 --readSeqPos;
-                        //                 --refSeqPos;
-                        //                 break;
-                        //             case (DELETION):
-                        //                 readAl[alignPos] = '-';
-                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
-                        //                 --refSeqPos;
-                        //                 break;
-                        //             case(INSERTION):
-                        //                 readAl[alignPos] = seq[readSeqPos];
-                        //                 refAl[alignPos] = '-';
-                        //                 --readSeqPos;
-                        //                 break;
-                        //         }
-                        //     }
-                        //     std::cout << "Alignment seems to be wrong! (Read top, reference bottom)\n" << readAl << "\n" << refAl << "\n\n";
-                        //     exit(1);
+                            // std::string readAl (alignment.size(),'+');
+                            // std::string refAl (alignment.size(), '+');
+                            // for (auto rIt = alignment.rbegin(); rIt != alignment.rend(); ++rIt, --alignPos)
+                            // {
+                            //     switch (*rIt)
+                            //     {
+                            //         case (MATCHING):
+                            //         case (MISMATCH):
+                            //             readAl[alignPos] = seq[readSeqPos];
+                            //             refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                            //             --readSeqPos;
+                            //             --refSeqPos;
+                            //             break;
+                            //         case (DELETION):
+                            //             readAl[alignPos] = '-';
+                            //             refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                            //             --refSeqPos;
+                            //             break;
+                            //         case(INSERTION):
+                            //             readAl[alignPos] = seq[readSeqPos];
+                            //             refAl[alignPos] = '-';
+                            //             --readSeqPos;
+                            //             break;
+                            //     }
+                            // }
+                            // std::cout << "Alignment seems to be wrong! (Read top, reference bottom)\n" << readAl << "\n" << refAl << "\n\n";
+                            // exit(1);
                         // }
 
                         // go through all overlapping CpGs from back,
@@ -1871,33 +1888,33 @@ class ReadQueue
                         // {
                         //     // Report error and print out found alignment
                         //     std::cout << "Editdist: " << lev.getEditDist() << " shiftand: " << static_cast<uint16_t>(errNum) << "\n";
-                        //     std::string readAl (alignment.size(),'+');
-                        //     std::string refAl (alignment.size(), '+');
-                        //     for (auto rIt = alignment.rbegin(); rIt != alignment.rend(); ++rIt, --alignPos)
-                        //     {
-                        //         switch (*rIt)
-                        //         {
-                        //             case (MATCHING):
-                        //             case (MISMATCH):
-                        //                 readAl[alignPos] = seq[readSeqPos];
-                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
-                        //                 --readSeqPos;
-                        //                 --refSeqPos;
-                        //                 break;
-                        //             case (DELETION):
-                        //                 readAl[alignPos] = '-';
-                        //                 refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
-                        //                 --refSeqPos;
-                        //                 break;
-                        //             case(INSERTION):
-                        //                 readAl[alignPos] = seq[readSeqPos];
-                        //                 refAl[alignPos] = '-';
-                        //                 --readSeqPos;
-                        //                 break;
-                        //         }
-                        //     }
-                        //     std::cout << "Alignment seems to be wrong! (Read top, reference bottom)\n" << readAl << "\n" << refAl << "\n";
-                        //     std::cout << "Full reference: " << std::string(ref.fullSeq[chrom].begin() + metaPos + offset - 102, ref.fullSeq[chrom].begin() + metaPos + offset) << "\n\n";
+                            // std::string readAl (alignment.size(),'+');
+                            // std::string refAl (alignment.size(), '+');
+                            // for (auto rIt = alignment.rbegin(); rIt != alignment.rend(); ++rIt, --alignPos)
+                            // {
+                            //     switch (*rIt)
+                            //     {
+                            //         case (MATCHING):
+                            //         case (MISMATCH):
+                            //             readAl[alignPos] = seq[readSeqPos];
+                            //             refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                            //             --readSeqPos;
+                            //             --refSeqPos;
+                            //             break;
+                            //         case (DELETION):
+                            //             readAl[alignPos] = '-';
+                            //             refAl[alignPos] = ref.fullSeq[chrom][refSeqPos];
+                            //             --refSeqPos;
+                            //             break;
+                            //         case(INSERTION):
+                            //             readAl[alignPos] = seq[readSeqPos];
+                            //             refAl[alignPos] = '-';
+                            //             --readSeqPos;
+                            //             break;
+                            //     }
+                            // }
+                            // std::cout << "Alignment seems to be wrong! (Read top, reference bottom)\n" << readAl << "\n" << refAl << "\n";
+                            // std::cout << "Full reference: " << std::string(ref.fullSeq[chrom].begin() + metaPos + offset - 102, ref.fullSeq[chrom].begin() + metaPos + offset) << "\n\n";
                         //     exit(1);
                         // }
 
@@ -1928,17 +1945,18 @@ class ReadQueue
                                 if (readSeqPos == seq.size() - 1)
                                     continue;
                                 // check if we have a CpG aligned to the reference CpG
-                                if (seq[readSeqPos + 1] == 'C')
+                                // TODO
+                                if (seq[readSeqPos] == 'G')
                                 {
-                                    // check for unmethylated C (on reverse!)
-                                    if (seq[readSeqPos] == 'G')
+                                    // check for unmethylated C
+                                    if (seq[readSeqPos + 1] == 'C')
                                     {
 #ifdef _OPENMP
 #pragma omp atomic
 #endif
                                         ++methLevels[cpgID].methRev;
                                     }
-                                    else if (seq[readSeqPos] == 'A')
+                                    else if (seq[readSeqPos + 1] == 'T')
                                     {
 #ifdef _OPENMP
 #pragma omp atomic
