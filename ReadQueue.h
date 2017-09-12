@@ -883,7 +883,7 @@ class ReadQueue
         //     return 0;
         // }
         // inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, const uint16_t& qThreshold)
-        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, uint16_t qThreshold)
+        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
