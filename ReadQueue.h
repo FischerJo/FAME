@@ -95,6 +95,9 @@ class ReadQueue
         void printMethylationLevels(std::string& filename);
 
 
+        // TODO
+        // unsigned long wrongChrCount;
+
     private:
 
         // hash function for std::unordered_set of meta ids
@@ -1554,8 +1557,15 @@ class ReadQueue
                         if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 < minPos)
                             continue;
                         // check if too far upstream
-                        if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 1 > maxPos)
-                            break;
+                        if (isFwd)
+                        {
+                            if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 > maxPos)
+                                break;
+                        } else {
+                            if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 1 > maxPos)
+                                break;
+                        }
+
 
 
                         // position of CpG in read
@@ -1748,7 +1758,7 @@ class ReadQueue
                     }
 
 
-                // not start (normal)
+                // not start CpG (normal)
                 } else {
 
                     struct metaCpG& m = ref.metaCpGs[metaID];
@@ -1773,10 +1783,19 @@ class ReadQueue
                         {
                             ++minIndex;
 
-                        } else if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 1 > maxPos)
+                        } else if (isFwd)
                         {
-                            maxIndex = cpgID - 1;
-                            break;
+                            if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 > maxPos)
+                            {
+                                maxIndex = cpgID - 1;
+                                break;
+                            }
+                        } else {
+                            if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 1 > maxPos)
+                            {
+                                maxIndex = cpgID - 1;
+                                break;
+                            }
                         }
                     }
 
@@ -1851,28 +1870,28 @@ class ReadQueue
                                     break;
                                 if (readSeqPos == seq.size() - 1)
                                     continue;
-                                // check if we have a CpG aligned to the reference CpG
-                                if (seq[readSeqPos + 1] == 'G')
-                                {
-                                    // check for unmethylated C
-                                    if (seq[readSeqPos] == 'C')
-                                    {
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                                        ++methLevels[cpgID].methFwd;
-                                    }
-                                    else if (seq[readSeqPos] == 'T')
-                                    {
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                                        ++methLevels[cpgID].unmethFwd;
-                                    }
-
-                                }
                                 --alignPos;
                             }
+                            // check if we have a CpG aligned to the reference CpG
+                            // if (seq[readSeqPos + 1] == 'G')
+                            // {
+                                // check for unmethylated C
+                                if (seq[readSeqPos] == 'C')
+                                {
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+                                    ++methLevels[cpgID].methFwd;
+                                }
+                                else if (seq[readSeqPos] == 'T')
+                                {
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+                                    ++methLevels[cpgID].unmethFwd;
+                                }
+
+                            // }
                         }
 
                     } else {
@@ -1944,29 +1963,29 @@ class ReadQueue
                                     break;
                                 if (readSeqPos == seq.size() - 1)
                                     continue;
-                                // check if we have a CpG aligned to the reference CpG
-                                // TODO
-                                if (seq[readSeqPos] == 'G')
-                                {
-                                    // check for unmethylated C
-                                    if (seq[readSeqPos + 1] == 'C')
-                                    {
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                                        ++methLevels[cpgID].methRev;
-                                    }
-                                    else if (seq[readSeqPos + 1] == 'T')
-                                    {
-#ifdef _OPENMP
-#pragma omp atomic
-#endif
-                                        ++methLevels[cpgID].unmethRev;
-                                    }
-
-                                }
                                 --alignPos;
                             }
+                            // check if we have a CpG aligned to the reference CpG
+                            // TODO
+                            // if (seq[readSeqPos] == 'G')
+                            // {
+                                // check for unmethylated C
+                                if (seq[readSeqPos + 1] == 'C')
+                                {
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+                                    ++methLevels[cpgID].methRev;
+                                }
+                                else if (seq[readSeqPos + 1] == 'T')
+                                {
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+                                    ++methLevels[cpgID].unmethRev;
+                                }
+
+                            // }
                         }
                     }
                 }
@@ -2110,6 +2129,9 @@ class ReadQueue
         std::array<uint64_t, CORENUM> matchStats;
         std::array<uint64_t, CORENUM> nonUniqueStats;
         std::array<uint64_t, CORENUM> noMatchStats;
+
+
+
 };
 
 #endif /* READQUEUE_H */

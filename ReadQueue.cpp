@@ -102,8 +102,8 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
 bool ReadQueue::parseChunk(unsigned int& procReads)
 {
 
-    std::cout << "Start reading chunk of reads\n";
-
+    // std::cout << "Start reading chunk of reads\n";
+    //
     std::string id;
 
     // counter on how many reads have been read so far
@@ -175,6 +175,9 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
 
 bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch)
 {
+
+    // TODO
+    unsigned int pCount = 0;
 
     // reset all counters
     for (unsigned int i = 0; i < CORENUM; ++i)
@@ -630,55 +633,68 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
             //     exit(1);
             // }
         }
-        // of << "\n\n-------------------------\n\n";
-        // validate
-        // if (!r.isInvalid)
-        // {
-            // size_t lPos = r.id.find_last_of('_');
-            // std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
-            // size_t rPos = r.id.find_last_of('R');
-            // std::string stringChrom (r.id.begin() + 1 + rPos, r.id.begin() + lPos);
-            // uint8_t chrom = std::stoul(stringChrom);
-            // unsigned long offset = std::stoul(stringOffset);
-            // struct CpG& cpg = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(r.mat)].start];
-            // uint64_t matchedOff = MATCH::getOffset(r.mat) + cpg.pos;
-            // // if (!MATCH::isFwd(r.mat))
-            // // {
-            // //     if (MATCH::getErrNum(r.mat) > 0)
-            // //     {
-            // //         of << "This should be a non-unique match. Bad.\n";
-            // //         of << "Number of errors: " << MATCH::getErrNum(r.mat) << "\n";
-            // //         of << "Offset should be " << offset << " but is " << matchedOff << "\n";
-            // //         continue;
-            // //     }
-            // // }
-            // if (matchedOff > 100 && (matchedOff > offset + 102 || matchedOff < offset + 98))
-            // {
-            //     ++pCount;
-            //     std::cout << "Wrong match in read " << readCount << ". Offset should be " << offset << " in Chromosome " << static_cast<uint16_t>(chrom) << " but is " << matchedOff << " in chromosome " << static_cast<uint16_t>(cpg.chrom) << "\n";
-            //     std::cout << r.id << "\n";
-            //     std::cout << "Number of errors: " << MATCH::getErrNum(r.mat) << "\n";
-            //     if (succQueryRev == 1)
-            //         std::cout << "It's a reverse match...\n";
-            //     std::cout << "Is forward: " << MATCH::isFwd(r.mat) << "\n";
-            //     std::cout << "Read sequence:\n" << r.seq << "\n\n";
-            //     std::cout << "Reference sequence (match):\n" << std::string(ref.fullSeq[cpg.chrom].begin() + matchedOff - 99, ref.fullSeq[cpg.chrom].begin() + matchedOff + 1) << "\n\n";
-            //     std::cout << "Reference sequence (source):\n" << std::string(ref.fullSeq[chrom].begin() + offset, ref.fullSeq[chrom].begin() + offset + 100) << "\n\n\n";
-            // }
-            // if (pCount > 5)
-            // {
-            //
-            //     of.close();
-            //     exit(1);
-            // }
-        // }
-
-        // BITMASK COMPARISON ON FULL ALPHABET FOR REMAINING SEEDS
-        // bitMatching(r, fwdSeedsK, fwdSeedsS);
-        // bitMatchingRev(r, revSeedsK, revSeedsS);
-
-
+// TODO
+//         if (!r.isInvalid)
+//         {
+//             if (ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(r.mat)].start].chrom != 21)
+//             {
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+//                 ++wrongChrCount;
+//             }
+//         }
+//         // validate
+//         if (!r.isInvalid)
+//         {
+//             size_t lPos = r.id.find_last_of('_');
+//             std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
+//             size_t rPos = r.id.find_last_of('R');
+//             std::string stringChrom (r.id.begin() + 1 + rPos, r.id.begin() + lPos);
+//             uint8_t chrom = std::stoul(stringChrom);
+//             unsigned long offset = std::stoul(stringOffset);
+//             struct CpG& cpg = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(r.mat)].start];
+//             uint64_t matchedOff = MATCH::getOffset(r.mat) + cpg.pos;
+//             // if (!MATCH::isFwd(r.mat))
+//             // {
+//             //     if (MATCH::getErrNum(r.mat) > 0)
+//             //     {
+//             //         of << "This should be a non-unique match. Bad.\n";
+//             //         of << "Number of errors: " << MATCH::getErrNum(r.mat) << "\n";
+//             //         of << "Offset should be " << offset << " but is " << matchedOff << "\n";
+//             //         continue;
+//             //     }
+//             // }
+//             if (matchedOff > 100 && (matchedOff > offset + 102 || matchedOff < offset + 98))
+//             {
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+//                 ++pCount;
+//                 // std::cout << "Wrong match in read " << std::string(r.id.begin(), r.id.begin() + r.id.find_first_of('_')) << ". Offset should be " << offset << " in Chromosome " << static_cast<uint16_t>(chrom) << " but is " << matchedOff << " in chromosome " << static_cast<uint16_t>(cpg.chrom) << "\n";
+//                 // std::cout << r.id << "\n";
+//                 // std::cout << "Number of errors: " << MATCH::getErrNum(r.mat) << "\n";
+//                 // if (succQueryRev == 1)
+//                 //     std::cout << "It's a reverse match...\n";
+//                 // std::cout << "Is forward: " << MATCH::isFwd(r.mat) << "\n";
+//                 // std::cout << "Read sequence:\n" << r.seq << "\n\n";
+//                 // std::cout << "Reference sequence (match):\n" << std::string(ref.fullSeq[cpg.chrom].begin() + matchedOff - 99, ref.fullSeq[cpg.chrom].begin() + matchedOff + 1) << "\n\n";
+//                 // std::cout << "Reference sequence (source):\n" << std::string(ref.fullSeq[chrom].begin() + offset, ref.fullSeq[chrom].begin() + offset + 100) << "\n\n\n";
+//             }
+//             // if (pCount > 5)
+//             // {
+//             //
+//             //     of.close();
+//             //     exit(1);
+//             // }
+//         }
+//
+//         // BITMASK COMPARISON ON FULL ALPHABET FOR REMAINING SEEDS
+//         // bitMatching(r, fwdSeedsK, fwdSeedsS);
+//         // bitMatchingRev(r, revSeedsK, revSeedsS);
+//
     }
+//     std::cout << pCount << "\n";
 
     // sum up counts
     for (unsigned int i = 0; i < CORENUM; ++i)
