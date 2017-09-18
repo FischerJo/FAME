@@ -22,12 +22,8 @@
 #include "ReadQueue.h"
 
 ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
-        // statFile("seedStats.tsv")
-    // ,   countFile("seedCounts.tsv")
         ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
-        // TODO
-    ,   of("test_lossyfilter_k25_m2048_reserve50k_nolock.txt")
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
 {
@@ -45,8 +41,10 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
 
-        fwdMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
-        revMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
+        // fwdMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
+        // revMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
+        fwdMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
+        revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
         countsFwd[i] = std::vector<uint16_t>();
         countsRev[i] = std::vector<uint16_t>();
         countsFwdStart[i] = std::vector<uint16_t>();
@@ -201,7 +199,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         Read& r = readBuffer[i];
 
         const size_t readSize = r.seq.size();
-
 
 
         if (readSize < 90)

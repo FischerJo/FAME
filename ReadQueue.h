@@ -30,12 +30,15 @@
 #include <omp.h>
 #endif
 
+#include "sparsepp/spp.h"
+
 #include "gzstream/gzstream.h"
 #include "CONST.h"
 #include "RefGenome.h"
 #include "Read.h"
 #include "ShiftAnd.h"
 #include "LevenshtDP.h"
+
 
 class ReadQueue
 {
@@ -885,15 +888,14 @@ class ReadQueue
         //     // of << "No match at all\t";
         //     return 0;
         // }
-        // inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, const uint16_t& qThreshold)
         inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
             std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
-            std::unordered_map<uint32_t, uint16_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
-            std::unordered_map<uint32_t, uint16_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+            auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
             // counter for how often we had a match
             std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
@@ -901,12 +903,6 @@ class ReadQueue
 
             // will contain matches iff match is found for number of errors specified by index
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
-
-            // set q-gram lemma threshold
-            // uint16_t qThreshold = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
-            // // check for overflow (i.e. read is to small for lemma)
-            // if (qThreshold > sa.size())
-            //     qThreshold = 0;
 
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
@@ -1247,12 +1243,14 @@ class ReadQueue
             threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
             threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
 
-            std::unordered_map<uint32_t, uint16_t, MetaHash>& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
-            std::unordered_map<uint32_t, uint16_t, MetaHash>& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+            auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
             fwdMetaIDs_t.clear();
             revMetaIDs_t.clear();
             fwdMetaIDs_t.reserve(50000);
             revMetaIDs_t.reserve(50000);
+            // fwdMetaIDs_t.clear_no_resize();
+            // revMetaIDs_t.clear_no_resize();
 
             // retrieve kmers for first hash
             uint64_t fhVal = ntHash::NTP64(seq.data());
@@ -1265,12 +1263,6 @@ class ReadQueue
 
             // maximum position until we can insert completely new meta cpgs
             uint32_t maxQPos = seq.size() - MyConst::KMERLEN - qThreshold;
-            // set q-gram lemma threshold
-            // uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            // if too small we get an overflow -> set to zero
-            // if (qThreshold > readSize)
-            //     qThreshold = 0;
-            // unsigned int passCount = 0;
 
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
             {
@@ -1407,70 +1399,70 @@ class ReadQueue
             // }
         }
         // compute the qgram threshold for a given sequence
-        inline uint16_t computeQgramThresh(std::string& seq)
-        {
-
-            uint16_t qThresh = seq.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
-            of << qThresh << "\t";
-
-            uint64_t kSeq = 0;
-
-            // read the first k-1 letters
-            for (unsigned int i = 0; i < MyConst::KMERLEN - 1; ++i)
-            {
-                kSeq = kSeq << 2;
-
-                switch (seq[i])
-                {
-
-                    case 'C':
-                    case 'T':
-
-                        kSeq += 3;
-                        break;
-
-                    case 'G':
-
-                        kSeq += 2;
-                        break;
-
-                }
-            }
-
-            for (unsigned int i = MyConst::KMERLEN - 1; i < seq.size(); ++i)
-            {
-
-                kSeq = kSeq << 2;
-
-                switch (seq[i])
-                {
-
-                    case 'C':
-                    case 'T':
-
-                        kSeq += 3;
-                        break;
-
-                    case 'G':
-
-                        kSeq += 2;
-                        break;
-
-                }
-                // test if kmer was filtered -> if yes, reduce qgram lemma threshold
-                if (ref.filteredKmers.count(kSeq & MyConst::KMERMASK))
-                {
-                    --qThresh;
-                    of << "okay now it happened\t";
-                }
-
-            }
-            // if underflow, reset
-            if (qThresh > seq.size())
-                qThresh = 0;
-            of << qThresh << "\n\n";
-            return qThresh;
-        }
+        // inline uint16_t computeQgramThresh(std::string& seq)
+        // {
+        //
+        //     uint16_t qThresh = seq.size() - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT);
+        //     of << qThresh << "\t";
+        //
+        //     uint64_t kSeq = 0;
+        //
+        //     // read the first k-1 letters
+        //     for (unsigned int i = 0; i < MyConst::KMERLEN - 1; ++i)
+        //     {
+        //         kSeq = kSeq << 2;
+        //
+        //         switch (seq[i])
+        //         {
+        //
+        //             case 'C':
+        //             case 'T':
+        //
+        //                 kSeq += 3;
+        //                 break;
+        //
+        //             case 'G':
+        //
+        //                 kSeq += 2;
+        //                 break;
+        //
+        //         }
+        //     }
+        //
+        //     for (unsigned int i = MyConst::KMERLEN - 1; i < seq.size(); ++i)
+        //     {
+        //
+        //         kSeq = kSeq << 2;
+        //
+        //         switch (seq[i])
+        //         {
+        //
+        //             case 'C':
+        //             case 'T':
+        //
+        //                 kSeq += 3;
+        //                 break;
+        //
+        //             case 'G':
+        //
+        //                 kSeq += 2;
+        //                 break;
+        //
+        //         }
+        //         // test if kmer was filtered -> if yes, reduce qgram lemma threshold
+        //         if (ref.filteredKmers.count(kSeq & MyConst::KMERMASK))
+        //         {
+        //             --qThresh;
+        //             of << "okay now it happened\t";
+        //         }
+        //
+        //     }
+        //     // if underflow, reset
+        //     if (qThresh > seq.size())
+        //         qThresh = 0;
+        //     of << qThresh << "\n\n";
+        //     return qThresh;
+        // }
 
 
         // compute the methylation levels for the given read by traversing the CpGs of the matched meta CpG
@@ -2057,10 +2049,10 @@ class ReadQueue
         std::array<std::vector<uint16_t>, CORENUM> countsRev;
         std::array<std::vector<uint16_t>, CORENUM> countsFwdStart;
         std::array<std::vector<uint16_t>, CORENUM> countsRevStart;
-        std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
-        std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
-        // TODO
-        std::ofstream of;
+        // std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
+        // std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
+        std::array<spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
+        std::array<spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
 
 
         // comparison for match
