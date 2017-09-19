@@ -4,7 +4,7 @@ OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o main.o\
 PROGNAME=Metal
 CXX=g++
 
-CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3 -fopenmp
+CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3 -fopenmp -I ./sparsehash/include/usr/local/include/
 GZFLAGS= -lz
 
 .PHONY: all clean profile
