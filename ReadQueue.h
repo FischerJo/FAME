@@ -30,7 +30,9 @@
 #include <omp.h>
 #endif
 
-#include "sparsepp/spp.h"
+#include <sparsehash/dense_hash_map>
+
+// #include "sparsepp/spp.h"
 
 #include "gzstream/gzstream.h"
 #include "CONST.h"
@@ -1247,10 +1249,8 @@ class ReadQueue
             auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
             fwdMetaIDs_t.clear();
             revMetaIDs_t.clear();
-            fwdMetaIDs_t.reserve(50000);
-            revMetaIDs_t.reserve(50000);
-            // fwdMetaIDs_t.clear_no_resize();
-            // revMetaIDs_t.clear_no_resize();
+            // fwdMetaIDs_t.reserve(50000);
+            // revMetaIDs_t.reserve(50000);
 
             // retrieve kmers for first hash
             uint64_t fhVal = ntHash::NTP64(seq.data());
@@ -2051,8 +2051,10 @@ class ReadQueue
         std::array<std::vector<uint16_t>, CORENUM> countsRevStart;
         // std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
         // std::array<std::unordered_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
-        std::array<spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
-        std::array<spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
+        // std::array<spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
+        // std::array<spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
+        std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
+        std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
 
 
         // comparison for match

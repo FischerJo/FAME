@@ -43,8 +43,14 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
 
         // fwdMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
         // revMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
-        fwdMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
-        revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
+        // fwdMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
+        // revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
+        fwdMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 1);
+        revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 1);
+        fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 2);
+        revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 2);
         countsFwd[i] = std::vector<uint16_t>();
         countsRev[i] = std::vector<uint16_t>();
         countsFwdStart[i] = std::vector<uint16_t>();
