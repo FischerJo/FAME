@@ -16,11 +16,11 @@ USER_DIR = ..
 CPPFLAGS += -isystem $(GTEST_DIR)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread -fopenmp
+CXXFLAGS += -std=c++0x -g -Wall -Wextra -pedantic -pthread -fopenmp  -I ../sparsehash/include/usr/local/include/
 
 # All tests produced by this Makefile.  ADD TESTS HERE
 TESTS = RefReader_unittest.o BitFunctions_unittest.o DnaBitStr_unittest.o \
-		RefGenome_unittest.o ShiftAnd_unittest.o
+		RefGenome_unittest.o ShiftAnd_unittest.o LevenshtDP_unittest.o
 # files to test
 OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o Read.o ReadQueue.o
 
@@ -38,7 +38,7 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
 all : tester
 
 clean :
-	rm -f $(TESTS) gtest.a gtest_main.a *.o
+	rm -f $(TESTS) gtest.a gtest_main.a *.o tester
 
 # Builds gtest.a and gtest_main.a.
 
