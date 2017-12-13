@@ -52,7 +52,22 @@ class ReadQueue
 
         ReadQueue() = delete;
 
+        // ARGUMENTS:
+        //          filePath    path to file containing reads in fastq format
+        //          ref         internal representation of reference genome
+        //          isGZ        flag - true iff file is gzipped
         ReadQueue(const char* filePath, RefGenome& ref, bool isGZ);
+
+        // for paired end
+        // ARGUMENTS:
+        //          filePath    path to file containing read1 of paired reads in fastq format
+        //          filePath2   path to file containing read2 of paired reads in fastq format
+        //          ref         internal representation of reference genome
+        //          isGZ        flag - true iff file is gzipped
+        //
+        // NOTE:
+        //          provided files are ASSUMED to have equal number of reads in correct (paired) order!
+        ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ);
 
         // -----------
 
@@ -70,8 +85,10 @@ class ReadQueue
         //          procReads   number of reads to match
         // First retrieve seeds using getSeeds(...)
         // Filter seeds using filterHeuSeeds(...) according to simple heuristic
-        // Extend remaining seeds with BitMatch(...)
+        // Make full match using bit shift trick
+        // Align match using banded levenshtein alignment to update methylation counts
         bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
+        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
 
         // Print the CpG methylation levels to the given filename
         // Two files are generated, one called filename_cpg.tsv
@@ -99,9 +116,6 @@ class ReadQueue
         //          filename    desired basename for the output files
         void printMethylationLevels(std::string& filename);
 
-
-        // TODO
-        // unsigned long wrongChrCount;
 
     private:
 
@@ -1219,20 +1233,170 @@ class ReadQueue
             // we have not a single match at all, return unsuccessfull to caller
             return 0;
         }
+        inline int saQuerySeedSetRefPaired(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+        {
+
+            // use counters to flag what has been processed so far
+            std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+            auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
+            auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+
+            // counter for how often we had a match
+            // std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
+            // multiMatch.fill(0);
+
+            // will contain matches iff match is found for number of errors specified by index
+            // std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
+
+            // check all fwd meta CpGs
+            for (const auto& m : fwdMetaIDs_t)
+            {
+                // apply qgram lemma
+                if (m.second < qThreshold)
+                    continue;
+
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+
+                // check if CpG was too near to the end
+                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    endIt = ref.fullSeq[startCpg.chrom].end();
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.querySeq(startIt, endIt, matchings, errors);
+
+                // translate found matchings
+                for (size_t i = 0; i < matchings.size(); ++i)
+                {
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[i], errors[i], 1, 0, m.first)));
+                }
+            }
+            // go through reverse sequences
+            for (const auto& m : revMetaIDs_t)
+            {
+
+                // apply qgram lemma
+                if (m.second < qThreshold)
+                    continue;
+
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+
+                // check if CpG was too near to the end
+                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                for (size_t i = 0; i < matchings.size(); ++i)
+                {
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[i], errors[i], 0, 0, m.first)));
+                }
+            }
+            // check all fwd meta CpGs that are at start
+            for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountFwdStart[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
+                auto startIt = ref.fullSeq[startCpg.chrom].begin();
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+
+                // check if CpG was too near to the end
+                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    endIt = ref.fullSeq[startCpg.chrom].end();
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.querySeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t j = 0; j < matchings.size(); ++j)
+                {
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 1, 1, i)));
+                }
+            }
+            // go through reverse sequences of start meta CpGs
+            for (size_t i = 0; i < threadCountRevStart.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountRevStart[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+
+                // check if CpG was too near to the end
+                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t j = 0; j < matchings.size(); ++j)
+                {
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 0, 1, i)));
+                }
+            }
+
+            if (mats.size() != 0)
+                return 1;
+            else
+                // we have not a single match at all, return unsuccessfull to caller
+                return 0;
+        }
 
         // count all metaCpG occurences of k-mers appearing in seq
         //
         // ARGUMENTS:
         //          seq             sequence of the read to query to hash table
         //
-        // RETURN:
-        //          false iff too many matchable positions
-        //
         // MODIFICATION:
         //          The threadCount* fields are modified such that they have the count of metaCpGs after
         //          a call to this function
-        // inline bool getSeedRefs(const std::vector<char>& seq, const size_t& readSize)
-        inline bool getSeedRefs(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
+        inline void getSeedRefs(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
         {
 
             // std::vector<uint16_t>& threadCountFwd = countsFwd[omp_get_thread_num()];
@@ -1384,19 +1548,6 @@ class ReadQueue
                     }
                 }
             }
-
-            // COUNTING HEURISTIC
-            // if we retrieve too many seed positions passing the q-gram lemma filter, return flag to skip read
-
-
-
-            // test if we have too many k-mers passing filter
-            // if (revMetaIDs_t.size() + fwdMetaIDs_t.size() > MyConst::QUERYTHRESHOLD)
-            // {
-            //     return false;
-            // } else {
-                return true;
-            // }
         }
         // compute the qgram threshold for a given sequence
         // inline uint16_t computeQgramThresh(std::string& seq)
@@ -1864,6 +2015,30 @@ class ReadQueue
                                     continue;
                                 --alignPos;
                             }
+                            //TODO
+                            if (readSeqPos < 0)
+                            {
+                                std::cerr << seq << std::endl;
+                                for (size_t i_al = 0; i_al < alignment.size(); ++i_al)
+                                {
+                                    switch (alignment[alignPos])
+                                    {
+                                        case (MATCHING):
+                                        case (MISMATCH):
+                                            std::cerr << "M";
+                                            break;
+                                        case (DELETION):
+                                            std::cerr << "D";
+                                            break;
+                                        case(INSERTION):
+                                            std::cerr << "I";
+                                            break;
+                                    }
+
+                                }
+                                std::cerr << "\n\n";
+                                break;
+                            }
                             // check if we have a CpG aligned to the reference CpG
                             // if (seq[readSeqPos + 1] == 'G')
                             // {
@@ -2029,12 +2204,18 @@ class ReadQueue
         // input stream of file given as path to Ctor
         std::ifstream file;
         igzstream igz;
+        // second file if paired
+        std::ifstream file2;
+        igzstream igz2;
+
 
         // representation of the reference genome
         RefGenome& ref;
 
         // buffer holding MyConst::CHUNKSIZE many reads
         std::vector<Read> readBuffer;
+        // second buffer for paired reads
+        std::vector<Read> readBuffer2;
 
         // mapping of letters to array indices for shift and algorithm
         // 'A' -> 0
@@ -2056,6 +2237,7 @@ class ReadQueue
         std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
         std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
 
+        bool isPaired;
 
         // comparison for match
         struct CompiFwd {
@@ -2125,6 +2307,8 @@ class ReadQueue
         std::array<uint64_t, CORENUM> noMatchStats;
 
 
+        // TODO
+        std::ofstream of;
 
 };
 
