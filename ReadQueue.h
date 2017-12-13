@@ -2015,28 +2015,8 @@ class ReadQueue
                                     continue;
                                 --alignPos;
                             }
-                            //TODO
                             if (readSeqPos < 0)
                             {
-                                std::cerr << seq << std::endl;
-                                for (size_t i_al = 0; i_al < alignment.size(); ++i_al)
-                                {
-                                    switch (alignment[alignPos])
-                                    {
-                                        case (MATCHING):
-                                        case (MISMATCH):
-                                            std::cerr << "M";
-                                            break;
-                                        case (DELETION):
-                                            std::cerr << "D";
-                                            break;
-                                        case(INSERTION):
-                                            std::cerr << "I";
-                                            break;
-                                    }
-
-                                }
-                                std::cerr << "\n\n";
                                 break;
                             }
                             // check if we have a CpG aligned to the reference CpG

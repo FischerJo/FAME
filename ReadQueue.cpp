@@ -1040,8 +1040,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             ShiftAnd<MyConst::MISCOUNT> saFwd(r2.seq, lmap);
             int succQueryFwd = saQuerySeedSetRefPaired(saFwd, matches2, qThreshold);
 
-            getSeedRefs(revSeq1, readSize1, qThreshold);
-            ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
+            getSeedRefs(revSeq2, readSize1, qThreshold);
+            ShiftAnd<MyConst::MISCOUNT> saRev(revSeq2, lmap);
             int succQueryRev = saQuerySeedSetRefPaired(saRev, matches2, qThreshold);
 
             if (matches2.size() == 0)
@@ -1057,12 +1057,54 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 ++unSuccMatchT;
                 continue;
             }
-            // TODO: search for best match in matches 2 and assign to r2
-            // use MATCH::getErrNum
-            //
+            // Construct artificial best match
+            MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + 1,0,0,0);
+            bool isUnique = true;
+            // Extract best match from list of found matches
+            for (MATCH::match mat2 : matches2)
+            {
+                if (MATCH::getErrNum(mat2) == MATCH::getErrNum(bestMat))
+                {
+                    // Check if same match
+                    uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
+                    uint32_t bestMatPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(bestMat)].start].pos + MATCH::getOffset(bestMat);
+
+                    // Dealing with large offsets, we need unsigned. Hence check both directions.
+                    if (mat2Pos - bestMatPos <= 1 || bestMatPos - mat2Pos <= 1)
+                    {
+                        // TODO
+
+                    // else we got a nonunique best match (so far)
+                    } else {
+
+                        isUnique = false;
+                    }
+                } else if (MATCH::getErrNum(mat2) < MATCH::getErrNum(bestMat))
+                {
+                    // update bestMatch
+                    bestMat = mat2;
+                    isUnique = true;
+                }
+
+            }
+
+            // check if found match is unique and not the artficial initialization
+            if (isUnique && MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
+            {
+                r2.mat = bestMat;
+                // TODO update methylation levels
+
+            } else {
+
+                r2.isInvalid = true;
+                if (!isUnique)
+                    ++nonUniqueMatchT;
+                else if (MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
+                    ++unSuccMatchT;
+            }
             continue;
-        }
-        if (r2.isInvalid)
+
+        } else if (r2.isInvalid)
         {
             // TODO: search for best match in matches 1 an assign to r2
             //
