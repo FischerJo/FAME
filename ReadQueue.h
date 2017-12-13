@@ -1233,7 +1233,7 @@ class ReadQueue
             // we have not a single match at all, return unsuccessfull to caller
             return 0;
         }
-        inline int saQuerySeedSetRefPaired(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+        inline void saQuerySeedSetRefPaired(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
@@ -1380,12 +1380,6 @@ class ReadQueue
                     mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 0, 1, i)));
                 }
             }
-
-            if (mats.size() != 0)
-                return 1;
-            else
-                // we have not a single match at all, return unsuccessfull to caller
-                return 0;
         }
 
         // count all metaCpG occurences of k-mers appearing in seq
@@ -1549,6 +1543,99 @@ class ReadQueue
                 }
             }
         }
+
+
+
+        // Extract single match for given lists of matches of fwd and reverse complement of a single read
+        // Internally updates methylation counts
+        //
+        // ARGUMENTS:
+        //          fwdMatches  array of matches retrieved for original sequence
+        //          revMatches  array of matches retrieved for reverse complement of sequence
+        //          r           read representation
+        //          revSeq      reverse complement sequence of read
+        //          *MatchT     Counting objects for matching type
+        inline void extractSingleMatch(std::vector<MATCH::match>& fwdMatches, std::vector<MATCH::match>& revMatches, Read& r, std::string& revSeq, uint64_t& succMatchT, uint64_t& unSuccMatchT, uint64_t& nonUniqueMatchT)
+        {
+            // Construct artificial best match
+            MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + 1,0,0,0);
+            bool isUnique = true;
+            // Extract best match from list of found matches of fwd reads
+            for (MATCH::match mat : fwdMatches)
+            {
+                if (MATCH::getErrNum(mat) == MATCH::getErrNum(bestMat))
+                {
+                    // Check if same match
+                    uint32_t matPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos + MATCH::getOffset(mat);
+                    uint32_t bestMatPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(bestMat)].start].pos + MATCH::getOffset(bestMat);
+
+                    // Dealing with large offsets, we need unsigned. Hence check both directions.
+                    // check within offset of one for security reasons (insertions deletions etc)
+                    if (matPos - bestMatPos > 1 && bestMatPos - matPos > 1)
+                    {
+                        isUnique = false;
+                    }
+                } else if (MATCH::getErrNum(mat) < MATCH::getErrNum(bestMat))
+                {
+                    // update bestMatch
+                    bestMat = mat;
+                    isUnique = true;
+                }
+
+            }
+            for (MATCH::match mat : revMatches)
+            {
+                if (MATCH::getErrNum(mat) == MATCH::getErrNum(bestMat))
+                {
+                    // Check if same match
+                    uint32_t matPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos + MATCH::getOffset(mat);
+                    uint32_t bestMatPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(bestMat)].start].pos + MATCH::getOffset(bestMat);
+
+                    // Dealing with large offsets, we need unsigned. Hence check both directions.
+                    // check within offset of one for security reasons (insertions deletions etc)
+                    if (matPos - bestMatPos > 1 && bestMatPos - matPos > 1)
+                    {
+                        isUnique = false;
+                    }
+                } else if (MATCH::getErrNum(mat) < MATCH::getErrNum(bestMat))
+                {
+                    // update bestMatch
+                    bestMat = mat;
+                    isUnique = true;
+                }
+
+            }
+
+            // check if found match is unique and not the artficial initialization
+            if (isUnique && MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
+            {
+                r.mat = bestMat;
+                if (MATCH::isFwd(bestMat))
+                {
+                    computeMethLvl(bestMat, r.seq);
+
+                } else {
+
+                    computeMethLvl(bestMat, revSeq);
+                }
+                ++succMatchT;
+
+            } else {
+
+                r.isInvalid = true;
+                if (!isUnique)
+                {
+                    ++nonUniqueMatchT;
+
+                } else if (MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
+                {
+                    ++unSuccMatchT;
+                }
+            }
+        }
+
+
+
         // compute the qgram threshold for a given sequence
         // inline uint16_t computeQgramThresh(std::string& seq)
         // {

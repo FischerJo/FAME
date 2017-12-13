@@ -1004,13 +1004,15 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             continue;
         }
 
-        // TODO: Always check if one is invalid
-
         // Stores the found matches for first and second read, resp.
-        std::vector<MATCH::match> matches1;
-        matches1.resize(20);
-        std::vector<MATCH::match> matches2;
-        matches2.resize(20);
+        std::vector<MATCH::match> matches1Fwd;
+        std::vector<MATCH::match> matches1Rev;
+        matches1Fwd.resize(20);
+        matches1Rev.resize(20);
+        std::vector<MATCH::match> matches2Fwd;
+        std::vector<MATCH::match> matches2Rev;
+        matches2Fwd.resize(20);
+        matches2Rev.resize(20);
         // set qgram threshold
         uint16_t qThreshold = readSize1 - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
         if (qThreshold > readSize1)
@@ -1023,13 +1025,13 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
             getSeedRefs(r1.seq, readSize1, qThreshold);
             ShiftAnd<MyConst::MISCOUNT> saFwd(r1.seq, lmap);
-            int succQueryFwd = saQuerySeedSetRefPaired(saFwd, matches1, qThreshold);
+            saQuerySeedSetRefPaired(saFwd, matches1Fwd, qThreshold);
 
             getSeedRefs(revSeq1, readSize1, qThreshold);
             ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
-            int succQueryRev = saQuerySeedSetRefPaired(saRev, matches1, qThreshold);
+            saQuerySeedSetRefPaired(saRev, matches1Rev, qThreshold);
 
-            if (matches1.size() == 0)
+            if (matches1Fwd.size() == 0 && matches1Rev.size() == 0)
                 r1.isInvalid = true;
         }
     // MATCH SECOND READ
@@ -1038,13 +1040,13 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
             getSeedRefs(r2.seq, readSize1, qThreshold);
             ShiftAnd<MyConst::MISCOUNT> saFwd(r2.seq, lmap);
-            int succQueryFwd = saQuerySeedSetRefPaired(saFwd, matches2, qThreshold);
+            saQuerySeedSetRefPaired(saFwd, matches2Fwd, qThreshold);
 
             getSeedRefs(revSeq2, readSize1, qThreshold);
             ShiftAnd<MyConst::MISCOUNT> saRev(revSeq2, lmap);
-            int succQueryRev = saQuerySeedSetRefPaired(saRev, matches2, qThreshold);
+            saQuerySeedSetRefPaired(saRev, matches2Rev, qThreshold);
 
-            if (matches2.size() == 0)
+            if (matches2Fwd.size() == 0 && matches2Rev.size() == 0)
                 r2.isInvalid = true;
         }
 
@@ -1057,71 +1059,28 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 ++unSuccMatchT;
                 continue;
             }
-            // Construct artificial best match
-            MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + 1,0,0,0);
-            bool isUnique = true;
-            // Extract best match from list of found matches
-            for (MATCH::match mat2 : matches2)
-            {
-                if (MATCH::getErrNum(mat2) == MATCH::getErrNum(bestMat))
-                {
-                    // Check if same match
-                    uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
-                    uint32_t bestMatPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(bestMat)].start].pos + MATCH::getOffset(bestMat);
-
-                    // Dealing with large offsets, we need unsigned. Hence check both directions.
-                    if (mat2Pos - bestMatPos <= 1 || bestMatPos - mat2Pos <= 1)
-                    {
-                        // TODO
-
-                    // else we got a nonunique best match (so far)
-                    } else {
-
-                        isUnique = false;
-                    }
-                } else if (MATCH::getErrNum(mat2) < MATCH::getErrNum(bestMat))
-                {
-                    // update bestMatch
-                    bestMat = mat2;
-                    isUnique = true;
-                }
-
-            }
-
-            // check if found match is unique and not the artficial initialization
-            if (isUnique && MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
-            {
-                r2.mat = bestMat;
-                // TODO update methylation levels
-
-            } else {
-
-                r2.isInvalid = true;
-                if (!isUnique)
-                    ++nonUniqueMatchT;
-                else if (MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
-                    ++unSuccMatchT;
-            }
-            continue;
+            // extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2, succMatchT, unSuccMatchT, nonUniqueMatchT);
+            // continue;
 
         } else if (r2.isInvalid)
         {
-            // TODO: search for best match in matches 1 an assign to r2
-            //
-            //
-            continue;
+            // Construct artificial best match
+            // extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1, succMatchT, unSuccMatchT, nonUniqueMatchT);
+            // continue;
         }
         // i.e. check for all pairs the range criterion
         // TODO:
         // make timer for this
-        for (MATCH::match mat1 : matches1)
+        for (MATCH::match mat1 : matches1Fwd)
         {
-            for (MATCH::match mat2 : matches2)
+            for (MATCH::match mat2 : matches2Fwd)
             {
                 // TODO:
                 // Merge paired read matches
             }
         }
+        // TODO do the same for Rev
+        // TODO If not possible: call extractSingle* for each matcharray
     }
 
     // sum up counts
@@ -1133,6 +1092,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
     }
     return true;
 }
+
+
 
 void ReadQueue::printMethylationLevels(std::string& filename)
 {
@@ -1175,6 +1136,102 @@ void ReadQueue::printMethylationLevels(std::string& filename)
 }
 
 
+// void ReadQueue::printStatistics(std::vector<std::vector<KMER::kmer> > seedsK)
+// {
+//
+//     unsigned int count = 0;
+//
+//     // statistics on metaCpG repetitions
+//     std::vector<unsigned int> metaRep (n, 0);
+//
+//     // count occurences of meta CpGs
+//     for (unsigned int i = 0; i < seedsK.size(); ++i)
+//     {
+//
+//         std::unordered_map<uint32_t, unsigned int> metaCounts;
+//
+//         // count up general seed counter
+//         count += seedsK[i].size();
+//         for (unsigned int j = 0; j < seedsK[i].size(); ++j)
+//         {
+//
+//             uint64_t metaId = KMER::getMetaCpG(seedsK[i][j]);
+//
+//             auto insert = metaCounts.emplace(metaId, 1);
+//
+//             // if insertion fails because metaCpG is already inserted, count up everything
+//             if (!insert.second)
+//             {
+//                 ++((insert.first)->second);
+//             }
+//         }
+//         for (auto& c : metaCounts)
+//             continue;
+//         }
+//         // i.e. check for all pairs the range criterion
+//         // TODO:
+//         // make timer for this
+//         // for (MATCH::match mat1 : matches1)
+//         // {
+//         //     for (MATCH::match mat2 : matches2)
+//         //     {
+//         //         // TODO:
+//         //         // Merge paired read matches
+//         //     }
+//         // }
+//     }
+//
+//     // sum up counts
+//     for (unsigned int i = 0; i < CORENUM; ++i)
+//     {
+//         succMatch += matchStats[i];
+//         nonUniqueMatch += nonUniqueStats[i];
+//         unSuccMatch += noMatchStats[i];
+//     }
+//     return true;
+// }
+//
+// void ReadQueue::printMethylationLevels(std::string& filename)
+// {
+//
+//     std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg_start.tsv\" and \"" << filename << "_cpg.tsv\"\n\n";
+//     std::ofstream cpgFile(filename + "_cpg_start.tsv");
+//
+//     // go over CpGs close to start of a chromosome
+//     for (size_t cpgID = 0; cpgID < ref.cpgStartTable.size(); ++cpgID)
+//     {
+//
+//         // print the position of the (C of the) CpG
+//         cpgFile << static_cast<uint16_t>(ref.cpgStartTable[cpgID].chrom) << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
+//
+//         // print the counts
+//         // fwd counts
+//         cpgFile << methLevelsStart[cpgID].methFwd << "\t" << methLevelsStart[cpgID].unmethFwd << "\t";
+//         // rev counts
+//         cpgFile << methLevelsStart[cpgID].methRev << "\t" << methLevelsStart[cpgID].unmethRev << "\n";
+//     }
+//     cpgFile.close();
+//
+//     cpgFile.open(filename + "_cpg.tsv");
+//
+//     // go over remaining CpGs
+//     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
+//     {
+//
+//         // print the position of the (C of the) CpG
+//         cpgFile << static_cast<uint16_t>(ref.cpgTable[cpgID].chrom) << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\t";
+//
+//         // print the counts
+//         // fwd counts
+//         cpgFile << methLevels[cpgID].methFwd << "\t" << methLevels[cpgID].unmethFwd << "\t";
+//         // rev counts
+//         cpgFile << methLevels[cpgID].methRev << "\t" << methLevels[cpgID].unmethRev << "\n";
+//     }
+//     cpgFile.close();
+//     std::cout << "Finished writing methylation levels to file\n\n";
+// }
+//
+//
 // void ReadQueue::printStatistics(std::vector<std::vector<KMER::kmer> > seedsK)
 // {
 //
