@@ -1554,8 +1554,10 @@ class ReadQueue
         //          revMatches  array of matches retrieved for reverse complement of sequence
         //          r           read representation
         //          revSeq      reverse complement sequence of read
-        //          *MatchT     Counting objects for matching type
-        inline void extractSingleMatch(std::vector<MATCH::match>& fwdMatches, std::vector<MATCH::match>& revMatches, Read& r, std::string& revSeq, uint64_t& succMatchT, uint64_t& unSuccMatchT, uint64_t& nonUniqueMatchT)
+        //
+        // RETURN:  true iff successfully extracted match
+        //
+        inline bool extractSingleMatch(std::vector<MATCH::match>& fwdMatches, std::vector<MATCH::match>& revMatches, Read& r, std::string& revSeq)
         {
             // Construct artificial best match
             MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + 1,0,0,0);
@@ -1603,11 +1605,9 @@ class ReadQueue
                     bestMat = mat;
                     isUnique = true;
                 }
-
             }
-
             // check if found match is unique and not the artficial initialization
-            if (isUnique && MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
+            if (isUnique)
             {
                 r.mat = bestMat;
                 if (MATCH::isFwd(bestMat))
@@ -1618,20 +1618,53 @@ class ReadQueue
 
                     computeMethLvl(bestMat, revSeq);
                 }
-                ++succMatchT;
 
             } else {
 
                 r.isInvalid = true;
-                if (!isUnique)
-                {
-                    ++nonUniqueMatchT;
+            }
+            return isUnique;
+        }
 
-                } else if (MATCH::getErrNum(bestMat) < MyConst::MISCOUNT + 1)
+        // Examines if two matchings build a pair
+        //
+        // ARGUMENTS:
+        //          mat1    matching of first read
+        //          mat2    matching of second read
+        //
+        // RETURN:
+        //          -1      iff no pairing
+        //          n       iff pairing, where n is the number of errors summed over both matchings
+        //
+        inline int extractPairedMatch(MATCH::match& mat1, MATCH::match& mat2)
+        {
+            // check if on opposing strands, first read matched on forward
+            if (MATCH::isFwd(mat1) == 1 && MATCH::isFwd(mat2) == 0)
+            {
+
+                // check if in range
+                uint32_t mat1Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].pos + MATCH::getOffset(mat1);
+                uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
+                uint32_t matDist = mat2Pos - mat1Pos - MyConst::READLEN;
+                if (mat1Pos + MyConst::READLEN < mat2Pos && matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
                 {
-                    ++unSuccMatchT;
+                    return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
+                }
+
+            // opposing but first read meatched on reverse
+            } else if (MATCH::isFwd(mat1) == 0 && MATCH::isFwd(mat2) == 1)
+            {
+                // check if in range
+                uint32_t mat1Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].pos + MATCH::getOffset(mat1);
+                uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
+                uint32_t matDist = mat1Pos - mat2Pos - MyConst::READLEN;
+                if (mat1Pos > mat2Pos + MyConst::READLEN && matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
+                {
+                    return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
                 }
             }
+
+            return -1;
         }
 
 

@@ -692,7 +692,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 for (auto it = startIt; it != endIt; ++it, ++tit)
                 {
                     KMER::kmer& k = *it;
-                    const uint64_t m = KMER::getMetaCpG(k);
+                    const uint32_t m = KMER::getMetaCpG(k);
                     const bool isStart = KMER::isStartCpG(k);
                     if (!isStart)
                     {
@@ -715,11 +715,14 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 startIt = ref.kmerTable.begin() + ref.tabIndex[hVal];
                 endIt = ref.kmerTable.begin() + ref.tabIndex[hVal + 1];
                 tit = ref.strandTable.begin() + ref.tabIndex[hVal];
+                std::cerr << r.seq << "\n";
+                std::cerr << ref.metaCpGs.size() << "\t" << ref.cpgTable.size() << "\n";
                 for (auto it = startIt; it != endIt; ++it, ++tit)
                 {
                     KMER::kmer& k = *it;
-                    const uint64_t m = KMER::getMetaCpG(k);
+                    const uint32_t m = KMER::getMetaCpG(k);
                     const bool isStart = KMER::isStartCpG(k);
+                    std::cerr << m << "\n";
                     if (!isStart)
                     {
                         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
@@ -1059,28 +1062,111 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 ++unSuccMatchT;
                 continue;
             }
-            // extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2, succMatchT, unSuccMatchT, nonUniqueMatchT);
-            // continue;
+            if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
+            {
+                ++succMatchT;
+            } else {
+
+                ++nonUniqueMatchT;
+            }
+            continue;
 
         } else if (r2.isInvalid)
         {
-            // Construct artificial best match
-            // extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1, succMatchT, unSuccMatchT, nonUniqueMatchT);
-            // continue;
+            if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
+            {
+                ++succMatchT;
+            } else {
+
+                ++nonUniqueMatchT;
+            }
+            continue;
         }
-        // i.e. check for all pairs the range criterion
         // TODO:
         // make timer for this
+
+        // current best matching pair (sum of errors)
+        int bestErrNum = -1;
+        MATCH::match bestMatch1;
+        MATCH::match bestMatch2;
+        bool nonUniqueFlag = false;
+
         for (MATCH::match mat1 : matches1Fwd)
         {
-            for (MATCH::match mat2 : matches2Fwd)
+            for (MATCH::match mat2Fwd : matches2Fwd)
             {
-                // TODO:
-                // Merge paired read matches
+                int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
+                if (extractedMatchErrs >= 0)
+                {
+                    if (extractedMatchErrs == bestErrNum)
+                    {
+                        nonUniqueFlag = true;
+
+                    } else if (extractedMatchErrs < bestErrNum) {
+
+                        bestErrNum = extractedMatchErrs;
+                        bestMatch1 = mat1;
+                        bestMatch2 = mat2Fwd;
+                        nonUniqueFlag = false;
+
+                    }
+                }
+            }
+            for (MATCH::match mat2Rev : matches2Rev)
+            {
+                int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
+                if (extractedMatchErrs >= 0)
+                {
+                    if (extractedMatchErrs == bestErrNum)
+                    {
+                        nonUniqueFlag = true;
+
+                    } else if (extractedMatchErrs < bestErrNum) {
+
+                        bestErrNum = extractedMatchErrs;
+                        bestMatch1 = mat1;
+                        bestMatch2 = mat2Rev;
+                        nonUniqueFlag = false;
+
+                    }
+                }
             }
         }
-        // TODO do the same for Rev
-        // TODO If not possible: call extractSingle* for each matcharray
+        // TODO same for matches1Rev
+
+
+
+
+        // Check if no pairing possible
+        if (bestErrNum == -1)
+        {
+            if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
+            {
+                // TODO: make external counter for singleton matches
+            } else {
+                // TODO: make external counter for singleton matches
+            }
+            if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
+            {
+
+                // TODO: make external counter for singleton matches
+            } else {
+
+                // TODO: make external counter for singleton matches
+            }
+
+        } else if (nonUniqueFlag)
+        {
+            ++nonUniqueMatchT;
+            r1.isInvalid = true;
+            r2.isInvalid = true;
+
+        } else {
+
+            r1.mat = bestMatch1;
+            r2.mat = bestMatch2;
+            ++succMatchT;
+        }
     }
 
     // sum up counts
