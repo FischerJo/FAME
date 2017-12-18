@@ -31,14 +31,17 @@ namespace MyConst {
 //
 
 // maximum read length of the reads in bp
-constexpr unsigned int READLEN = 110;
+constexpr unsigned int READLEN = 101;
 
 // maximum number of times a k-mer is allowed to occur in the whole genome
-constexpr uint64_t KMERCUTOFF = 500;
+constexpr uint64_t KMERCUTOFF = 10000;
 
 // Number of cores that this program is allowed to occupy at any given point
-#define CORENUM 16
+#define CORENUM 1
 
+// closed interval borders for distances allowed between paired reads
+constexpr unsigned int MINPDIST = 100;
+constexpr unsigned int MAXPDIST = 600;
 
 //  --------------------------------------
 
@@ -80,15 +83,12 @@ constexpr uint64_t HTABSIZE = 1ULL << 30;
 
 
 // window length for meta CpGs
-// recommended is 1024
+// recommended is 2048
 constexpr unsigned int WINLEN = 2048;
 
 // number of mismatches we allow
 // recommended is 2
-constexpr unsigned int MISCOUNT = 2;
-
-// threshold over which reads are immediately discarded if that many metaCpGs are hit
-// constexpr unsigned int QUERYTHRESHOLD = 30000;
+constexpr uint8_t MISCOUNT = 2;
 
 // Checks the usefulness of the set parameters
 void sanityChecks();
