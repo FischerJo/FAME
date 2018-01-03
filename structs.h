@@ -71,7 +71,7 @@ namespace KMER {
 
     // KMER DEFINITION
     //
-    // 32 upper (more significant) bit hold metaCpG index, lower 32 bit hold offset inside metaCpG
+    // 31 upper (more significant) bit hold metaCpG index, lower 32 bit hold offset inside metaCpG
     // most significant bit holds flag that is 1 <=> points to start meta CpG
     typedef uint64_t kmer;
 
