@@ -16,7 +16,7 @@ profile: ${PROGNAME}Profile
 gzstream.o: gzstream/gzstream.C gzstream/gzstream.h
 	${CXX} ${CXXFLAGS} -c $<
 
-ReadQueue.o: ReadQueue.cpp ReadQueue.h gzstream/gzstream.C
+ReadQueue.o: ReadQueue.cpp ReadQueue.h
 	${CXX} ${CXXFLAGS} -c $<
 
 %.o: %.cpp %.h
