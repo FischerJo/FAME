@@ -1420,7 +1420,7 @@ class ReadQueue
             bool wasStart = false;
 
             // maximum position until we can insert completely new meta cpgs
-            uint32_t maxQPos = seq.size() - MyConst::KMERLEN - qThreshold;
+            uint32_t maxQPos = seq.size() - MyConst::KMERLEN + 1 - qThreshold;
 
             for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
             {
