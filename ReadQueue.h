@@ -1217,6 +1217,7 @@ class ReadQueue
                 {
                     continue;
                 }
+                mat = uniqueMatches[i];
                 // if match is not unique, return unsuccessfull to caller
                 if (multiMatch[i] > 1)
                 {
@@ -1225,7 +1226,6 @@ class ReadQueue
 
                 } else {
 
-                    mat = uniqueMatches[i];
                     return 1;
                 }
 

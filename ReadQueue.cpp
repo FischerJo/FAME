@@ -473,12 +473,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // of << runtime << "\t";
         // startTime = std::chrono::high_resolution_clock::now();
         int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
-        if (succQueryFwd == -1)
-        {
-
-            r.isInvalid = true;
-            ++nonUniqueMatchT;
-        }
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
@@ -637,26 +631,66 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // unique match on forward strand
         } else if (succQueryFwd == 1) {
 
-            // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
-            ++succMatchT;
-            r.mat = matchFwd;
-            // startTime = std::chrono::high_resolution_clock::now();
-            computeMethLvl(matchFwd, r.seq);
-            // endTime = std::chrono::high_resolution_clock::now();
-            // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-            // of << runtime << "\n";
+            if (succQueryRev == -1)
+            {
+                if (MATCH::getErrNum(matchFwd) < MATCH::getErrNum(matchRev))
+                {
+                    // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
+                    ++succMatchT;
+                    r.mat = matchFwd;
+                    // startTime = std::chrono::high_resolution_clock::now();
+                    computeMethLvl(matchFwd, r.seq);
+                    // endTime = std::chrono::high_resolution_clock::now();
+                    // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                    // of << runtime << "\n";
+                } else {
+
+                    ++nonUniqueMatchT;
+                    r.isInvalid = true;
+                }
+            } else {
+
+                // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
+                ++succMatchT;
+                r.mat = matchFwd;
+                // startTime = std::chrono::high_resolution_clock::now();
+                computeMethLvl(matchFwd, r.seq);
+                // endTime = std::chrono::high_resolution_clock::now();
+                // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                // of << runtime << "\n";
+            }
 
         // unique match on backward strand
         } else if (succQueryRev == 1) {
 
-            // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
-            ++succMatchT;
-            r.mat = matchRev;
-            // startTime = std::chrono::high_resolution_clock::now();
-            computeMethLvl(matchRev, revSeq);
-            // endTime = std::chrono::high_resolution_clock::now();
-            // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-            // of << runtime << "\n";
+            if (succQueryFwd == -1)
+            {
+                if (MATCH::getErrNum(matchRev) < MATCH::getErrNum(matchFwd))
+                {
+                    // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
+                    ++succMatchT;
+                    r.mat = matchRev;
+                    // startTime = std::chrono::high_resolution_clock::now();
+                    computeMethLvl(matchRev, revSeq);
+                    // endTime = std::chrono::high_resolution_clock::now();
+                    // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                    // of << runtime << "\n";
+                } else {
+
+                    ++nonUniqueMatchT;
+                    r.isInvalid = true;
+                }
+            } else {
+
+                // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
+                ++succMatchT;
+                r.mat = matchRev;
+                // startTime = std::chrono::high_resolution_clock::now();
+                computeMethLvl(matchRev, revSeq);
+                // endTime = std::chrono::high_resolution_clock::now();
+                // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+                // of << runtime << "\n";
+            }
 
         // no match found at all
         } else {
@@ -673,132 +707,112 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 // of << "No match.\n";
                 ++unSuccMatchT;
 
-        //     }
-        // }
-                // construct hash and look up the hash table entries
-                size_t lPos = r.id.find_last_of('_');
-                std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
-                size_t rPos = r.id.find_last_of('R');
-                std::string stringChrom (r.id.begin() + 1 + rPos, r.id.begin() + lPos);
-                uint8_t chrom = std::stoul(stringChrom);
-                unsigned long offset = std::stoul(stringOffset);
-                of << "\nreal seq/real revSeq/sequence in genome: " << r.id << "\n" << r.seq << "\n" << revSeq << "\n" << std::string(ref.fullSeq[chrom].begin() + offset, ref.fullSeq[chrom].begin() + offset + 100) << "\n\n\n";
-
-
-                uint64_t hVal = ntHash::NTP64(r.seq.data()) % MyConst::HTABSIZE;
-                auto startIt = ref.kmerTable.begin() + ref.tabIndex[hVal];
-                auto endIt = ref.kmerTable.begin() + ref.tabIndex[hVal + 1];
-                auto tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                for (auto it = startIt; it != endIt; ++it, ++tit)
-                {
-                    KMER::kmer& k = *it;
-                    const uint32_t m = KMER::getMetaCpG(k);
-                    const bool isStart = KMER::isStartCpG(k);
-                    if (!isStart)
-                    {
-                        const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                        uint64_t offset = KMER::getOffset(k);
-                        if (*tit)
-                        {
-                            auto stIt = ref.fullSeq[startCpg.chrom].begin() + offset + startCpg.pos;
-                            auto enIt = ref.fullSeq[startCpg.chrom].begin() + offset + MyConst::KMERLEN + startCpg.pos;
-                            // auto enIt = ref.fullSeq[startCpg.chrom].begin() + offset + startCpg.pos + 100;
-                            of << std::string(stIt, enIt) << " offset in meta " << offset << " ||| offset in seq " << offset + startCpg.pos << " ||| metaCpG " << m << "\n";
-                        } else {
-
-                            of << "rev off in meta " << offset << " ||| rev off in seq " << offset + startCpg.pos << "\n";
-                        }
-                    }
-                }
-                of << "Last Sequence part:\n";
-                hVal = ntHash::NTP64(r.seq.data()+70) % MyConst::HTABSIZE;
-                startIt = ref.kmerTable.begin() + ref.tabIndex[hVal];
-                endIt = ref.kmerTable.begin() + ref.tabIndex[hVal + 1];
-                tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                std::cerr << r.seq << "\n";
-                std::cerr << ref.metaCpGs.size() << "\t" << ref.cpgTable.size() << "\n";
-                for (auto it = startIt; it != endIt; ++it, ++tit)
-                {
-                    KMER::kmer& k = *it;
-                    const uint32_t m = KMER::getMetaCpG(k);
-                    const bool isStart = KMER::isStartCpG(k);
-                    std::cerr << m << "\n";
-                    if (!isStart)
-                    {
-                        const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                        uint64_t offset = KMER::getOffset(k);
-                        if (*tit)
-                        {
-                            auto stIt = ref.fullSeq[startCpg.chrom].begin() + offset + startCpg.pos;
-                            auto enIt = ref.fullSeq[startCpg.chrom].begin() + offset + MyConst::KMERLEN + startCpg.pos;
-                            of << std::string(stIt, enIt) << " offset in meta " << offset << " ||| offset in seq " << offset + startCpg.pos << " ||| metaCpG " << m << "\n";
-                        } else {
-
-                            of << "rev off in meta " << offset << " ||| rev off in seq " << offset + startCpg.pos << "\n";
-                        }
-                    }
-                }
-
-                of << "\n\nReverse seq matches\n";
-                hVal = ntHash::NTP64(revSeq.data()) % MyConst::HTABSIZE;
-                startIt = ref.kmerTable.begin() + ref.tabIndex[hVal];
-                endIt = ref.kmerTable.begin() + ref.tabIndex[hVal + 1];
-                tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                for (auto it = startIt; it != endIt; ++it, ++tit)
-                {
-                    KMER::kmer& k = *it;
-                    const uint64_t m = KMER::getMetaCpG(k);
-                    const bool isStart = KMER::isStartCpG(k);
-                    if (!isStart)
-                    {
-                        const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                        uint64_t offset = KMER::getOffset(k);
-                        if (*tit)
-                        {
-                            auto stIt = ref.fullSeq[startCpg.chrom].begin() + offset + startCpg.pos;
-                            auto enIt = ref.fullSeq[startCpg.chrom].begin() + offset + MyConst::KMERLEN + startCpg.pos;
-                            of << std::string(stIt, enIt) << " offset in meta " << offset << " ||| offset in seq " << offset + startCpg.pos << " ||| metaCpG " << m << "\n";
-                        } else {
-
-                            of << "rev off in meta " << offset << " ||| rev off in seq " << offset + startCpg.pos << "\n";
-                        }
-                    }
-                }
-                of << "Last Sequence part:\n";
-                hVal = ntHash::NTP64(revSeq.data()+70) % MyConst::HTABSIZE;
-                startIt = ref.kmerTable.begin() + ref.tabIndex[hVal];
-                endIt = ref.kmerTable.begin() + ref.tabIndex[hVal + 1];
-                tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                for (auto it = startIt; it != endIt; ++it, ++tit)
-                {
-                    KMER::kmer& k = *it;
-                    const uint64_t m = KMER::getMetaCpG(k);
-                    const bool isStart = KMER::isStartCpG(k);
-                    if (!isStart)
-                    {
-                        const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                        uint64_t offset = KMER::getOffset(k);
-                        if (*tit)
-                        {
-                            auto stIt = ref.fullSeq[startCpg.chrom].begin() + offset + startCpg.pos;
-                            auto enIt = ref.fullSeq[startCpg.chrom].begin() + offset + MyConst::KMERLEN + startCpg.pos;
-                            of << std::string(stIt, enIt) << " offset in meta " << offset << " ||| offset in seq " << offset + startCpg.pos << " ||| metaCpG " << m << "\n";
-                        } else {
-
-                            of << "rev off in meta " << offset << " ||| rev off in seq " << offset + startCpg.pos << "\n";
-                        }
-                    }
-                }
-                of << "\n\n--------------------\n\n";
-
             }
-
-            // if (unSuccMatch > 10)
-            // {
+        }
+            //     // construct hash and look up the hash table entries
+            //     size_t lPos = r.id.find_last_of('_');
+            //     std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
+            //     size_t rPos = r.id.find_last_of('R');
+            //     std::string stringChrom (r.id.begin() + 1 + rPos, r.id.begin() + lPos);
+            //     uint8_t chrom = std::stoul(stringChrom);
+            //     unsigned long offset = std::stoul(stringOffset);
+            //     of << "\nreal seq/real revSeq/sequence in genome: " << r.id << "\n" << r.seq << "\n" << revSeq << "\n" << std::string(ref.fullSeq[chrom].begin() + offset, ref.fullSeq[chrom].begin() + offset + 100) << "\n\n\n";
+            //
+            //
+            //     uint64_t hVal = ntHash::NTP64(r.seq.data()) % MyConst::HTABSIZE;
+            //     auto startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
+            //     auto endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
+            //     auto tit = ref.strandTable.begin() + ref.tabIndex[hVal];
+            //     for (auto it = startIt; it != endIt; ++it, ++tit)
+            //     {
+            //         KMER_S::kmer& k = *it;
+            //         const uint32_t m = KMER_S::getMetaCpG(k);
+            //         const bool isStart = KMER_S::isStartCpG(k);
+            //         if (!isStart)
+            //         {
+            //             const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+            //             if (*tit)
+            //             {
+            //                 auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+            //                 auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+            //                 of << std::string(stIt, enIt) << "\n";
+            //             }
+            //         }
+            //     }
+            //     of << "Last Sequence part:\n";
+            //     hVal = ntHash::NTP64(r.seq.data()+70) % MyConst::HTABSIZE;
+            //     startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
+            //     endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
+            //     tit = ref.strandTable.begin() + ref.tabIndex[hVal];
+            //     for (auto it = startIt; it != endIt; ++it, ++tit)
+            //     {
+            //         KMER_S::kmer& k = *it;
+            //         const uint32_t m = KMER_S::getMetaCpG(k);
+            //         const bool isStart = KMER_S::isStartCpG(k);
+            //         if (!isStart)
+            //         {
+            //             const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+            //             if (*tit)
+            //             {
+            //                 auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+            //                 auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+            //                 of << std::string(stIt, enIt) << "\n";
+            //             }
+            //         }
+            //     }
+            //
+            //     of << "\n\nReverse seq matches\n";
+            //     hVal = ntHash::NTP64(revSeq.data()) % MyConst::HTABSIZE;
+            //     startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
+            //     endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
+            //     tit = ref.strandTable.begin() + ref.tabIndex[hVal];
+            //     for (auto it = startIt; it != endIt; ++it, ++tit)
+            //     {
+            //         KMER_S::kmer& k = *it;
+            //         const uint64_t m = KMER_S::getMetaCpG(k);
+            //         const bool isStart = KMER_S::isStartCpG(k);
+            //         if (!isStart)
+            //         {
+            //             const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+            //             if (*tit)
+            //             {
+            //                 auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+            //                 auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+            //                 of << std::string(stIt, enIt) << "\n";
+            //             }
+            //         }
+            //     }
+            //     of << "Last Sequence part:\n";
+            //     hVal = ntHash::NTP64(revSeq.data()+70) % MyConst::HTABSIZE;
+            //     startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
+            //     endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
+            //     tit = ref.strandTable.begin() + ref.tabIndex[hVal];
+            //     for (auto it = startIt; it != endIt; ++it, ++tit)
+            //     {
+            //         KMER_S::kmer& k = *it;
+            //         const uint64_t m = KMER_S::getMetaCpG(k);
+            //         const bool isStart = KMER_S::isStartCpG(k);
+            //         if (!isStart)
+            //         {
+            //             const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+            //             if (*tit)
+            //             {
+            //                 auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+            //                 auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+            //                 of << std::string(stIt, enIt) << "\n";
+            //             }
+            //         }
+            //     }
+            //     of << "\n\n--------------------\n\n";
+            //
+            // }
+            //
+            // // if (unSuccMatch > 10)
+            // // {
             //     of.close();
             //     exit(1);
             // }
-        }
+        // }
 // TODO
 //         if (!r.isInvalid)
 //         {
@@ -1165,6 +1179,9 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
             r1.mat = bestMatch1;
             r2.mat = bestMatch2;
+            // TODO
+            // computeMethLvl
+            //
             ++succMatchT;
         }
     }
