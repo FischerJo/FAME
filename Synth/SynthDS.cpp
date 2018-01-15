@@ -702,39 +702,26 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
             std::string read1(refSeqFwd[chr], offset, readLen);
             std::string read2(refSeqFwd[chr], offset + pDist, readLen);
             // make read2 reverse complementary
-            std::string buf(read2);
             size_t readPos = 0;
-            bool hasN = false;
-            for (std::string::reverse_iterator rit = buf.rbegin(); rit! = buf.rend(); ++rit, ++readPos)
+            bool read1isFwd;
+            // flip a coin if read 1 is from main strand
+            if (coin(MT))
             {
-                switch (*rit)
-                {
-                    case 'C':
-                        read2[readPos] = 'G';
-                        break;
-                    case 'G':
-                        read2[readPos] = 'C';
-                        break;
-                    case 'T':
-                        read2[readPos] = 'A';
-                        break;
-                    case 'A':
-                        read2[readPos] = 'T';
-                        break;
-                    case 'N':
-                        hasN = true;
-                        break;
-                }
+
+                read1isFwd = true;
+
+            // read 2 is on main strand
+            } else {
+
+                read1isFwd = false;
             }
-            if (hasN)
-            {
-                --i;
-                continue;
-            }
+
 
             // test if CpG is contained
             bool prevC = false;
             bool hasCpG = false;
+            // test if N is contained
+            bool hasN = false;
             // search for CpGs in both reads
             for (const char c : read1)
             {
@@ -742,23 +729,30 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
                 {
                     prevC = true;
                     continue;
-                }
-                if (c == 'G')
-                {
+                } else if (c == 'N') {
+
+                    hasN = true;
+                    break;
+                } else if (c == 'G') {
+
                     if (prevC)
                         hasCpG = true;
                 }
                 prevC = false;
             }
+            prevC = false;
             for (const char c : read2)
             {
                 if (c == 'C')
                 {
                     prevC = true;
                     continue;
-                }
-                if (c == 'G')
-                {
+                } else if (c == 'N') {
+
+                    hasN = true;
+                    break;
+                } else if (c == 'G') {
+
                     if (prevC)
                         hasCpG = true;
                 }
@@ -766,39 +760,52 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
             }
 
             // produce only reads where at least one of the two has a CpG
-            if (!hasCpG)
+            if (!hasCpG || hasN)
             {
                 --i;
                 continue;
             }
 
-            // introduce C->T  OR  G->A conversions
+            // draw if main strand or second strand is originally methylated
+            // i.e. if read on main strand is C->T or G->A
             if (coin(MT))
             {
 
-                // go through read 1 and introduce methylation
-                for (size_t j = 0; j < readLen; ++j)
+                if (read1isFwd)
                 {
-                    if (read1[j] == 'C')
+                    // go through read 1 and introduce methylation
+                    for (size_t j = 0; j < readLen; ++j)
                     {
-                        if (j < readLen - 1)
+                        if (read1[j] == 'C')
                         {
-                            // if G follows, update CpG structure and methylate according to sampling rate
-                            if (read1[j+1] == 'G')
+                            if (j < readLen - 1)
                             {
-                                struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ];
-                                std::bernoulli_distribution methIt(met.sampleRate);
-                                if (!methIt(MT))
+                                // if G follows, update CpG structure and methylate according to sampling rate
+                                if (read1[j+1] == 'G')
                                 {
-                                    read1[j] = 'T';
+                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j) ];
+                                    std::bernoulli_distribution methIt(met.sampleRate);
+                                    if (!methIt(MT))
+                                    {
+                                        read1[j] = 'T';
 #pragma omp atomic
-                                    ++met.unmethCount;
+                                        ++met.unmethCount;
+                                    } else {
+#pragma omp atomic
+                                        ++met.methCount;
+                                    }
+
+
                                 } else {
-#pragma omp atomic
-                                    ++met.methCount;
+
+                                    // see if methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read1[j] = 'T';
+                                    }
                                 }
-
-
                             } else {
 
                                 // see if methylated
@@ -809,15 +816,204 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
                                         read1[j] = 'T';
                                 }
                             }
-                        } else {
+                        }
+                    }
+                    // go through read 2 and introduce methylation
+                    std::reverse(read2.begin(), read2.end());
+                    for (size_t j = 0; j < readLen; ++j)
+                    {
+                        switch (read2[j])
+                        {
+                            // C will generate G on reverse strand -> test for G to A conversion
+                            case ('C') :
 
-                            // see if methylated
-                            if (!methToss(MT))
+                                if (j > 0)
+                                {
+                                    // letter j-1 was already processed and hence converted from G to C
+                                    if (read2[j-1] == 'C')
+                                    {
+                                        struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen + pDist - j - 1) ];
+                                        std::bernoulli_distribution methIt(met.sampleRate);
+                                        if (!methIt(MT))
+                                        {
+                                            read2[j] = 'A';
+#pragma omp atomic
+                                            ++met.unmethCount;
+                                        } else {
+                                            read2[j] = 'G';
+#pragma omp atomic
+                                            ++met.methCount;
+                                        }
+
+
+                                    } else {
+                                        // see if methylated
+                                        if (!methToss(MT))
+                                        {
+                                            // if not, try bisulfite conversion
+                                            if (convToss(MT))
+                                                read2[j] = 'A';
+                                            else
+                                                read2[j] = 'G';
+                                        } else {
+
+                                            read2[j] = 'G';
+                                        }
+                                    }
+                                } else {
+                                    // see if methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read2[j] = 'A';
+                                        else
+                                            read2[j] = 'G';
+                                    } else {
+
+                                        read2[j] = 'G';
+                                    }
+                                }
+                                break;
+
+                            case ('G') :
+
+                                read2[j] = 'C';
+                                break;
+
+                            case ('A') :
+
+                                read2[j] = 'T';
+                                break;
+
+                            case ('T') :
+
+                                read2[j] = 'A';
+                                break;
+                        }
+                    }
+
+
+                // read 2 is on main strand
+                } else {
+
+                    // go through read 2 and introduce methylation
+                    for (size_t j = 0; j < readLen; ++j)
+                    {
+                        if (read2[j] == 'C')
+                        {
+                            if (j < readLen - 1)
                             {
-                                // if not, try bisulfite conversion
-                                if (convToss(MT))
-                                    read1[j] = 'T';
+                                // if G follows, update CpG structure and methylate according to sampling rate
+                                if (read2[j+1] == 'G')
+                                {
+                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + pDist + j) ];
+                                    std::bernoulli_distribution methIt(met.sampleRate);
+                                    if (!methIt(MT))
+                                    {
+                                        read2[j] = 'T';
+#pragma omp atomic
+                                        ++met.unmethCount;
+                                    } else {
+#pragma omp atomic
+                                        ++met.methCount;
+                                    }
+
+
+                                } else {
+
+                                    // see if methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read2[j] = 'T';
+                                    }
+                                }
+                            } else {
+
+                                // see if methylated
+                                if (!methToss(MT))
+                                {
+                                    // if not, try bisulfite conversion
+                                    if (convToss(MT))
+                                        read2[j] = 'T';
+                                }
                             }
+                        }
+                    }
+                    // go through read 2 and introduce methylation
+                    std::reverse(read1.begin(), read1.end());
+                    for (size_t j = 0; j < readLen; ++j)
+                    {
+                        switch (read1[j])
+                        {
+                            // C will generate G on reverse strand -> test for G to A conversion
+                            case ('C') :
+
+                                if (j > 0)
+                                {
+                                    // letter j-1 was already processed and hence converted from G to C
+                                    if (read1[j-1] == 'C')
+                                    {
+                                        struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ];
+                                        std::bernoulli_distribution methIt(met.sampleRate);
+                                        if (!methIt(MT))
+                                        {
+                                            read1[j] = 'A';
+#pragma omp atomic
+                                            ++met.unmethCount;
+                                        } else {
+                                            read1[j] = 'G';
+#pragma omp atomic
+                                            ++met.methCount;
+                                        }
+
+
+                                    } else {
+                                        // see if methylated
+                                        if (!methToss(MT))
+                                        {
+                                            // if not, try bisulfite conversion
+                                            if (convToss(MT))
+                                                read1[j] = 'A';
+                                            else
+                                                read1[j] = 'G';
+                                        } else {
+
+                                            read1[j] = 'G';
+                                        }
+                                    }
+                                } else {
+                                    // see if methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read1[j] = 'A';
+                                        else
+                                            read1[j] = 'G';
+                                    } else {
+
+                                        read1[j] = 'G';
+                                    }
+                                }
+                                break;
+
+                            case ('G') :
+
+                                read1[j] = 'C';
+                                break;
+
+                            case ('A') :
+
+                                read1[j] = 'T';
+                                break;
+
+                            case ('T') :
+
+                                read1[j] = 'A';
+                                break;
                         }
                     }
                 }
@@ -825,98 +1021,296 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
             // (!coin(MT))
             } else {
 
-                std::reverse(read.begin(), read.end());
-                for (size_t j = 0; j < readLen; ++j)
+                if (read1isFwd)
                 {
-                    switch (read[j])
+                    // go through read 1 and introduce methylation
+                    for (size_t j = 0; j < readLen; ++j)
                     {
-                        // C will generate G on reverse strand -> test for G to A conversion
-                        case ('C') :
-
+                        if (read1[j] == 'G')
+                        {
                             if (j > 0)
                             {
-                                // letter j-1 was already processed and hence converted from G to C
-                                if (read[j-1] == 'C')
+                                // if G follows, update CpG structure and methylate according to sampling rate
+                                if (read1[j - 1] == 'C')
                                 {
-                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j - 1) ];
+                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + j - 1) ];
                                     std::bernoulli_distribution methIt(met.sampleRate);
                                     if (!methIt(MT))
                                     {
-                                        read[j] = 'A';
+                                        read1[j] = 'A';
 #pragma omp atomic
                                         ++met.unmethCount;
                                     } else {
-                                        read[j] = 'G';
 #pragma omp atomic
                                         ++met.methCount;
                                     }
 
+                                } else {
 
+                                    // see if not methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read1[j] = 'A';
+                                    }
+                                }
+                            } else {
+
+                                // see if not methylated
+                                if (!methToss(MT))
+                                {
+                                    // if not, try bisulfite conversion
+                                    if (convToss(MT))
+                                        read1[j] = 'A';
+                                }
+                            }
+                        }
+                    }
+                    // go through read 2 and introduce methylation
+                    std::reverse(read2.begin(), read2.end());
+                    for (size_t j = 0; j < readLen; ++j)
+                    {
+                        switch (read2[j])
+                        {
+                            case ('G') :
+
+                                if (j < readLen - 1)
+                                {
+                                    if (read2[j + 1] == 'C')
+                                    {
+                                        struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen + pDist - j) ];
+                                        std::bernoulli_distribution methIt(met.sampleRate);
+                                        if (!methIt(MT))
+                                        {
+                                            read2[j] = 'T';
+#pragma omp atomic
+                                            ++met.unmethCount;
+                                        } else {
+                                            read2[j] = 'C';
+#pragma omp atomic
+                                            ++met.methCount;
+                                        }
+
+
+                                    } else {
+                                        // see if methylated
+                                        if (!methToss(MT))
+                                        {
+                                            // if not, try bisulfite conversion
+                                            if (convToss(MT))
+                                                read2[j] = 'T';
+                                            else
+                                                read2[j] = 'C';
+                                        } else {
+
+                                            read2[j] = 'C';
+                                        }
+                                    }
                                 } else {
                                     // see if methylated
                                     if (!methToss(MT))
                                     {
                                         // if not, try bisulfite conversion
                                         if (convToss(MT))
-                                            read[j] = 'A';
+                                            read2[j] = 'T';
                                         else
-                                            read[j] = 'G';
+                                            read2[j] = 'C';
                                     } else {
 
-                                        read[j] = 'G';
+                                        read2[j] = 'C';
+                                    }
+                                }
+                                break;
+
+                            case ('C') :
+
+                                read2[j] = 'G';
+                                break;
+
+                            case ('A') :
+
+                                read2[j] = 'T';
+                                break;
+
+                            case ('T') :
+
+                                read2[j] = 'A';
+                                break;
+                        }
+                    }
+
+
+                // read 2 is on main strand
+                } else {
+
+                    // go through read 2 and introduce methylation
+                    for (size_t j = 0; j < readLen; ++j)
+                    {
+                        if (read2[j] == 'G')
+                        {
+                            if (j > 0)
+                            {
+                                // if G follows, update CpG structure and methylate according to sampling rate
+                                if (read2[j - 1] == 'C')
+                                {
+                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + pDist + j - 1) ];
+                                    std::bernoulli_distribution methIt(met.sampleRate);
+                                    if (!methIt(MT))
+                                    {
+                                        read2[j] = 'A';
+#pragma omp atomic
+                                        ++met.unmethCount;
+                                    } else {
+#pragma omp atomic
+                                        ++met.methCount;
+                                    }
+
+                                } else {
+
+                                    // see if not methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read2[j] = 'A';
                                     }
                                 }
                             } else {
-                                // see if methylated
+
+                                // see if not methylated
                                 if (!methToss(MT))
                                 {
                                     // if not, try bisulfite conversion
                                     if (convToss(MT))
-                                        read[j] = 'A';
-                                    else
-                                        read[j] = 'G';
-                                } else {
-
-                                    read[j] = 'G';
+                                        read2[j] = 'A';
                                 }
                             }
-                            break;
+                        }
+                    }
+                    // go through read 2 and introduce methylation
+                    std::reverse(read1.begin(), read1.end());
+                    for (size_t j = 0; j < readLen; ++j)
+                    {
+                        switch (read1[j])
+                        {
+                            case ('G') :
 
-                        case ('G') :
+                                if (j < readLen - 1)
+                                {
+                                    if (read1[j + 1] == 'C')
+                                    {
+                                        struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen - j) ];
+                                        std::bernoulli_distribution methIt(met.sampleRate);
+                                        if (!methIt(MT))
+                                        {
+                                            read1[j] = 'T';
+#pragma omp atomic
+                                            ++met.unmethCount;
+                                        } else {
+                                            read1[j] = 'C';
+#pragma omp atomic
+                                            ++met.methCount;
+                                        }
 
-                            read[j] = 'C';
-                            break;
 
-                        case ('A') :
+                                    } else {
+                                        // see if methylated
+                                        if (!methToss(MT))
+                                        {
+                                            // if not, try bisulfite conversion
+                                            if (convToss(MT))
+                                                read1[j] = 'T';
+                                            else
+                                                read1[j] = 'C';
+                                        } else {
 
-                            read[j] = 'T';
-                            break;
+                                            read1[j] = 'C';
+                                        }
+                                    }
+                                } else {
+                                    // see if methylated
+                                    if (!methToss(MT))
+                                    {
+                                        // if not, try bisulfite conversion
+                                        if (convToss(MT))
+                                            read1[j] = 'T';
+                                        else
+                                            read1[j] = 'C';
+                                    } else {
 
-                        case ('T') :
+                                        read1[j] = 'C';
+                                    }
+                                }
+                                break;
 
-                            read[j] = 'A';
-                            break;
+                            case ('C') :
+
+                                read1[j] = 'G';
+                                break;
+
+                            case ('A') :
+
+                                read1[j] = 'T';
+                                break;
+
+                            case ('T') :
+
+                                read1[j] = 'A';
+                                break;
+                        }
                     }
                 }
             }
+
             // draw number of errors
             const unsigned int err = getErrNum();
             // introduce errors at random positions
             size_t errID = 0;
+            // for read 1
             for (unsigned int e = 0; e < err; ++e)
             {
                 int eOff = toOffRead(MT);
                 read[eOff] = alphabet[toIndex(MT)];
-                errOffs[i][errID] = eOff;
+                errOffs.first[i][errID] = eOff;
                 ++errID;
             }
             for (; errID < errNum; ++errID)
             {
-                errOffs[i][errID] = -1;
+                errOffs.first[i][errID] = -1;
             }
 
-            readSet[i] = std::move(read);
-            offsets[i] = std::pair<size_t,size_t>(offset, chr);
+            err = getErrNum();
+            errID = 0;
+            for (unsigned int e = 0; e < err; ++e)
+            {
+                int eOff = toOffRead(MT);
+                read[eOff] = alphabet[toIndex(MT)];
+                errOffs.second[i][errID] = eOff;
+                ++errID;
+            }
+            for (; errID < errNum; ++errID)
+            {
+                errOffs.second[i][errID] = -1;
+            }
+
+            // shuffle pairs
+            if (coin(MT))
+            {
+                readSet.first[i] = std::move(read1);
+                offsets.first[i] = std::pair<size_t,size_t>(offset, chr);
+
+                readSet.second[i] = std::move(read2);
+                offsets.second[i] = std::pair<size_t,size_t>(offset + pDist, chr);
+
+            } else {
+
+                readSet.second[i] = std::move(read1);
+                offsets.second[i] = std::pair<size_t,size_t>(offset, chr);
+
+                readSet.first[i] = std::move(read2);
+                offsets.first[i] = std::pair<size_t,size_t>(offset + pDist, chr);
+            }
         }
         processedReads += chrReadNum;
 
