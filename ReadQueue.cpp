@@ -108,6 +108,7 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
 ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ) :
         ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
+    ,   readBuffer2(MyConst::CHUNKSIZE)
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
 {
@@ -227,6 +228,9 @@ bool ReadQueue::parseChunk(unsigned int& procReads)
     // if needed, read paired reads
     if (isPaired)
     {
+
+        // TODO
+        std::cout << "Reading in paired end mode\n\n";
         unsigned int readCounter2 = 0;
         // read first line of read (aka @'SEQID')
         while (std::getline(file2, id))

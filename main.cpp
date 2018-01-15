@@ -317,7 +317,7 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
     {
         ++i;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
+        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many paired reads\n";
     }
     // match remaining reads
     rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
