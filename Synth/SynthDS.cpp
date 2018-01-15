@@ -651,14 +651,17 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 // }
 //
 
-std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::pair<std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::array<int, errNum> > >& errOffs)
+std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::array<int, errNum> >, std::vector<std::array<int, errNum> > >& errOffs)
 {
 
     std::cout << "Start generating paired read set\n\n";
     // will hold the generated reads
-    std::vector<std::string> readSet(readNum);
-    offsets.resize(readNum);
-    errOffs.resize(readNum);
+    std::vector<std::string> readSet1(readNum);
+    std::vector<std::string> readSet2(readNum);
+    offsets.first.resize(readNum);
+    offsets.second.resize(readNum);
+    errOffs.first.resize(readNum);
+    errOffs.second.resize(readNum);
 
     size_t processedReads = 0;
 
@@ -701,13 +704,11 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
             const size_t pDist = pairedOffDist(MT);
             std::string read1(refSeqFwd[chr], offset, readLen);
             std::string read2(refSeqFwd[chr], offset + pDist, readLen);
-            // make read2 reverse complementary
-            size_t readPos = 0;
+
             bool read1isFwd;
             // flip a coin if read 1 is from main strand
             if (coin(MT))
             {
-
                 read1isFwd = true;
 
             // read 2 is on main strand
@@ -1264,14 +1265,14 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
             }
 
             // draw number of errors
-            const unsigned int err = getErrNum();
+            unsigned int err = getErrNum();
             // introduce errors at random positions
             size_t errID = 0;
             // for read 1
             for (unsigned int e = 0; e < err; ++e)
             {
                 int eOff = toOffRead(MT);
-                read[eOff] = alphabet[toIndex(MT)];
+                read1[eOff] = alphabet[toIndex(MT)];
                 errOffs.first[i][errID] = eOff;
                 ++errID;
             }
@@ -1280,12 +1281,13 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
                 errOffs.first[i][errID] = -1;
             }
 
+            // and read 2
             err = getErrNum();
             errID = 0;
             for (unsigned int e = 0; e < err; ++e)
             {
                 int eOff = toOffRead(MT);
-                read[eOff] = alphabet[toIndex(MT)];
+                read2[eOff] = alphabet[toIndex(MT)];
                 errOffs.second[i][errID] = eOff;
                 ++errID;
             }
@@ -1297,18 +1299,18 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
             // shuffle pairs
             if (coin(MT))
             {
-                readSet.first[i] = std::move(read1);
+                readSet1[i] = std::move(read1);
                 offsets.first[i] = std::pair<size_t,size_t>(offset, chr);
 
-                readSet.second[i] = std::move(read2);
+                readSet2[i] = std::move(read2);
                 offsets.second[i] = std::pair<size_t,size_t>(offset + pDist, chr);
 
             } else {
 
-                readSet.second[i] = std::move(read1);
+                readSet2[i] = std::move(read1);
                 offsets.second[i] = std::pair<size_t,size_t>(offset, chr);
 
-                readSet.first[i] = std::move(read2);
+                readSet1[i] = std::move(read2);
                 offsets.first[i] = std::pair<size_t,size_t>(offset + pDist, chr);
             }
         }
@@ -1316,7 +1318,7 @@ std::pair<std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t rea
 
     }
     std::cout << "Generated forward strand read set\n\n";
-    return readSet;
+    return std::make_pair(readSet1,readSet2);
 }
 
 void SynthDS::loadRefSeq(const char* genFile)
