@@ -24,6 +24,7 @@
 #include "ReadQueue.h"
 
 void queryRoutine(ReadQueue& rQue, const bool isGZ);
+void queryRoutinePaired(ReadQueue& rQue, const bool isGZ);
 void printHelp();
 
 // --------------- MAIN -----------------
@@ -36,6 +37,7 @@ int main(int argc, char** argv)
     std::string genomeFile = "";
     std::string outputFile = "out";
     char* readFile = NULL;
+    char* readFile2 = NULL;
 
     // true iff index should be loaded from file
     bool loadIndexFlag = false;
@@ -45,6 +47,8 @@ int main(int argc, char** argv)
     bool readsGZ = false;
     // true iff index should be filtered only lossless
     bool noloss = false;
+    // true iff two (paired) read files are provided
+    bool pairedReadFlag = false;
 
     if (argc == 1)
     {
@@ -66,6 +70,34 @@ int main(int argc, char** argv)
             if (i + 1 < argc)
             {
                 readFile = argv[++i];
+
+            } else {
+
+                std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+                exit(1);
+            }
+            continue;
+        }
+        if (std::string(argv[i]) == "-r1")
+        {
+            if (i + 1 < argc)
+            {
+                readFile = argv[++i];
+                pairedReadFlag = true;
+
+            } else {
+
+                std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+                exit(1);
+            }
+            continue;
+        }
+        if (std::string(argv[i]) == "-r2")
+        {
+            if (i + 1 < argc)
+            {
+                pairedReadFlag = true;
+                readFile2 = argv[++i];
 
             } else {
 
@@ -157,7 +189,7 @@ int main(int argc, char** argv)
 
 
         // no such option
-        std::cerr << "Don't know the option \"" << argv[i] << "\". Terminating...\n\n";
+        std::cerr << "Don\'t know the option \"" << argv[i] << "\". Terminating...\n\n";
         exit(1);
 
     }
@@ -182,11 +214,28 @@ int main(int argc, char** argv)
             exit(1);
 
         }
-        ReadQueue rQue(readFile, ref, readsGZ);
+        if (pairedReadFlag)
+        {
 
-        queryRoutine(rQue, readsGZ);
+            if (readFile == NULL || readFile2 == NULL)
+            {
+                std::cerr << "Entered paired end mode (\"-r1\" or \"-r2\" flag), but one of the read files is missing. Terminating...\n\n";
+                exit(1);
+            }
+            ReadQueue rQue(readFile, readFile2, ref, readsGZ);
 
-        rQue.printMethylationLevels(outputFile);
+            queryRoutinePaired(rQue, readsGZ);
+
+            rQue.printMethylationLevels(outputFile);
+
+        } else {
+
+            ReadQueue rQue(readFile, ref, readsGZ);
+
+            queryRoutine(rQue, readsGZ);
+
+            rQue.printMethylationLevels(outputFile);
+        }
 
     } else {
 
@@ -213,13 +262,6 @@ int main(int argc, char** argv)
             ref.save(indexFile);
 
         }
-
-        // if (readFile != NULL)
-        // {
-        //     ReadQueue rQue(readFile, ref, readsGZ);
-        //     queryRoutine(rQue, readsGZ);
-        //     rQue.printMethylationLevels(outputFile);
-        // }
     }
 
     return 0;
@@ -258,7 +300,33 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
 
     std::cout << "Done processing in " << runtime << "s\n";
-    std::cout << "Successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch;
+    std::cout << "Successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\n";
+
+}
+void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
+{
+
+    unsigned int readCounter = 0;
+    unsigned int i = 0;
+    // counter
+    uint64_t succMatch = 0;
+    uint64_t nonUniqueMatch = 0;
+    uint64_t unSuccMatch = 0;
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+    while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
+    {
+        ++i;
+        rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
+        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
+    }
+    // match remaining reads
+    rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
+
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+
+    std::cout << "Done processing in " << runtime << "s\n";
+    std::cout << "Successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\n";
 
 }
 
@@ -285,6 +353,8 @@ void printHelp()
     std::cout << "\t-r            [.]\t\tSpecification of a filepath to a set of reads in\n";
     std::cout << "\t                 \t\tfastq format. If not specified, index is built and\n";
     std::cout << "\t                 \t\tsaved in file provided via --store_index.\n\n";
+
+// TODO: r2
 
     std::cout << "\t--gzip_reads     \t\tRead file specified by -r is treated as gzipped\n";
     std::cout << "\t                 \t\tfile (.gz file ending).\n\n";
