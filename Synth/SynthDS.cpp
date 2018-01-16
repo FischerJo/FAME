@@ -654,7 +654,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::array<int, errNum> >, std::vector<std::array<int, errNum> > >& errOffs)
 {
 
-    std::cout << "Start generating paired read set\n\n";
+    std::cout << "Start generating paired read set.\n\n";
     // will hold the generated reads
     std::vector<std::string> readSet1(readNum);
     std::vector<std::string> readSet2(readNum);
@@ -741,6 +741,11 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 }
                 prevC = false;
             }
+            if (!hasCpG || hasN)
+            {
+                --i;
+                continue;
+            }
             prevC = false;
             for (const char c : read2)
             {
@@ -760,7 +765,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 prevC = false;
             }
 
-            // produce only reads where at least one of the two has a CpG
+            // produce only reads where both of the two have at least one CpG
             if (!hasCpG || hasN)
             {
                 --i;
@@ -1317,7 +1322,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
         processedReads += chrReadNum;
 
     }
-    std::cout << "Generated forward strand read set\n\n";
+    std::cout << "Finished generating paired read set\n\n";
     return std::make_pair(readSet1,readSet2);
 }
 
