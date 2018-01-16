@@ -88,7 +88,7 @@ class ReadQueue
         // Make full match using bit shift trick
         // Align match using banded levenshtein alignment to update methylation counts
         bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
-        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
+        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch);
 
         // Print the CpG methylation levels to the given filename
         // Two files are generated, one called filename_cpg.tsv
@@ -1221,9 +1221,10 @@ class ReadQueue
                 // if match is not unique, return unsuccessfull to caller
                 if (multiMatch[i] > 1)
                 {
-                    // of << "Too bad, multimatch in internal\n";
+
                     return -1;
 
+                // exactly one with that many errors - return successfull
                 } else {
 
                     return 1;
@@ -2405,6 +2406,7 @@ class ReadQueue
         std::array<uint64_t, CORENUM> matchStats;
         std::array<uint64_t, CORENUM> nonUniqueStats;
         std::array<uint64_t, CORENUM> noMatchStats;
+        std::array<uint64_t, CORENUM> matchPairedStats;
 
 
         // TODO

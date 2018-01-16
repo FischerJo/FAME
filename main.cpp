@@ -309,6 +309,7 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
     unsigned int readCounter = 0;
     unsigned int i = 0;
     // counter
+    uint64_t succPairedMatch = 0;
     uint64_t succMatch = 0;
     uint64_t nonUniqueMatch = 0;
     uint64_t unSuccMatch = 0;
@@ -316,17 +317,17 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
-        rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
+        rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch);
         std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many paired reads\n";
     }
     // match remaining reads
-    rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
+    rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch);
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
 
     std::cout << "Done processing in " << runtime << "s\n";
-    std::cout << "Successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\n";
+    std::cout << "Overall successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\nFully matched pairs: " << succPairedMatch << "\n";
 
 }
 

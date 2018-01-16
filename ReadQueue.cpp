@@ -229,8 +229,6 @@ bool ReadQueue::parseChunk(unsigned int& procReads)
     if (isPaired)
     {
 
-        // TODO
-        std::cout << "Reading in paired end mode\n\n";
         unsigned int readCounter2 = 0;
         // read first line of read (aka @'SEQID')
         while (std::getline(file2, id))
@@ -897,7 +895,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
     return true;
 }
 
-bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch)
+bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch)
 {
 
 
@@ -907,6 +905,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         matchStats[i] = 0;
         nonUniqueStats[i] = 0;
         noMatchStats[i] = 0;
+        matchPairedStats[i] = 0;
     }
 
 #ifdef _OPENMP
@@ -920,6 +919,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         uint64_t& succMatchT = matchStats[threadnum];
         uint64_t& nonUniqueMatchT = nonUniqueStats[threadnum];
         uint64_t& unSuccMatchT = noMatchStats[threadnum];
+        uint64_t& succPairedMatchT = matchPairedStats[threadnum];
         Read& r1 = readBuffer[i];
         Read& r2 = readBuffer2[i];
 
@@ -979,6 +979,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 default:
 
                     std::cerr << "Unknown character '" << r1.seq[pos] << "' in read with sequence id " << r1.id << std::endl;
+                    r1.isInvalid = true;
             }
         }
 
@@ -1023,6 +1024,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 default:
 
                     std::cerr << "Unknown character '" << r2.seq[pos] << "' in read with sequence id " << r2.id << std::endl;
+                    r2.isInvalid = true;
             }
         }
 
@@ -1083,14 +1085,16 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         {
             if (r2.isInvalid)
             {
-                ++unSuccMatchT;
+                unSuccMatchT += 2;
                 continue;
             }
             if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
             {
+                ++unSuccMatchT;
                 ++succMatchT;
             } else {
 
+                ++unSuccMatchT;
                 ++nonUniqueMatchT;
             }
             continue;
@@ -1099,9 +1103,11 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         {
             if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
             {
+                ++unSuccMatchT;
                 ++succMatchT;
             } else {
 
+                ++unSuccMatchT;
                 ++nonUniqueMatchT;
             }
             continue;
@@ -1110,7 +1116,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // make timer for this
 
         // current best matching pair (sum of errors)
-        int bestErrNum = -1;
+        int bestErrNum = MyConst::MISCOUNT + 1;
         MATCH::match bestMatch1;
         MATCH::match bestMatch2;
         bool nonUniqueFlag = false;
@@ -1156,7 +1162,47 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 }
             }
         }
-        // TODO same for matches1Rev
+        for (MATCH::match mat1 : matches1Rev)
+        {
+            for (MATCH::match mat2Fwd : matches2Fwd)
+            {
+                int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
+                if (extractedMatchErrs >= 0)
+                {
+                    if (extractedMatchErrs == bestErrNum)
+                    {
+                        nonUniqueFlag = true;
+
+                    } else if (extractedMatchErrs < bestErrNum) {
+
+                        bestErrNum = extractedMatchErrs;
+                        bestMatch1 = mat1;
+                        bestMatch2 = mat2Fwd;
+                        nonUniqueFlag = false;
+
+                    }
+                }
+            }
+            for (MATCH::match mat2Rev : matches2Rev)
+            {
+                int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
+                if (extractedMatchErrs >= 0)
+                {
+                    if (extractedMatchErrs == bestErrNum)
+                    {
+                        nonUniqueFlag = true;
+
+                    } else if (extractedMatchErrs < bestErrNum) {
+
+                        bestErrNum = extractedMatchErrs;
+                        bestMatch1 = mat1;
+                        bestMatch2 = mat2Rev;
+                        nonUniqueFlag = false;
+
+                    }
+                }
+            }
+        }
 
 
 
@@ -1166,22 +1212,23 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         {
             if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
             {
-                // TODO: make external counter for singleton matches
+                ++succMatchT;
             } else {
-                // TODO: make external counter for singleton matches
+
+                ++unSuccMatchT;
             }
             if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
             {
 
-                // TODO: make external counter for singleton matches
+                ++succMatchT;
             } else {
 
-                // TODO: make external counter for singleton matches
+                ++unSuccMatchT;
             }
 
         } else if (nonUniqueFlag)
         {
-            ++nonUniqueMatchT;
+            nonUniqueMatchT += 2;
             r1.isInvalid = true;
             r2.isInvalid = true;
 
@@ -1189,10 +1236,9 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
             r1.mat = bestMatch1;
             r2.mat = bestMatch2;
-            // TODO
-            // computeMethLvl
-            //
-            ++succMatchT;
+            computeMethLvl(r1.mat, r1.seq);
+            computeMethLvl(r2.mat, r2.seq);
+            ++succPairedMatchT;
         }
     }
 
@@ -1202,6 +1248,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         succMatch += matchStats[i];
         nonUniqueMatch += nonUniqueStats[i];
         unSuccMatch += noMatchStats[i];
+        succPairedMatch += matchPairedStats[i];
     }
     return true;
 }
