@@ -1243,13 +1243,6 @@ class ReadQueue
             auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
             auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
-            // counter for how often we had a match
-            // std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
-            // multiMatch.fill(0);
-
-            // will contain matches iff match is found for number of errors specified by index
-            // std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
-
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
             {
@@ -1563,6 +1556,11 @@ class ReadQueue
             // Construct artificial best match
             MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + 1,0,0,0);
             bool isUnique = true;
+            // indicates which of the reads had the best match
+            // 1 = original read
+            // 2 = reverse comp of read
+            // 0 = none
+            unsigned int matchedReadID = 0;
             // Extract best match from list of found matches of fwd reads
             for (MATCH::match mat : fwdMatches)
             {
@@ -1581,6 +1579,7 @@ class ReadQueue
                 } else if (MATCH::getErrNum(mat) < MATCH::getErrNum(bestMat))
                 {
                     // update bestMatch
+                    matchedReadID = 1;
                     bestMat = mat;
                     isUnique = true;
                 }
@@ -1603,22 +1602,30 @@ class ReadQueue
                 } else if (MATCH::getErrNum(mat) < MATCH::getErrNum(bestMat))
                 {
                     // update bestMatch
+                    matchedReadID = 2;
                     bestMat = mat;
                     isUnique = true;
                 }
             }
-            // check if found match is unique and not the artficial initialization
+            // Note that either we MUST have found either a match or a nonunqiue matching
+            // because only if the match lists contain at least 1 element we call this function
+            // check if found match is unique
             if (isUnique)
             {
                 r.mat = bestMat;
-                if (MATCH::isFwd(bestMat))
+                if (matchedReadID == 1)
                 {
                     computeMethLvl(bestMat, r.seq);
 
-                } else {
+                } else if (matchedReadID == 2) {
 
                     computeMethLvl(bestMat, revSeq);
                 }
+                // TODO
+                else {
+                    std::cerr << "You should not reach this code.\n\n";
+                }
+                // ----
 
             } else {
 
@@ -2055,7 +2062,7 @@ class ReadQueue
                                 break;
                             }
                         } else {
-                            if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 1 > maxPos)
+                            if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 > maxPos)
                             {
                                 maxIndex = cpgID - 1;
                                 break;
@@ -2411,6 +2418,13 @@ class ReadQueue
 
         // TODO
         std::ofstream of;
+        inline void printMatch(std::ofstream& o, MATCH::match& mat)
+        {
+            o << "Match at offset " << MATCH::getOffset(mat) + ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos << \
+                " on chromosome " << static_cast<uint64_t>(ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].chrom) << \
+                " on strand " << (MATCH::isFwd(mat) ? "fwd" : "rev") << " with " << MATCH::getErrNum(mat) << " many errors.";
+        }
+
 
 };
 

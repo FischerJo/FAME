@@ -111,6 +111,7 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     ,   readBuffer2(MyConst::CHUNKSIZE)
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
+    ,   of("errOut.txt")
 {
 
     isPaired = true;
@@ -221,7 +222,7 @@ bool ReadQueue::parseChunk(unsigned int& procReads)
         if (readCounter >= MyConst::CHUNKSIZE)
         {
             procReads = MyConst::CHUNKSIZE;
-            return true;
+            break;
 
         }
     }
@@ -261,6 +262,11 @@ bool ReadQueue::parseChunk(unsigned int& procReads)
                             Single reads have to be processed separately.\n\n";
             exit(1);
         }
+
+    } else {
+
+        if (readCounter >= MyConst::CHUNKSIZE)
+            return true;
     }
 
     procReads = readCounter;
@@ -294,13 +300,14 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
         if (readCounter >= MyConst::CHUNKSIZE)
         {
             procReads = MyConst::CHUNKSIZE;
-            return true;
+            break;
 
         }
     }
     // if needed, read paired reads
     if (isPaired)
     {
+
         unsigned int readCounter2 = 0;
         // read first line of read (aka @'SEQID')
         while (std::getline(igz2, id))
@@ -333,6 +340,10 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
                             Single reads have to be processed separately.\n\n";
             exit(1);
         }
+    } else {
+
+        if (readCounter >= MyConst::CHUNKSIZE)
+            return true;
     }
 
     procReads = readCounter;
@@ -812,9 +823,9 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 }
                 of << "\n\n--------------------\n\n";
 
-            }
 // END PRAGMA OMP CRITICAL
 }
+            }
             // if (unSuccMatch > 10)
             // {
             //     of.close();
@@ -1036,12 +1047,12 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // Stores the found matches for first and second read, resp.
         std::vector<MATCH::match> matches1Fwd;
         std::vector<MATCH::match> matches1Rev;
-        matches1Fwd.resize(20);
-        matches1Rev.resize(20);
+        matches1Fwd.reserve(20);
+        matches1Rev.reserve(20);
         std::vector<MATCH::match> matches2Fwd;
         std::vector<MATCH::match> matches2Rev;
-        matches2Fwd.resize(20);
-        matches2Rev.resize(20);
+        matches2Fwd.reserve(20);
+        matches2Rev.reserve(20);
         // set qgram threshold
         uint16_t qThreshold = readSize1 - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
         if (qThreshold > readSize1)
@@ -1121,9 +1132,9 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         MATCH::match bestMatch2;
         bool nonUniqueFlag = false;
 
-        for (MATCH::match mat1 : matches1Fwd)
+        for (MATCH::match& mat1 : matches1Fwd)
         {
-            for (MATCH::match mat2Fwd : matches2Fwd)
+            for (MATCH::match& mat2Fwd : matches2Fwd)
             {
                 int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
                 if (extractedMatchErrs >= 0)
@@ -1142,7 +1153,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                     }
                 }
             }
-            for (MATCH::match mat2Rev : matches2Rev)
+            for (MATCH::match& mat2Rev : matches2Rev)
             {
                 int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
                 if (extractedMatchErrs >= 0)
@@ -1162,9 +1173,9 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                 }
             }
         }
-        for (MATCH::match mat1 : matches1Rev)
+        for (MATCH::match& mat1 : matches1Rev)
         {
-            for (MATCH::match mat2Fwd : matches2Fwd)
+            for (MATCH::match& mat2Fwd : matches2Fwd)
             {
                 int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
                 if (extractedMatchErrs >= 0)
@@ -1183,7 +1194,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                     }
                 }
             }
-            for (MATCH::match mat2Rev : matches2Rev)
+            for (MATCH::match& mat2Rev : matches2Rev)
             {
                 int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
                 if (extractedMatchErrs >= 0)
@@ -1208,26 +1219,92 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 
         // Check if no pairing possible
-        if (bestErrNum == -1)
+        if (bestErrNum == MyConst::MISCOUNT + 1)
         {
+#pragma omp critical
+{
+            of << "\n\n\nNo pairing possible\n\n";
+            of << "Matches of read 1, ID " << r1.id << " \nfwd: " << r1.seq << "\n";
+            for (auto mat : matches1Fwd)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "Matches of read 1,  ID " << r1.id << " \nrev: " << revSeq1 << "\n";
+            for (auto mat : matches1Rev)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "\nMatches of read 2,  ID " << r2.id << " \nfwd: " << r2.seq << "\n";
+            for (auto mat : matches2Fwd)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "Matches of read 2,  ID " << r2.id << " \nrev: " << revSeq2 << "\n";
+            for (auto mat : matches2Rev)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "\n";
+// end pragma omp critical
+}
+
             if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
             {
                 ++succMatchT;
+                of << "\tSuccessfull r1\n";
+
             } else {
 
                 ++unSuccMatchT;
+                of << "\tUnsuccessfull r1\n";
             }
             if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
             {
 
                 ++succMatchT;
+                of << "\tSuccessfull r2\n";
             } else {
 
                 ++unSuccMatchT;
+                of << "\tUnsuccessfull r1\n";
             }
 
         } else if (nonUniqueFlag)
         {
+#pragma omp critical
+{
+            of << "\n\n\nNonunique pair\n\n";
+            of << "Matches of read 1,  ID " << r1.id << " \nfwd: " << r1.seq << "\n";
+            for (auto mat : matches1Fwd)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "Matches of read 1,  ID " << r1.id << " \nrev: " << revSeq1 << "\n";
+            for (auto mat : matches1Rev)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "\nMatches of read 2,  ID " << r2.id << " \nfwd: " << r2.seq << "\n";
+            for (auto mat : matches2Fwd)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "Matches of read 2,  ID " << r2.id << " \nrev: " << revSeq2 << "\n";
+            for (auto mat : matches2Rev)
+            {
+                printMatch(of, mat);
+                of << "\n";
+            }
+            of << "\n";
+// end pragma omp critical
+}
             nonUniqueMatchT += 2;
             r1.isInvalid = true;
             r2.isInvalid = true;
@@ -1239,6 +1316,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             computeMethLvl(r1.mat, r1.seq);
             computeMethLvl(r2.mat, r2.seq);
             ++succPairedMatchT;
+            succMatchT += 2;
         }
     }
 
