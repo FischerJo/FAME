@@ -127,6 +127,7 @@ int main(int argc, char** argv)
 
     if (argv[3] == std::string("P"))
     {
+        std::cout << "Generating paired end reads.\n\n";
         std::pair<std::vector<std::pair<size_t,size_t> >, std::vector<std::pair<size_t,size_t> > >  offsets;
         std::pair<std::vector<std::array<int, errNum> >, std::vector<std::array<int, errNum> > > errOffs;
         std::pair<std::vector<std::string>, std::vector<std::string> > pairedReads = synthGen.genReadsPairedRef(readLen, readNum, errNum, offsets, errOffs);
@@ -134,6 +135,28 @@ int main(int argc, char** argv)
         std::ofstream ofsReads2(std::string(argv[2]) + "_p2.fastq");
         for (size_t i = 0; i < pairedReads.first.size(); ++i)
         {
+            // generate fastq format of reads
+            ofsReads1 << '@' << i;
+            for (unsigned int e = 0; e < errNum; ++e)
+                ofsReads1 << "_" << errOffs.first[i][e];
+            ofsReads1 << "_CHR" << offsets.first[i].second << "_" << offsets.first[i].first << "\n";
+            ofsReads1 << pairedReads.first[i] << "\n";
+            ofsReads1 << '+' << i << "\n";
+            // produce dummy quality scores
+            for (size_t j = 0; j < readLen; ++j)
+                ofsReads1 << "%";
+            ofsReads1 << "\n";
+            // generate fastq format of reads
+            ofsReads2 << '@' << i;
+            for (unsigned int e = 0; e < errNum; ++e)
+                ofsReads2 << "_" << errOffs.second[i][e];
+            ofsReads2 << "_CHR" << offsets.second[i].second << "_" << offsets.second[i].first << "\n";
+            ofsReads2 << pairedReads.second[i] << "\n";
+            ofsReads2 << '+' << i << "\n";
+            // produce dummy quality scores
+            for (size_t j = 0; j < readLen; ++j)
+                ofsReads2 << "%";
+            ofsReads2 << "\n";
         }
         ofsReads1.close();
         ofsReads2.close();
@@ -157,7 +180,7 @@ int main(int argc, char** argv)
             ofsReads << fwdReads[i] << "\n";
             ofsReads << '+' << i << "\n";
             // produce dummy quality scores
-            for (size_t i = 0; i < readLen; ++i)
+            for (size_t j = 0; j < readLen; ++j)
                 ofsReads << "%";
             ofsReads << "\n";
         }
