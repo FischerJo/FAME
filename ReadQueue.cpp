@@ -1127,10 +1127,11 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // make timer for this
 
         // current best matching pair (sum of errors)
-        int bestErrNum = MyConst::MISCOUNT + 1;
+        int bestErrNum = 2*MyConst::MISCOUNT + 1;
         MATCH::match bestMatch1;
         MATCH::match bestMatch2;
         bool nonUniqueFlag = false;
+        // TODO: make dummy values for double matches at borders
 
         for (MATCH::match& mat1 : matches1Fwd)
         {
@@ -1219,7 +1220,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 
         // Check if no pairing possible
-        if (bestErrNum == MyConst::MISCOUNT + 1)
+        if (bestErrNum == 2*MyConst::MISCOUNT + 1)
         {
 #pragma omp critical
 {
