@@ -919,6 +919,9 @@ class ReadQueue
 
             // will contain matches iff match is found for number of errors specified by index
             std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
+            // store the last match found in current MetaCpG
+            uint8_t prevChr = 0;
+            uint64_t prevOff = 0xffffffffffffffffULL;
 
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
@@ -945,9 +948,19 @@ class ReadQueue
                 std::vector<uint8_t> errors;
                 sa.querySeq(startIt, endIt, matchings, errors);
 
+                size_t i = 0;
+                // compare first found match with last found match of previous meta CpG
+                if (matchings.size() > 0)
+                {
+                    // compare chromosome and offset
+                    if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+                    {
+                        ++i;
+                    }
+                }
                 // go through matching and see if we had such a match (with that many errors) before - if so,
                 // return to caller reporting no match
-                for (size_t i = 0; i < matchings.size(); ++i)
+                for (; i < matchings.size(); ++i)
                 {
 
                     // check if we had a match with that many errors before
@@ -993,7 +1006,20 @@ class ReadQueue
                         multiMatch[errors[i]] = 1;
                     }
                 }
+                if (matchings.size() > 0)
+                {
+
+                    prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
+                    prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+
+                } else {
+
+                    prevChr = 0;
+                    prevOff = 0xffffffffffffffffULL;
+                }
             }
+            prevChr = 0;
+            prevOff = 0xffffffffffffffffULL;
             // go through reverse sequences
             for (const auto& m : revMetaIDs_t)
             {
@@ -1020,9 +1046,19 @@ class ReadQueue
                 std::vector<uint8_t> errors;
                 sa.queryRevSeq(startIt, endIt, matchings, errors);
 
+                size_t i = 0;
+                // compare first found match with last found match of previous meta CpG
+                if (matchings.size() > 0)
+                {
+                    // compare chromosome and offset
+                    if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+                    {
+                        ++i;
+                    }
+                }
                 // go through matching and see if we had such a match (with that many errors) before - if so,
                 // return to caller reporting no match
-                for (size_t i = 0; i < matchings.size(); ++i)
+                for (; i < matchings.size(); ++i)
                 {
 
                     // check if we had a match with that many errors before
@@ -1066,6 +1102,17 @@ class ReadQueue
                         uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], errors[i], 0, 0, m.first);
                         multiMatch[errors[i]] = 1;
                     }
+                }
+                if (matchings.size() > 0)
+                {
+
+                    prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
+                    prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+
+                } else {
+
+                    prevChr = 0;
+                    prevOff = 0xffffffffffffffffULL;
                 }
             }
             // check all fwd meta CpGs that are at start
@@ -1243,6 +1290,10 @@ class ReadQueue
             auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
             auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
+            // store the last match found in current MetaCpG
+            uint8_t prevChr = 0;
+            uint64_t prevOff = 0xffffffffffffffffULL;
+
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
             {
@@ -1267,12 +1318,35 @@ class ReadQueue
                 std::vector<uint8_t> errors;
                 sa.querySeq(startIt, endIt, matchings, errors);
 
+                size_t i = 0;
+                // compare first found match with last found match of previous meta CpG
+                if (matchings.size() > 0)
+                {
+                    // compare chromosome and offset
+                    if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+                    {
+                        ++i;
+                    }
+                }
                 // translate found matchings
-                for (size_t i = 0; i < matchings.size(); ++i)
+                for (; i < matchings.size(); ++i)
                 {
                     mats.push_back(std::move(MATCH::constructMatch(matchings[i], errors[i], 1, 0, m.first)));
                 }
+                if (matchings.size() > 0)
+                {
+
+                    prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
+                    prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+
+                } else {
+
+                    prevChr = 0;
+                    prevOff = 0xffffffffffffffffULL;
+                }
             }
+            prevChr = 0;
+            prevOff = 0xffffffffffffffffULL;
             // go through reverse sequences
             for (const auto& m : revMetaIDs_t)
             {
@@ -1299,9 +1373,31 @@ class ReadQueue
                 std::vector<uint8_t> errors;
                 sa.queryRevSeq(startIt, endIt, matchings, errors);
 
-                for (size_t i = 0; i < matchings.size(); ++i)
+                size_t i = 0;
+                // compare first found match with last found match of previous meta CpG
+                if (matchings.size() > 0)
+                {
+                    // compare chromosome and offset
+                    if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+                    {
+                        ++i;
+                    }
+                }
+                // translate found matchings
+                for (; i < matchings.size(); ++i)
                 {
                     mats.push_back(std::move(MATCH::constructMatch(matchings[i], errors[i], 0, 0, m.first)));
+                }
+                if (matchings.size() > 0)
+                {
+
+                    prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
+                    prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+
+                } else {
+
+                    prevChr = 0;
+                    prevOff = 0xffffffffffffffffULL;
                 }
             }
             // check all fwd meta CpGs that are at start
@@ -1646,32 +1742,19 @@ class ReadQueue
         //
         inline int extractPairedMatch(MATCH::match& mat1, MATCH::match& mat2)
         {
-            // check if on opposing strands, first read matched on forward
-            if (MATCH::isFwd(mat1) == 1 && MATCH::isFwd(mat2) == 0)
+
+            if (MATCH::isFwd(mat1) == MATCH::isFwd(mat2))
             {
 
                 // check if in range
                 uint32_t mat1Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].pos + MATCH::getOffset(mat1);
                 uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
-                uint32_t matDist = mat2Pos - mat1Pos - MyConst::READLEN;
-                if (mat1Pos + MyConst::READLEN < mat2Pos && matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
-                {
-                    return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
-                }
-
-            // opposing but first read meatched on reverse
-            } else if (MATCH::isFwd(mat1) == 0 && MATCH::isFwd(mat2) == 1)
-            {
-                // check if in range
-                uint32_t mat1Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].pos + MATCH::getOffset(mat1);
-                uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
-                uint32_t matDist = mat1Pos - mat2Pos - MyConst::READLEN;
-                if (mat1Pos > mat2Pos + MyConst::READLEN && matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
+                uint32_t matDist = std::min(mat2Pos - mat1Pos, mat1Pos - mat2Pos);
+                if (matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
                 {
                     return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
                 }
             }
-
             return -1;
         }
 
@@ -2422,7 +2505,7 @@ class ReadQueue
         {
             o << "Match at offset " << MATCH::getOffset(mat) + ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos << \
                 " on chromosome " << static_cast<uint64_t>(ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].chrom) << \
-                " on strand " << (MATCH::isFwd(mat) ? "fwd" : "rev") << " with " << MATCH::getErrNum(mat) << " many errors.";
+                " on strand " << (MATCH::isFwd(mat) ? "fwd" : "rev") << " with " << MATCH::getErrNum(mat) << " many errors. Meta CpG " << MATCH::getMetaID(mat);
         }
 
 
