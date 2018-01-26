@@ -747,6 +747,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 continue;
             }
             prevC = false;
+            hasCpG = false;
             for (const char c : read2)
             {
                 if (c == 'C')
@@ -773,7 +774,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
             }
 
             // draw if main strand or second strand is originally methylated
-            // i.e. if read on main strand is C->T or G->A
+            // i.e. if read on main strand is C->T (1) or G->A (0)
             if (coin(MT))
             {
 
@@ -948,7 +949,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                             }
                         }
                     }
-                    // go through read 2 and introduce methylation
+                    // go through read 1 and introduce methylation
                     std::reverse(read1.begin(), read1.end());
                     for (size_t j = 0; j < readLen; ++j)
                     {
