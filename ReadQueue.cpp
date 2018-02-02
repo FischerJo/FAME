@@ -1039,8 +1039,9 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             }
         }
 
-        if (r1.isInvalid && r2.isInvalid)
+        if (r1.isInvalid || r2.isInvalid)
         {
+            unSuccMatchT += 2;
             continue;
         }
 
@@ -1060,69 +1061,40 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
     // MATCH FIRST READ
 
-        if (!r1.isInvalid)
+        getSeedRefs(r1.seq, readSize1, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saFwd(r1.seq, lmap);
+        saQuerySeedSetRefPaired(saFwd, matches1Fwd, qThreshold);
+
+        getSeedRefs(revSeq1, readSize1, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
+        saQuerySeedSetRefPaired(saRev, matches1Rev, qThreshold);
+
+        if (matches1Fwd.size() == 0 && matches1Rev.size() == 0)
         {
-
-            getSeedRefs(r1.seq, readSize1, qThreshold);
-            ShiftAnd<MyConst::MISCOUNT> saFwd(r1.seq, lmap);
-            saQuerySeedSetRefPaired(saFwd, matches1Fwd, qThreshold);
-
-            getSeedRefs(revSeq1, readSize1, qThreshold);
-            ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
-            saQuerySeedSetRefPaired(saRev, matches1Rev, qThreshold);
-
-            if (matches1Fwd.size() == 0 && matches1Rev.size() == 0)
-                r1.isInvalid = true;
+            r1.isInvalid = true;
+            unSuccMatchT += 2;
+            continue;
         }
+
+
     // MATCH SECOND READ
-        if (!r2.isInvalid)
+
+        getSeedRefs(r2.seq, readSize1, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saFwd(r2.seq, lmap);
+        saQuerySeedSetRefPaired(saFwd, matches2Fwd, qThreshold);
+
+        getSeedRefs(revSeq2, readSize1, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq2, lmap);
+        saQuerySeedSetRefPaired(saRev, matches2Rev, qThreshold);
+
+        if (matches2Fwd.size() == 0 && matches2Rev.size() == 0)
         {
-
-            getSeedRefs(r2.seq, readSize1, qThreshold);
-            ShiftAnd<MyConst::MISCOUNT> saFwd(r2.seq, lmap);
-            saQuerySeedSetRefPaired(saFwd, matches2Fwd, qThreshold);
-
-            getSeedRefs(revSeq2, readSize1, qThreshold);
-            ShiftAnd<MyConst::MISCOUNT> saRev(revSeq2, lmap);
-            saQuerySeedSetRefPaired(saRev, matches2Rev, qThreshold);
-
-            if (matches2Fwd.size() == 0 && matches2Rev.size() == 0)
-                r2.isInvalid = true;
-        }
-
-
-        // check if one read couldn't be matched for whatever reason
-        if (r1.isInvalid)
-        {
-            if (r2.isInvalid)
-            {
-                unSuccMatchT += 2;
-                continue;
-            }
-            if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
-            {
-                ++unSuccMatchT;
-                ++succMatchT;
-            } else {
-
-                ++unSuccMatchT;
-                ++nonUniqueMatchT;
-            }
-            continue;
-
-        } else if (r2.isInvalid)
-        {
-            if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
-            {
-                ++unSuccMatchT;
-                ++succMatchT;
-            } else {
-
-                ++unSuccMatchT;
-                ++nonUniqueMatchT;
-            }
+            r2.isInvalid = true;
+            unSuccMatchT += 2;
             continue;
         }
+
+
         // TODO:
         // make timer for this
 
@@ -1318,68 +1290,68 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // Check if no pairing possible
         if (bestErrNum == 2*MyConst::MISCOUNT + 1)
         {
-#pragma omp critical
-{
-            of << "\n\n\nNo pairing possible\n\n";
-            of << "Matches of read 1, ID " << r1.id << " \nfwd: " << r1.seq << "\n";
-            for (auto mat : matches1Fwd)
-            {
-                printMatch(of, mat);
-                of << "\n";
-            }
-            of << "Matches of read 1,  ID " << r1.id << " \nrev: " << revSeq1 << "\n";
-            for (auto mat : matches1Rev)
-            {
-                printMatch(of, mat);
-                of << "\n";
-            }
-            of << "\nMatches of read 2,  ID " << r2.id << " \nfwd: " << r2.seq << "\n";
-            for (auto mat : matches2Fwd)
-            {
-                printMatch(of, mat);
-                of << "\n";
-            }
-            of << "Matches of read 2,  ID " << r2.id << " \nrev: " << revSeq2 << "\n";
-            for (auto mat : matches2Rev)
-            {
-                printMatch(of, mat);
-                of << "\n";
-            }
-            of << "\n";
-// end pragma omp critical
-}
+// #pragma omp critical
+// {
+//             of << "\n\n\nNo pairing possible\n\n";
+//             of << "Matches of read 1, ID " << r1.id << " \nfwd: " << r1.seq << "\n";
+//             for (auto mat : matches1Fwd)
+//             {
+//                 printMatch(of, mat);
+//                 of << "\n";
+//             }
+//             of << "Matches of read 1,  ID " << r1.id << " \nrev: " << revSeq1 << "\n";
+//             for (auto mat : matches1Rev)
+//             {
+//                 printMatch(of, mat);
+//                 of << "\n";
+//             }
+//             of << "\nMatches of read 2,  ID " << r2.id << " \nfwd: " << r2.seq << "\n";
+//             for (auto mat : matches2Fwd)
+//             {
+//                 printMatch(of, mat);
+//                 of << "\n";
+//             }
+//             of << "Matches of read 2,  ID " << r2.id << " \nrev: " << revSeq2 << "\n";
+//             for (auto mat : matches2Rev)
+//             {
+//                 printMatch(of, mat);
+//                 of << "\n";
+//             }
+//             of << "\n";
+// // end pragma omp critical
+// }
 
             if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
             {
                 ++succMatchT;
-#pragma omp critical
-{
-                of << "\tSuccessfull r1\n";
-}
+// #pragma omp critical
+// {
+//                 of << "\tSuccessfull r1\n";
+// }
 
             } else {
 
                 matches1Fwd.size() + matches1Rev.size() > 0 ? ++nonUniqueMatchT : ++unSuccMatchT;
-#pragma omp critical
-{
-                of << "\tUnsuccessfull r1\n";
-}
+// #pragma omp critical
+// {
+//                 of << "\tUnsuccessfull r1\n";
+// }
             }
             if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
             {
 
                 ++succMatchT;
-#pragma omp critical
-{
-                of << "\tSuccessfull r2\n";
-}
+// #pragma omp critical
+// {
+//                 of << "\tSuccessfull r2\n";
+// }
             } else {
 
                 matches2Fwd.size() + matches2Rev.size() > 0 ? ++nonUniqueMatchT : ++unSuccMatchT;
-#pragma omp critical
-{
-                of << "\tUnsuccessfull r1\n";
-}
+// #pragma omp critical
+// {
+//                 of << "\tUnsuccessfull r1\n";
+// }
             }
 
         } else if (nonUniqueFlag)
