@@ -50,12 +50,12 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
         // revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
         fwdMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
         revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 1);
-        revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 1);
-        fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 2);
-        revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 2);
-        countsFwd[i] = std::vector<uint16_t>();
-        countsRev[i] = std::vector<uint16_t>();
+        fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
+        revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
+        fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
+        revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
+        // countsFwd[i] = std::vector<uint16_t>();
+        // countsRev[i] = std::vector<uint16_t>();
         countsFwdStart[i] = std::vector<uint16_t>();
         countsRevStart[i] = std::vector<uint16_t>();
     }
@@ -135,14 +135,14 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
         // revMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
         // fwdMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
         // revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
-        fwdMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 1);
-        revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 1);
-        fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 2);
-        revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 2);
-        countsFwd[i] = std::vector<uint16_t>();
-        countsRev[i] = std::vector<uint16_t>();
+        paired_fwdMetaIDs[i] = google::dense_hash_map<uint32_t, std::tuple<uint16_t, uint16_t, bool>, MetaHash>();
+        paired_revMetaIDs[i] = google::dense_hash_map<uint32_t, std::tuple<uint16_t, uint16_t, bool>, MetaHash>();
+        paired_fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
+        paired_revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
+        paired_fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
+        paired_revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
+        // countsFwd[i] = std::vector<uint16_t>();
+        // countsRev[i] = std::vector<uint16_t>();
         countsFwdStart[i] = std::vector<uint16_t>();
         countsRevStart[i] = std::vector<uint16_t>();
     }
@@ -1080,12 +1080,12 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
     // MATCH SECOND READ
 
         getSeedRefs(r2.seq, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saFwd(r2.seq, lmap);
-        saQuerySeedSetRefPaired(saFwd, matches2Fwd, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saFwd2(r2.seq, lmap);
+        saQuerySeedSetRefPaired(saFwd2, matches2Fwd, qThreshold);
 
         getSeedRefs(revSeq2, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq2, lmap);
-        saQuerySeedSetRefPaired(saRev, matches2Rev, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saRev2(revSeq2, lmap);
+        saQuerySeedSetRefPaired(saRev2, matches2Rev, qThreshold);
 
         if (matches2Fwd.size() == 0 && matches2Rev.size() == 0)
         {
@@ -1104,6 +1104,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         MATCH::match bestMatch2;
         bool nonUniqueFlag = false;
 
+        // TODO change this
         for (MATCH::match& mat1 : matches1Fwd)
         {
             for (MATCH::match& mat2Fwd : matches2Fwd)
