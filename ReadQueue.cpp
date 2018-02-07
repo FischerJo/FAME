@@ -1045,58 +1045,52 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             continue;
         }
 
-        // Stores the found matches for first and second read, resp.
-        std::vector<MATCH::match> matches1Fwd;
-        std::vector<MATCH::match> matches1Rev;
-        matches1Fwd.reserve(20);
-        matches1Rev.reserve(20);
-        std::vector<MATCH::match> matches2Fwd;
-        std::vector<MATCH::match> matches2Rev;
-        matches2Fwd.reserve(20);
-        matches2Rev.reserve(20);
         // set qgram threshold
         uint16_t qThreshold = readSize1 - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
         if (qThreshold > readSize1)
             qThreshold = 0;
 
-    // MATCH FIRST READ
+    // POSSIBLE ORIENTATION 1
 
-        getSeedRefs(r1.seq, readSize1, qThreshold);
+        getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
         ShiftAnd<MyConst::MISCOUNT> saFwd(r1.seq, lmap);
-        saQuerySeedSetRefPaired(saFwd, matches1Fwd, qThreshold);
 
-        getSeedRefs(revSeq1, readSize1, qThreshold);
+        getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saRev2(revSeq2, lmap);
+
+        std::vector<MATCH::match> matches1Fwd;
+        matches1Fwd.reserve(20);
+        std::vector<MATCH::match> matches2Rev;
+        matches2Rev.reserve(20);
+
+        saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
+        saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
+
+    // POSSIBLE ORIENTATION 1
+
+        getSeedRefsSecondRead(revSeq1, readSize1, qThreshold);
         ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
-        saQuerySeedSetRefPaired(saRev, matches1Rev, qThreshold);
 
-        if (matches1Fwd.size() == 0 && matches1Rev.size() == 0)
+        getSeedRefsFirstRead(r2.seq, readSize1, qThreshold);
+        ShiftAnd<MyConst::MISCOUNT> saFwd2(r2.seq, lmap);
+
+        std::vector<MATCH::match> matches1Rev;
+        matches1Rev.reserve(20);
+        std::vector<MATCH::match> matches2Fwd;
+        matches2Fwd.reserve(20);
+
+        saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
+        saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
+
+    // TEST IF MATCHING WAS SUCCESSFULL
+    //
+        if ((matches1Fwd.size() == 0 && matches1Rev.size() == 0) || (matches2Fwd.size() == 0 && matches2Rev.size() == 0))
         {
             r1.isInvalid = true;
-            unSuccMatchT += 2;
-            continue;
-        }
-
-
-    // MATCH SECOND READ
-
-        getSeedRefs(r2.seq, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saFwd2(r2.seq, lmap);
-        saQuerySeedSetRefPaired(saFwd2, matches2Fwd, qThreshold);
-
-        getSeedRefs(revSeq2, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saRev2(revSeq2, lmap);
-        saQuerySeedSetRefPaired(saRev2, matches2Rev, qThreshold);
-
-        if (matches2Fwd.size() == 0 && matches2Rev.size() == 0)
-        {
             r2.isInvalid = true;
             unSuccMatchT += 2;
             continue;
         }
-
-
-        // TODO:
-        // make timer for this
 
         // current best matching pair (sum of errors)
         int bestErrNum = 2*MyConst::MISCOUNT + 1;
@@ -1104,28 +1098,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         MATCH::match bestMatch2;
         bool nonUniqueFlag = false;
 
-        // TODO change this
         for (MATCH::match& mat1 : matches1Fwd)
         {
-            for (MATCH::match& mat2Fwd : matches2Fwd)
-            {
-                int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
-                if (extractedMatchErrs >= 0)
-                {
-                    if (extractedMatchErrs == bestErrNum)
-                    {
-                        nonUniqueFlag = true;
-
-                    } else if (extractedMatchErrs < bestErrNum) {
-
-                        bestErrNum = extractedMatchErrs;
-                        bestMatch1 = mat1;
-                        bestMatch2 = mat2Fwd;
-                        nonUniqueFlag = false;
-
-                    }
-                }
-            }
             for (MATCH::match& mat2Rev : matches2Rev)
             {
                 int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
@@ -1162,25 +1136,6 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
                         bestErrNum = extractedMatchErrs;
                         bestMatch1 = mat1;
                         bestMatch2 = mat2Fwd;
-                        nonUniqueFlag = false;
-
-                    }
-                }
-            }
-            for (MATCH::match& mat2Rev : matches2Rev)
-            {
-                int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
-                if (extractedMatchErrs >= 0)
-                {
-                    if (extractedMatchErrs == bestErrNum)
-                    {
-                        nonUniqueFlag = true;
-
-                    } else if (extractedMatchErrs < bestErrNum) {
-
-                        bestErrNum = extractedMatchErrs;
-                        bestMatch1 = mat1;
-                        bestMatch2 = mat2Rev;
                         nonUniqueFlag = false;
 
                     }
@@ -1321,39 +1276,43 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 //             of << "\n";
 // // end pragma omp critical
 // }
-
-            if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
-            {
-                ++succMatchT;
+            //
+            // if (extractSingleMatch(matches1Fwd, matches1Rev, r1, revSeq1))
+            // {
+            //     ++succMatchT;
 // #pragma omp critical
 // {
 //                 of << "\tSuccessfull r1\n";
 // }
-
-            } else {
-
-                matches1Fwd.size() + matches1Rev.size() > 0 ? ++nonUniqueMatchT : ++unSuccMatchT;
+            //
+            // } else {
+            //
+            //     matches1Fwd.size() + matches1Rev.size() > 0 ? ++nonUniqueMatchT : ++unSuccMatchT;
 // #pragma omp critical
 // {
 //                 of << "\tUnsuccessfull r1\n";
 // }
-            }
-            if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
-            {
-
-                ++succMatchT;
+            // }
+            // if (extractSingleMatch(matches2Fwd, matches2Rev, r2, revSeq2))
+            // {
+            //
+            //     ++succMatchT;
 // #pragma omp critical
 // {
 //                 of << "\tSuccessfull r2\n";
 // }
-            } else {
-
-                matches2Fwd.size() + matches2Rev.size() > 0 ? ++nonUniqueMatchT : ++unSuccMatchT;
+            // } else {
+            //
+            //     matches2Fwd.size() + matches2Rev.size() > 0 ? ++nonUniqueMatchT : ++unSuccMatchT;
 // #pragma omp critical
 // {
 //                 of << "\tUnsuccessfull r1\n";
 // }
-            }
+            // }
+
+            r1.isInvalid = true;
+            r2.isInvalid = true;
+            unSuccMatchT += 2;
 
         } else if (nonUniqueFlag)
         {

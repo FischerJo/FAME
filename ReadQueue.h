@@ -1281,14 +1281,14 @@ class ReadQueue
             // we have not a single match at all, return unsuccessfull to caller
             return 0;
         }
-        inline void saQuerySeedSetRefPaired(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+        inline void saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
             std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
             std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
-            auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
-            auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
+            auto& fwdMetaIDs_t = paired_fwdMetaIDs[omp_get_thread_num()];
+            auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
 
             // store the last match found in current MetaCpG
             uint8_t prevChr = 0;
@@ -1298,8 +1298,302 @@ class ReadQueue
             for (const auto& m : fwdMetaIDs_t)
             {
                 // apply qgram lemma
-                if (m.second < qThreshold)
+                // check for this read the counts
+                if (std::get<0>(m.second) < qThreshold)
                     continue;
+
+                // test if the current or its adjacent Meta CpGs fulfill qgram lemma for the second
+                bool isMatchable = false;
+                auto foundMeta = fwdMetaIDs_t.end();
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first - 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first - 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first + 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first + 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if (!isMatchable && std::get<1>(fwdMetaIDs_t[m.first]) < qThreshold && std::get<1>(revMetaIDs_t[m.first]) < qThreshold)
+                {
+                    continue;
+                }
+
+
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+
+                // check if CpG was too near to the end
+                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    endIt = ref.fullSeq[startCpg.chrom].end();
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.querySeq(startIt, endIt, matchings, errors);
+
+                size_t i = 0;
+                // compare first found match with last found match of previous meta CpG
+                if (matchings.size() > 0)
+                {
+                    // compare chromosome and offset
+                    if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+                    {
+                        ++i;
+                    }
+                }
+                // translate found matchings
+                for (; i < matchings.size(); ++i)
+                {
+
+                    std::get<2>(fwdMetaIDs_t[m.first]) = true;
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[i], errors[i], 1, 0, m.first)));
+                }
+                if (matchings.size() > 0)
+                {
+
+                    prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
+                    prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+
+                } else {
+
+                    prevChr = 0;
+                    prevOff = 0xffffffffffffffffULL;
+                }
+            }
+            prevChr = 0;
+            prevOff = 0xffffffffffffffffULL;
+            // go through reverse sequences
+            for (const auto& m : revMetaIDs_t)
+            {
+
+                // apply qgram lemma
+                // check for this read the counts
+                if (std::get<0>(m.second) < qThreshold)
+                    continue;
+
+                // test if the current or its adjacent Meta CpGs fulfill qgram lemma for the second
+                bool isMatchable = false;
+                auto foundMeta = fwdMetaIDs_t.end();
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first - 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first - 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first + 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first + 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || (std::get<1>(foundMeta->second) >= qThreshold);
+
+                }
+                if (!isMatchable && std::get<1>(fwdMetaIDs_t[m.first]) < qThreshold && std::get<1>(revMetaIDs_t[m.first]) < qThreshold)
+                {
+                    continue;
+                }
+
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
+                const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+
+                // check if CpG was too near to the end
+                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                size_t i = 0;
+                // compare first found match with last found match of previous meta CpG
+                if (matchings.size() > 0)
+                {
+                    // compare chromosome and offset
+                    if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+                    {
+                        ++i;
+                    }
+                }
+                // translate found matchings
+                for (; i < matchings.size(); ++i)
+                {
+                    std::get<2>(revMetaIDs_t[m.first]) = true;
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[i], errors[i], 0, 0, m.first)));
+                }
+                if (matchings.size() > 0)
+                {
+
+                    prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
+                    prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+
+                } else {
+
+                    prevChr = 0;
+                    prevOff = 0xffffffffffffffffULL;
+                }
+            }
+            // check all fwd meta CpGs that are at start
+            for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountFwdStart[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
+                auto startIt = ref.fullSeq[startCpg.chrom].begin();
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+
+                // check if CpG was too near to the end
+                if (endIt > ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    endIt = ref.fullSeq[startCpg.chrom].end();
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.querySeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t j = 0; j < matchings.size(); ++j)
+                {
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 1, 1, i)));
+                }
+            }
+            // go through reverse sequences of start meta CpGs
+            for (size_t i = 0; i < threadCountRevStart.size(); ++i)
+            {
+
+                // check if we fulfill the qgram lemma
+                // if not - continue with next meta CpG
+                if (threadCountRevStart[i] < qThreshold)
+                {
+                    continue;
+                }
+                // retrieve sequence
+                const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
+                const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+
+                // check if CpG was too near to the end
+                if (startIt >= ref.fullSeq[startCpg.chrom].end())
+                {
+                    // if so move end iterator appropriately
+                    startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+                }
+
+                // use shift and to find all matchings
+                std::vector<uint64_t> matchings;
+                std::vector<uint8_t> errors;
+                sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+                // go through matching and see if we had such a match (with that many errors) before - if so,
+                // return to caller reporting no match
+                for (size_t j = 0; j < matchings.size(); ++j)
+                {
+                    mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 0, 1, i)));
+                }
+            }
+        }
+        inline void saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+        {
+
+            // use counters to flag what has been processed so far
+            std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
+            std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
+            auto& fwdMetaIDs_t = paired_fwdMetaIDs[omp_get_thread_num()];
+            auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
+
+            // store the last match found in current MetaCpG
+            uint8_t prevChr = 0;
+            uint64_t prevOff = 0xffffffffffffffffULL;
+
+            // check all fwd meta CpGs
+            for (const auto& m : fwdMetaIDs_t)
+            {
+                // apply qgram lemma
+                // check for this read the counts
+                if (std::get<1>(m.second) < qThreshold)
+                    continue;
+
+                // test if the current or its adjacent Meta CpGs has a match of a first read
+                bool isMatchable = false;
+                auto foundMeta = fwdMetaIDs_t.end();
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first - 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first - 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first + 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first + 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if (!isMatchable && !std::get<2>(fwdMetaIDs_t[m.first]) && !std::get<2>(revMetaIDs_t[m.first]))
+                {
+                    continue;
+                }
+
 
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
@@ -1352,8 +1646,41 @@ class ReadQueue
             {
 
                 // apply qgram lemma
-                if (m.second < qThreshold)
+                // check for this read the counts
+                if (std::get<1>(m.second) < qThreshold)
                     continue;
+
+                // test if the current or its adjacent Meta CpGs fulfill qgram lemma for the second
+                bool isMatchable = false;
+                auto foundMeta = fwdMetaIDs_t.end();
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first - 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first - 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if ( (foundMeta = fwdMetaIDs_t.find(m.first + 1)) != fwdMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if ( (foundMeta = revMetaIDs_t.find(m.first + 1)) != revMetaIDs_t.end())
+                {
+
+                    isMatchable = isMatchable || std::get<2>(foundMeta->second);
+
+                }
+                if (!isMatchable && !std::get<2>(fwdMetaIDs_t[m.first]) && !std::get<2>(revMetaIDs_t[m.first]))
+                {
+                    continue;
+                }
 
                 // retrieve sequence
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
@@ -1633,7 +1960,6 @@ class ReadQueue
                 }
             }
         }
-        // TODO
         inline void getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
         {
 
@@ -1841,25 +2167,45 @@ class ReadQueue
 
                 } else {
 
-                    if (isFwd)
+                    // test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
+                    bool isMatchable = false;
+                    auto foundMeta = fwdMetaIDs_t.end();
+                    if ( (foundMeta = fwdMetaIDs_t.find(metaId - 1)) != fwdMetaIDs_t.end())
                     {
-                        if (fwdMetaIDs_t.find(metaId) != fwdMetaIDs_t.end() ||
-                                fwdMetaIDs_t.find(metaId - 1) != fwdMetaIDs_t.end() ||
-                                fwdMetaIDs_t.find(metaId + 1) != fwdMetaIDs_t.end() )
+
+                        isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                    }
+                    if ( (foundMeta = revMetaIDs_t.find(metaId - 1)) != revMetaIDs_t.end())
+                    {
+
+                        isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                    }
+                    if ( (foundMeta = fwdMetaIDs_t.find(metaId + 1)) != fwdMetaIDs_t.end())
+                    {
+
+                        isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                    }
+                    if ( (foundMeta = revMetaIDs_t.find(metaId + 1)) != revMetaIDs_t.end())
+                    {
+
+                        isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                    }
+                    if (isMatchable || std::get<0>(fwdMetaIDs_t[metaId]) >= qThreshold || std::get<0>(revMetaIDs_t[metaId]) >= qThreshold)
+                    {
+                        // update counts for second read
+                        if (isFwd)
                         {
                             ++std::get<1>(fwdMetaIDs_t[metaId]);
-                        }
-
-                    } else {
-
-                        if (revMetaIDs_t.find(metaId) != revMetaIDs_t.end() ||
-                                revMetaIDs_t.find(metaId - 1) != revMetaIDs_t.end() ||
-                                revMetaIDs_t.find(metaId + 1) != revMetaIDs_t.end() )
-                        {
+                        } else {
                             ++std::get<1>(revMetaIDs_t[metaId]);
                         }
 
                     }
+
                 }
             }
 
@@ -1906,36 +2252,56 @@ class ReadQueue
 
                     } else {
 
-                        if (isFwd)
+                        // check if it is at all possible to have newly inserted element passing q
+                        if (cIdx < maxQPos)
                         {
-                            // check if it is at all possible to have newly inserted element passing q
-                            if (cIdx < maxQPos)
+                            // test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
+                            bool isMatchable = false;
+                            auto foundMeta = fwdMetaIDs_t.end();
+                            if ( (foundMeta = fwdMetaIDs_t.find(metaId - 1)) != fwdMetaIDs_t.end())
                             {
-                                if (fwdMetaIDs_t.find(metaId) != fwdMetaIDs_t.end() ||
-                                        fwdMetaIDs_t.find(metaId - 1) != fwdMetaIDs_t.end() ||
-                                        fwdMetaIDs_t.find(metaId + 1) != fwdMetaIDs_t.end() )
+
+                                isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                            }
+                            if ( (foundMeta = revMetaIDs_t.find(metaId - 1)) != revMetaIDs_t.end())
+                            {
+
+                                isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                            }
+                            if ( (foundMeta = fwdMetaIDs_t.find(metaId + 1)) != fwdMetaIDs_t.end())
+                            {
+
+                                isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                            }
+                            if ( (foundMeta = revMetaIDs_t.find(metaId + 1)) != revMetaIDs_t.end())
+                            {
+
+                                isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
+
+                            }
+                            if (isMatchable || std::get<0>(fwdMetaIDs_t[metaId]) >= qThreshold || std::get<0>(revMetaIDs_t[metaId]) >= qThreshold)
+                            {
+                                // update counts for second read
+                                if (isFwd)
                                 {
                                     ++std::get<1>(fwdMetaIDs_t[metaId]);
+                                } else {
+                                    ++std::get<1>(revMetaIDs_t[metaId]);
                                 }
 
-                            } else {
-
-                                auto it = fwdMetaIDs_t.find(metaId);
-                                if (it != fwdMetaIDs_t.end())
-                                {
-                                    ++std::get<1>(it->second);
-                                }
                             }
 
                         } else {
 
-                            if (cIdx < maxQPos)
+                            if (isFwd)
                             {
-                                if (revMetaIDs_t.find(metaId) != revMetaIDs_t.end() ||
-                                        revMetaIDs_t.find(metaId - 1) != revMetaIDs_t.end() ||
-                                        revMetaIDs_t.find(metaId + 1) != revMetaIDs_t.end() )
+                                auto it = fwdMetaIDs_t.find(metaId);
+                                if (it != fwdMetaIDs_t.end())
                                 {
-                                    ++std::get<1>(revMetaIDs_t[metaId]);
+                                    ++std::get<1>(it->second);
                                 }
 
                             } else {
@@ -1943,10 +2309,9 @@ class ReadQueue
                                 auto it = revMetaIDs_t.find(metaId);
                                 if (it != revMetaIDs_t.end())
                                 {
-                                    ++std::get<1>(revMetaIDs_t[metaId]);
+                                    ++std::get<1>(it->second);
                                 }
                             }
-
                         }
                     }
                 }
