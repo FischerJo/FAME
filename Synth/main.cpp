@@ -199,6 +199,14 @@ int main(int argc, char** argv)
         ofsReads << (cpg.first >> 32) << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
     }
     ofsReads.close();
+    ofsReads.open(std::string(argv[2]) + "_cpginfo_rev.tsv");
+    ofsReads << "Chromosome\tPosition\tUnmethylated\tMethylated\tSampleRate\n";
+    for (auto& cpg : synthGen.cpgMethRateRev)
+    {
+        const uint64_t offset = cpg.first & 0x00000000ffffffffULL;
+        ofsReads << (cpg.first >> 32) << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
+    }
+    ofsReads.close();
     return 0;
 
 }
