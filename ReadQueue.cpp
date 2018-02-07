@@ -1068,10 +1068,10 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
     // POSSIBLE ORIENTATION 1
 
-        getSeedRefsSecondRead(revSeq1, readSize1, qThreshold);
+        getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
         ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
 
-        getSeedRefsFirstRead(r2.seq, readSize1, qThreshold);
+        getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
         ShiftAnd<MyConst::MISCOUNT> saFwd2(r2.seq, lmap);
 
         std::vector<MATCH::match> matches1Rev;
@@ -1083,7 +1083,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
 
     // TEST IF MATCHING WAS SUCCESSFULL
-    //
+
         if ((matches1Fwd.size() == 0 && matches1Rev.size() == 0) || (matches2Fwd.size() == 0 && matches2Rev.size() == 0))
         {
             r1.isInvalid = true;
@@ -1091,6 +1091,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             unSuccMatchT += 2;
             continue;
         }
+
+    // TRY TO PAIR MATCHES
 
         // current best matching pair (sum of errors)
         int bestErrNum = 2*MyConst::MISCOUNT + 1;
