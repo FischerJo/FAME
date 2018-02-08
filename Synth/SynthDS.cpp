@@ -703,7 +703,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
             // draw a distance between the two reads
             const size_t pDist = pairedOffDist(MT);
             std::string read1(refSeqFwd[chr], offset, readLen);
-            std::string read2(refSeqFwd[chr], offset + pDist, readLen);
+            std::string read2(refSeqFwd[chr], offset + pDist + readLen, readLen);
 
             bool read1isFwd;
             // flip a coin if read 1 is from main strand
@@ -839,7 +839,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                                     // letter j-1 was already processed and hence converted from G to C
                                     if (read2[j-1] == 'C')
                                     {
-                                        struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen + pDist - j - 1) ];
+                                        struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + 2*readLen + pDist - j - 1) ];
                                         std::bernoulli_distribution methIt(met.sampleRate);
                                         if (!methIt(MT))
                                         {
@@ -914,7 +914,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                                 // if G follows, update CpG structure and methylate according to sampling rate
                                 if (read2[j+1] == 'G')
                                 {
-                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + pDist + j) ];
+                                    struct MethInfo& met = cpgMethRateFwd[ (static_cast<uint64_t>(chr) << 32) | (offset + pDist + readLen + j) ];
                                     std::bernoulli_distribution methIt(met.sampleRate);
                                     if (!methIt(MT))
                                     {
@@ -1086,7 +1086,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                                 {
                                     if (read2[j + 1] == 'C')
                                     {
-                                        struct MethInfo& met = cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen + pDist - j - 2) ];
+                                        struct MethInfo& met = cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + 2*readLen + pDist - j - 2) ];
                                         std::bernoulli_distribution methIt(met.sampleRate);
                                         if (!methIt(MT))
                                         {
@@ -1161,7 +1161,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                                 // if G follows, update CpG structure and methylate according to sampling rate
                                 if (read2[j - 1] == 'C')
                                 {
-                                    struct MethInfo& met = cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + pDist + j - 1) ];
+                                    struct MethInfo& met = cpgMethRateRev[ (static_cast<uint64_t>(chr) << 32) | (offset + readLen + pDist + j - 1) ];
                                     std::bernoulli_distribution methIt(met.sampleRate);
                                     if (!methIt(MT))
                                     {
