@@ -47,7 +47,8 @@ class RefGenome
         //      cpgStartTab table of CpGs near the start
         //      genSeq      genomic sequence seperated by chromosome
         //      noloss      flag that is true iff index must be lossless
-        RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genSeq, const bool noloss);
+		//      chrMap		map of internal chromosome ID to external string identifier of fasta file
+        RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genSeq, const bool noloss, std::unordered_map<uint8_t, std::string>& chromMap);
         // ARGUMENTS:
         //      filepath    file where index was saved before using RefGenome::save(...)
         RefGenome(std::string filePath);
@@ -731,6 +732,9 @@ class RefGenome
         };
         // contains all kmers discarded during filterHashTable
         std::unordered_set<uint64_t, KmerHash> filteredKmers;
+
+		// mapping of internal chromosome id to external string identifier from fasta
+		std::unordered_map<uint8_t, std::string> chrMap;
 
 };
 

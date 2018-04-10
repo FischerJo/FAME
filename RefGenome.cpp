@@ -21,7 +21,7 @@
 #include "RefGenome.h"
 
 
-RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genomeSeq, const bool noloss) :
+RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genomeSeq, const bool noloss, std::unordered_map<uint8_t, std::string>& chromMap) :
         cpgTable(cpgTab)
     ,   cpgStartTable(cpgStartTab)
     ,   genomeBit()
@@ -31,6 +31,7 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
     ,   strandTable()
     ,   metaCpGs()
     ,   metaStartCpGs()
+	,	chrMap(chromMap)
 {
 
     if (!testPODs())
@@ -202,6 +203,23 @@ void RefGenome::save(const std::string& filepath)
         std::cerr << "Error while writing index file... Terminating\n\n";
         exit(1);
     }
+
+	// write chromosome ID mapping
+	chromNum = chrMap.size();
+	of.write(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
+	for (auto chrMapping : chrMap)
+	{
+		uint8_t internID = chrMapping.first;
+		of.write(reinterpret_cast<char*>(&internID), sizeof(internID));
+		size_t strlen = chrMapping.second.size();
+		of.write(reinterpret_cast<char*>(&strlen), sizeof(strlen));
+		for (char c : chrMapping.second)
+		{
+			of.write(&c, sizeof(c));
+		}
+	}
+
+
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "Finished writing index to file " << filepath << " in " << runtime << "s\n\n";
@@ -321,6 +339,27 @@ void RefGenome::load(const std::string& filepath)
         std::cerr << "Error while reading index file! Terminating...\n\n";
         exit(1);
     }
+	// load chromosome ID mapping
+	ifs.read(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
+	// TODO
+	std::cout << "Loading Chromosome mapping (internal : external):\n";
+	for (size_t i = 0; i < chromNum; ++i)
+	{
+		uint8_t internID;
+		ifs.read(reinterpret_cast<char*>(&internID), sizeof(internID));
+		std::string externID;
+		size_t strlen;
+		ifs.read(reinterpret_cast<char*>(&strlen), sizeof(strlen));
+		for (size_t strL = 0; strL < strlen; ++strL)
+		{
+			char c;
+			ifs.read(&c, sizeof(c));
+			externID += c;
+		}
+		chrMap.insert(std::pair<uint8_t, std::string>(internID, externID));
+		// TODO
+		std::cout << "\t" << internID << "  :  " << externID << "\n";
+	}
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     std::cout << "Finished reading index file " << filepath << " in " << runtime << "s\n\n";

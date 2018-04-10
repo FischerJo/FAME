@@ -22,7 +22,7 @@
 #include "RefReader_istr.h"
 
 
-void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq)
+void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq, std::unordered_map<uint8_t, std::string>& chrMap)
 {
 
     std::string line;
@@ -66,14 +66,34 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 
             }
             // check if primary assembly
+			// (GRCH versions)
             if (*(line.begin() + 1) == 'C')
             {
 
                 ++chrIndex;
+				std::string chrID (line.begin() + 1, line.end());
+				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex, chrID));
                 contFlag = true;
                 continue;
 
             // throw out unlocalized contigs
+			// (hg versions)
+			} else if ( *(line.begin() + 1) == 'c')
+			{
+
+                ++chrIndex;
+				std::string chrID (line.begin() + 1, line.end());
+				// test if real primary assembly sequence
+				if (!isPrimaryHG(chrID))
+				{
+					--chrIndex;
+					contFlag = false;
+					continue;
+				}
+				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex, chrID));
+                contFlag = true;
+                continue;
+
             } else {
 
                 contFlag = false;
@@ -111,5 +131,23 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
     ifs.close();
 
     std::cout << "Done reading reference file" << std::endl;
+
+}
+
+bool isPrimaryHG(std::string chrID)
+{
+	for (unsigned int i = 1; i <= 22; ++i)
+	{
+		if (chrID == ("chr" + std::to_string(i)))
+		{
+			return true;
+		}
+	}
+	if (chrID == "chrX")
+		return true;
+	if (chrID == "chrY")
+		return true;
+
+	return false;
 
 }

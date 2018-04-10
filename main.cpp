@@ -253,9 +253,10 @@ int main(int argc, char** argv)
         std::vector<struct CpG> cpgTab;
         std::vector<struct CpG> cpgStartTab;
         std::vector<std::vector<char>> genSeq;
+		std::unordered_map<uint8_t, std::string> chrMap;
 
-        readReference(genomeFile, cpgTab, cpgStartTab, genSeq);
-        RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq, noloss);
+        readReference(genomeFile, cpgTab, cpgStartTab, genSeq, chrMap);
+        RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq, noloss, chrMap);
 
         if (storeIndexFlag)
         {
@@ -317,6 +318,9 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
+        // TODO
+        // if (i >= 1)
+        //     break;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch);
         std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many paired reads\n";
     }

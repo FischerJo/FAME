@@ -1442,7 +1442,7 @@ void ReadQueue::printMethylationLevels(std::string& filename)
     {
 
         // print the position of the (C of the) CpG
-        cpgFile << static_cast<uint16_t>(ref.cpgStartTable[cpgID].chrom) << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
+        cpgFile << ref.chrMap[ref.cpgStartTable[cpgID].chrom] << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
 
         // print the counts
         // fwd counts
@@ -1459,7 +1459,7 @@ void ReadQueue::printMethylationLevels(std::string& filename)
     {
 
         // print the position of the (C of the) CpG
-        cpgFile << static_cast<uint16_t>(ref.cpgTable[cpgID].chrom) << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\t";
+        cpgFile << ref.chrMap[ref.cpgTable[cpgID].chrom] << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\t";
 
         // print the counts
         // fwd counts
