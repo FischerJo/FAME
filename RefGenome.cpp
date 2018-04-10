@@ -451,14 +451,16 @@ void RefGenome::generateMetaCpGs()
     // Assuming window is larger then readlength
     while (cpgStartInd < cpgStartTable.size())
     {
+		bool isMod = false;
 
         while (cpgStartInd < cpgStartTable.size() && cpgStartTable[cpgStartInd].chrom == currChr)
         {
-
+			isMod = true;
             ++cpgStartInd;
         }
 
-        metaStartCpGs.push_back({start, cpgStartInd - 1});
+        if (isMod)
+			metaStartCpGs.push_back({start, cpgStartInd - 1});
         ++currChr;
         start = cpgStartInd;
     }
