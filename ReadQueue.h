@@ -2668,7 +2668,7 @@ class ReadQueue
                     const char* refSeq = ref.fullSeq[chrom].data() + offset;
 
                     // init levenshtein DP algo
-                    LevenshtDP<uint16_t, MyConst::MISCOUNT> lev(seq, refSeq);
+                    LevenshtDP<uint16_t, MyConst::MISCOUNT + MyConst::ADDMIS> lev(seq, refSeq);
                     std::vector<ERROR_T> alignment;
 
                     // minimum position for overlap
@@ -2809,7 +2809,7 @@ class ReadQueue
                     const char* refSeq = ref.fullSeq[chrom].data() + metaPos + offset;
 
                     // init levenshtein DP algo
-                    LevenshtDP<uint16_t, MyConst::MISCOUNT> lev(seq, refSeq);
+                    LevenshtDP<uint16_t, MyConst::MISCOUNT + MyConst::ADDMIS> lev(seq, refSeq);
                     std::vector<ERROR_T> alignment;
 
                     // minimum position for overlap

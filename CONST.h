@@ -34,14 +34,14 @@ namespace MyConst {
 constexpr unsigned int READLEN = 101;
 
 // maximum number of times a k-mer is allowed to occur in the whole genome
-constexpr uint64_t KMERCUTOFF = 10000;
+constexpr uint64_t KMERCUTOFF = 1500;
 
 // Number of cores that this program is allowed to occupy at any given point
-#define CORENUM 1
+#define CORENUM 32
 
 // closed interval borders for distances allowed between paired reads
-constexpr unsigned int MINPDIST = 100;
-constexpr unsigned int MAXPDIST = 600;
+constexpr uint32_t MINPDIST = 20;
+constexpr uint32_t MAXPDIST = 1000;
 
 //  --------------------------------------
 
@@ -63,8 +63,8 @@ constexpr unsigned int CPGMAX = 100000000;
 
 // number of reads that should be read per batch
 // (note that very large values may increase the required amount of RAM drastically)
-// recommended is 100 000
-constexpr unsigned int CHUNKSIZE = 100000;
+// recommended is 300 000
+constexpr unsigned int CHUNKSIZE = 300000;
 
 // Length of a kmer in bp
 // recommended is 25
@@ -84,11 +84,13 @@ constexpr uint64_t HTABSIZE = 1ULL << 30;
 
 // window length for meta CpGs
 // recommended is 2048
-constexpr unsigned int WINLEN = 2048;
+constexpr unsigned int WINLEN = 1024;
 
-// number of mismatches we allow
+// number of mismatches we allow initially (for q-gram lemma)
 // recommended is 2
 constexpr uint8_t MISCOUNT = 2;
+// number of mismatches we allow additionally for shift-and and alignment
+constexpr uint8_t ADDMIS = 0;
 
 // Checks the usefulness of the set parameters
 void sanityChecks();

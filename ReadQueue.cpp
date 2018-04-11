@@ -1055,7 +1055,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
         getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saFwd(r1.seq, lmap);
+        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
 
         // std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
         // auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -1063,7 +1063,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // startTime = std::chrono::high_resolution_clock::now();
 
         getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saRev2(revSeq2, lmap);
+        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
 
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -1084,10 +1084,10 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // of << runtime << "\t";
         // startTime = std::chrono::high_resolution_clock::now();
 
-    // POSSIBLE ORIENTATION 1
+    // POSSIBLE ORIENTATION 2
 
         getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq1, lmap);
+        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
 
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -1096,7 +1096,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 
         getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT> saFwd2(r2.seq, lmap);
+        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
 
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -1131,7 +1131,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         // of << "Matching sizes: " << matches1Fwd.size() << "/" << matches2Rev.size() << "\tTimings: ";
         // startTime = std::chrono::high_resolution_clock::now();
         // current best matching pair (sum of errors)
-        int bestErrNum = 2*MyConst::MISCOUNT + 1;
+        int bestErrNum = 2*(MyConst::MISCOUNT + MyConst::ADDMIS) + 1;
         MATCH::match bestMatch1;
         MATCH::match bestMatch2;
         bool nonUniqueFlag = false;
