@@ -1281,7 +1281,7 @@ class ReadQueue
             // we have not a single match at all, return unsuccessfull to caller
             return 0;
         }
-        inline void saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+        inline void saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
@@ -1541,7 +1541,7 @@ class ReadQueue
                 }
             }
         }
-        inline void saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+        inline void saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
