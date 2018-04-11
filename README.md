@@ -1,5 +1,4 @@
 # FAME
-======
 
 **F**ast and **A**ccurate **ME**thylation Aligner for large mammalian genomes.
 Carries out alignment and methylation calling for CpGs of Whole Genome Bisulfite Sequencing (WGBS) reads in one go without the need of intermediate alignment or buffer files. 
@@ -12,7 +11,6 @@ The code is written in C++ and parallelized using OpenMP and is licensed under G
 Read Cytosines to Reference Thymines, but not vice versa. This is termed asymmetric mapping problem and is commonly tackled by working only on the reduced alphabet (A,T,G), which results in false matchings of reference Ts to read Cs.
 
 ## 1) Getting Started
-======
 
 The following steps explain how to install and setup FAME .
 
@@ -64,7 +62,6 @@ For a full set of options we refer to section 2.C.
 
 
 ## 2) Manual
-======
 
 ### A) Parameter settings
 
@@ -85,9 +82,22 @@ Here is a list of the external parameters:
 | CORENUM      | Number of threads spawned by the program. Should be number of free cores on the system. | 16 | 37 |
 | MINPDIST | Minimum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 50 | 40 |
 | MAXPDIST | Maximum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 400 | 41 |
+| CHROMNUM | Number of chromosomes of reference organism. | 24 | 44 |
+
+Here is a list of important internal parameters, we strongly recommend not to change them:
+
+| Parameter     | Definition       | Recommended value  | Location (line number) |
+| ------------- |-------------| -----:| :----: |
+| CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 64 |
+| KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. | 25 | 68 |
+| MISCOUNT | Number of errors considered for k-mer filters. | 2 | 88 |
+| ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 3 | 90 |
+| KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 93 |
 
 
 ### B) Index preparation
+
+
 
 ### C) Alignment
 
@@ -102,19 +112,16 @@ If you found a bug, please contact us with a description of how you called the t
 
 
 ## 4) Authors
-======
 
 * **Jonas Fischer** - *Main Contributor* - Max-Planck-Institute for Informatics, Saarbruecken, Germany
 * **Marcel H. Schulz** Max-Planck-Institute for Informatics, Saarbruecken, Germany
 
 
 ## 5) License
-======
 
 This project is licensed under the GPL3 - see the [LICENSE_GPL_3_0](LICENSE_GPL_3_0) file for details.
 
 ## 6) References
-======
 
 * Our paper: COMING SOON
 * ntHash: [ntHash: recursive nucleotide hashing. Mohamadi H, Chu J, Vandervalk BP, Birol I.  Bioinformatics 2016](https://www.ncbi.nlm.nih.gov/pubmed/27423894)
