@@ -33,15 +33,15 @@ namespace MyConst {
 // maximum read length of the reads in bp
 constexpr unsigned int READLEN = 101;
 
-// maximum number of times a k-mer is allowed to occur in the whole genome
-constexpr uint64_t KMERCUTOFF = 1500;
-
 // Number of cores that this program is allowed to occupy at any given point
 #define CORENUM 32
 
 // closed interval borders for distances allowed between paired reads
 constexpr uint32_t MINPDIST = 20;
 constexpr uint32_t MAXPDIST = 1000;
+
+// number of chromosomes in organism
+constexpr unsigned int CHROMNUM = 24;
 
 //  --------------------------------------
 
@@ -51,9 +51,6 @@ constexpr uint32_t MAXPDIST = 1000;
 // --------------------
 // ------INTERNAL------
 // --------------------
-
-// number of chromosomes in organism
-constexpr unsigned int CHROMNUM = 24;
 
 // (more than) size in bp of biggest chromosome in organism
 constexpr unsigned int CHROMMAX = 1000000000;
@@ -90,7 +87,10 @@ constexpr unsigned int WINLEN = 1024;
 // recommended is 2
 constexpr uint8_t MISCOUNT = 2;
 // number of mismatches we allow additionally for shift-and and alignment
-constexpr uint8_t ADDMIS = 0;
+constexpr uint8_t ADDMIS = 3;
+
+// maximum number of times a k-mer is allowed to occur in the whole genome
+constexpr uint64_t KMERCUTOFF = 1500;
 
 // Checks the usefulness of the set parameters
 void sanityChecks();
