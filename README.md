@@ -58,7 +58,7 @@ To align reads to an index call:
 ./FAME -r /Path/To/reads.fastq --load_index /Path/To/produced_index -o /Path/To/output
 ```
 with `/Path/To/output` being the output file path for the CpG report.
-For a full set of options we refer to section 2.C.
+For a full set of options we refer to section 2.B.
 
 
 ## 2) Manual
@@ -95,13 +95,41 @@ Here is a list of important internal parameters, we strongly recommend not to ch
 | KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 93 |
 
 
-### B) Index preparation
+### B) FAME command line arguments
 
+The following is a description of all arguments accepted by FAME.
+Examples on how to use FAME in the command line are given in 2.D.
 
+| Flag    | Argument       | Description  |
+| ------------- |-------------| :-----:|
+| -h      | None | Lists all available options with a description. |
+| --help | None | see -h |
+| --genome | Filepath | Forces the tool to build an index for the specified .fasta reference file |
+| --store_index | Filepath | Writes output of index construction to filepath (~32GB for human genome). NOTE: Directory must exist. |
+| --no_loss | None | Builds the index with lossless filter (NOT RECOMMENDED). |
+| --load_index | Filepath | Loads the index constructed before. NOTE: Parameters in `CONST.h` must be the same. |
+| -r | Filepath | Forces the tool to query the specified single end read .fastq file to a loaded index. |
+| -r1 | Filepath | Path to file with first reads of a paired read set. Read format must be .fastq. |
+| -r2 | Filepath | Path to file with second reads of a paired read set. Read format must be .fastq. |
+| --gzip_reads | None | Treats the read files passed to -r or -r1 and -r2 as gzipped files. |
+| -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
+| --out_basename | Filepath | see -o |
 
-### C) Alignment
+### C) Output format
 
-TODO: explain output format!
+The alignment of a read set to an index produces an output file (see `-o` command line argument) that contains
+methylation levels of all CpGs in the reference genome.
+The file is a tab-separated value file (`.tsv`) with the following structure:
+```
+Chromosome  Position   #Meth_Cs_fwd   #Unmeth_Cs_fwd   #Meth_Cs_rev   #Unmeth_Cs_rev
+```
+where #Meth_Cs_fwd means number of methylated Cytosines on forward strand CpG and so on.
+The position is a (zero based) count of the bases of a chromosome, indicating the position of the C of a CpG.
+The forward strand is the strand provided in the reference file, the reverse complement strand the strand not provided in the reference file.
+
+### D) Extended examples
+
+TODO
 
 ## 3) Contact
 
