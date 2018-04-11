@@ -72,7 +72,7 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 
                 ++chrIndex;
 				std::string chrID (line.begin() + 1, line.end());
-				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex, chrID));
+				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex - 1, chrID));
                 contFlag = true;
                 continue;
 
@@ -90,7 +90,7 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 					contFlag = false;
 					continue;
 				}
-				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex, chrID));
+				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex - 1, chrID));
                 contFlag = true;
                 continue;
 
