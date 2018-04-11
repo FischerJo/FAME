@@ -10,9 +10,12 @@ The code is written in C++ and parallelized using OpenMP and is licensed under G
 \*In WGBS experiments, unmethylated Cytosines are converted to Thymines in Reads, thus it is necessary to allow
 Read Cytosines to Reference Thymines, but not vice versa. This is termed asymmetric mapping problem and is commonly tackled by working only on the reduced alphabet (A,T,G), which results in false matchings of reference Ts to read Cs.
 
+
+
 ## 1) Getting Started
 
 The following steps explain how to install and setup FAME .
+
 
 ### A) Dependencies
 
@@ -41,6 +44,7 @@ make
 ```
 in the top level directory of the cloned repository.
 
+
 ### C) Simple example
 
 FAME, as most other tools, uses a sohpisticated index structure of the reference genome to accelerate alignment computation.
@@ -61,7 +65,9 @@ with `/Path/To/output` being the output file path for the CpG report.
 For a full set of options we refer to section 2.B.
 
 
+
 ## 2) Manual
+
 
 ### A) Parameter settings
 
@@ -115,6 +121,7 @@ Examples on how to use FAME in the command line are given in 2.D.
 | -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
 | --out_basename | Filepath | see -o |
 
+
 ### C) Output format
 
 The alignment of a read set to an index produces an output file (see `-o` command line argument) that contains
@@ -127,9 +134,12 @@ where #Meth_Cs_fwd means number of methylated Cytosines on forward strand CpG an
 The position is a (zero based) count of the bases of a chromosome, indicating the position of the C of a CpG.
 The forward strand is the strand provided in the reference file, the reverse complement strand the strand not provided in the reference file.
 
+
 ### D) Extended examples
 
 TODO
+
+
 
 ## 3) Contact
 
@@ -148,6 +158,7 @@ If you found a bug, please contact us with a description of how you called the t
 ## 5) License
 
 This project is licensed under the GPL3 - see the [LICENSE_GPL_3_0](LICENSE_GPL_3_0) file for details.
+
 
 ## 6) References
 
