@@ -39,8 +39,9 @@ struct idPos {
 
 struct CpG {
 
-    // position where this CpG is present in genome
+	// chromosome on which CpG appears
     uint8_t chrom;
+    // position where this CpG is present in genome
     // convention: pos points to position of start of context of CpG (C position - READLEN + 2)
     //              or to position of C if the former is negative
     uint32_t pos;
@@ -158,6 +159,9 @@ namespace MATCH {
     {
         return (static_cast<uint64_t>(off)) | (static_cast<uint64_t>(errNum) << 16) | (isFwd << 24) | (isStart << 25) | (metaID << 32);
     }
+
 } // end namespace MATCH
+
+
 
 #endif /* STRUCTS_H */
