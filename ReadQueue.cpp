@@ -380,7 +380,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         const size_t readSize = r.seq.size();
 
 
-        if (readSize < 90)
+        if (readSize < MyConst::READLEN - 10)
         {
 
             r.isInvalid = true;
@@ -938,12 +938,12 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         const size_t readSize2 = r2.seq.size();
 
 
-        if (readSize1 < 90)
+        if (readSize1 < MyConst::READLEN - 10)
         {
 
             r1.isInvalid = true;
         }
-        if (readSize2 < 90)
+        if (readSize2 < MyConst::READLEN - 10)
         {
 
             r2.isInvalid = true;
