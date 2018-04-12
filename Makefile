@@ -1,10 +1,10 @@
 
 OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o main.o\
 		ReadQueue.o Read.o CONST.o ShiftAnd.o LevenshtDP.o
-PROGNAME=Metal
+PROGNAME=FAME
 CXX=g++
 
-CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3 -fopenmp -I ./sparsehash/include/usr/local/include/
+CXXFLAGS= -std=c++0x -ggdb -Wall -pedantic -pipe -O3 -fopenmp -march=native -I ./sparsehash/include/usr/local/include/
 GZFLAGS= -lz
 
 .PHONY: all clean profile
