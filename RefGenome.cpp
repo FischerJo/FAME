@@ -341,8 +341,6 @@ void RefGenome::load(const std::string& filepath)
     }
 	// load chromosome ID mapping
 	ifs.read(reinterpret_cast<char*>(&chromNum), sizeof(chromNum));
-	// TODO
-	std::cout << "Loading Chromosome mapping (internal : external):\n";
 	for (size_t i = 0; i < chromNum; ++i)
 	{
 		uint8_t internID;
@@ -357,8 +355,6 @@ void RefGenome::load(const std::string& filepath)
 			externID += c;
 		}
 		chrMap.insert(std::pair<uint8_t, std::string>(internID, externID));
-		// TODO
-		std::cout << "\t" << internID << "  :  " << externID << "\n";
 	}
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
