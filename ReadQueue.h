@@ -64,10 +64,11 @@ class ReadQueue
         //          filePath2   path to file containing read2 of paired reads in fastq format
         //          ref         internal representation of reference genome
         //          isGZ        flag - true iff file is gzipped
+		//          bsFlag		flag - true iff there is no orientation of read 1 of the read pair
         //
         // NOTE:
         //          provided files are ASSUMED to have equal number of reads in correct (paired) order!
-        ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ);
+        ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ, bool bsFlag);
 
         // -----------
 
@@ -79,16 +80,18 @@ class ReadQueue
         bool parseChunk(unsigned int& procReads);
         bool parseChunkGZ(unsigned int& procReads);
 
+		// Decides to which strand r1 should always be matched against
+		void decideStrand();
 
         // Match all reads in readBuffer to reference genome
         // ARGUMENT:
         //          procReads   number of reads to match
-        // First retrieve seeds using getSeeds(...)
-        // Filter seeds using filterHeuSeeds(...) according to simple heuristic
+		//          *Match		counter for matching statistics
+		//          getStranded	flag for initial stranding counters
         // Make full match using bit shift trick
         // Align match using banded levenshtein alignment to update methylation counts
         bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
-        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch);
+        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, bool getStranded);
 
         // Print the CpG methylation levels to the given filename
         // Two files are generated, one called filename_cpg.tsv
@@ -904,7 +907,7 @@ class ReadQueue
         //     // of << "No match at all\t";
         //     return 0;
         // }
-        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT>& sa, MATCH::match& mat, uint16_t& qThreshold)
+        inline int saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, MATCH::match& mat, uint16_t& qThreshold)
         {
 
             // use counters to flag what has been processed so far
@@ -914,14 +917,17 @@ class ReadQueue
             auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
             // counter for how often we had a match
-            std::array<uint8_t, MyConst::MISCOUNT + 1> multiMatch;
+            std::array<uint8_t, MyConst::ADDMIS + MyConst::MISCOUNT + 1> multiMatch;
             multiMatch.fill(0);
 
             // will contain matches iff match is found for number of errors specified by index
-            std::array<MATCH::match, MyConst::MISCOUNT + 1> uniqueMatches;
+            std::array<MATCH::match, MyConst::ADDMIS + MyConst::MISCOUNT + 1> uniqueMatches;
             // store the last match found in current MetaCpG
             uint8_t prevChr = 0;
             uint64_t prevOff = 0xffffffffffffffffULL;
+
+			// TODO
+			uint64_t passCount = 0;
 
             // check all fwd meta CpGs
             for (const auto& m : fwdMetaIDs_t)
@@ -930,10 +936,12 @@ class ReadQueue
                 if (m.second < qThreshold)
                     continue;
 
+				// TODO
+				++passCount;
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
 
                 // std::cout << std::string(startIt + 220, endIt) << "\n";
                 // check if CpG was too near to the end
@@ -1028,11 +1036,13 @@ class ReadQueue
                 if (m.second < qThreshold)
                     continue;
 
+				// TODO
+				++passCount;
                 // retrieve sequence
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -1129,7 +1139,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin();
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -1198,7 +1208,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -1334,11 +1344,10 @@ class ReadQueue
                     continue;
                 }
 
-
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -1428,7 +1437,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS- 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -1470,7 +1479,7 @@ class ReadQueue
                     prevOff = 0xffffffffffffffffULL;
                 }
             }
-            // check all fwd meta CpGs that are at start
+
             for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
             {
 
@@ -1484,7 +1493,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin();
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -1519,7 +1528,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -1598,7 +1607,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -1650,6 +1659,7 @@ class ReadQueue
                 if (std::get<1>(m.second) < qThreshold)
                     continue;
 
+
                 // test if the current or its adjacent Meta CpGs fulfill qgram lemma for the second
                 bool isMatchable = false;
                 auto foundMeta = fwdMetaIDs_t.end();
@@ -1686,7 +1696,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
                 const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -1741,7 +1751,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto startIt = ref.fullSeq[startCpg.chrom].begin();
-                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT;
+                auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
 
                 // check if CpG was too near to the end
                 if (endIt > ref.fullSeq[startCpg.chrom].end())
@@ -1776,7 +1786,7 @@ class ReadQueue
                 const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
                 const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
                 auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT - 1;
+                auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
 
                 // check if CpG was too near to the end
                 if (startIt >= ref.fullSeq[startCpg.chrom].end())
@@ -2336,7 +2346,7 @@ class ReadQueue
         inline bool extractSingleMatch(std::vector<MATCH::match>& fwdMatches, std::vector<MATCH::match>& revMatches, Read& r, std::string& revSeq)
         {
             // Construct artificial best match
-            MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + 1,0,0,0);
+            MATCH::match bestMat = MATCH::constructMatch(0, MyConst::MISCOUNT + MyConst::ADDMIS + 1,0,0,0);
             bool isUnique = true;
             // indicates which of the reads had the best match
             // 1 = original read
@@ -2429,19 +2439,26 @@ class ReadQueue
         inline int extractPairedMatch(MATCH::match& mat1, MATCH::match& mat2)
         {
 
-            if (MATCH::isFwd(mat1) == MATCH::isFwd(mat2))
-            {
+            // if (MATCH::isFwd(mat1) == MATCH::isFwd(mat2))
+            // {
 
+				// check if on same chromosome
+				if (ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].chrom != ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].chrom)
+					return -1;
                 // check if in range
                 uint32_t mat1Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].pos + MATCH::getOffset(mat1);
                 uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
                 uint32_t matDist = std::min(mat2Pos - mat1Pos, mat1Pos - mat2Pos);
-                matDist -= MyConst::READLEN;
-                if (matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
-                {
+				// of << "Distance between matches: " << matDist << "\n";
+				// TODO make overlap argument
+                // matDist -= MyConst::READLEN;
+                // if (matDist >= MyConst::MINPDIST && matDist <= MyConst::MAXPDIST)
+                // {
+				if (matDist <= MyConst::MAXPDIST)
+				{
                     return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
                 }
-            }
+            // }
             return -1;
         }
 
@@ -3195,7 +3212,14 @@ class ReadQueue
         std::array<uint64_t, CORENUM> nonUniqueStats;
         std::array<uint64_t, CORENUM> noMatchStats;
         std::array<uint64_t, CORENUM> matchPairedStats;
+        std::array<uint64_t, CORENUM> tooShortCounts;
 
+		bool bothStrandsFlag;
+		// counter for read 1 matches to fwd strand
+		uint64_t r1FwdMatches;
+		// counter for read 1 matches to rev strand
+		uint64_t r1RevMatches;
+		bool matchR1Fwd;
 
         // TODO
         std::ofstream of;

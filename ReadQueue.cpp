@@ -26,6 +26,7 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     ,   readBuffer(MyConst::CHUNKSIZE)
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
+	,	bothStrandsFlag(false)
     //TODO
     ,   of("errOut.txt")
 {
@@ -105,12 +106,14 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     //     statFile << j << "\t" << counts[j] << "\n";
     // statFile.close();
 }
-ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ) :
+ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ, bool bsFlag) :
         ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
     ,   readBuffer2(MyConst::CHUNKSIZE)
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
+	,	bothStrandsFlag(bsFlag)
+	// TODO
     ,   of("errOut.txt")
 {
 
@@ -185,6 +188,24 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
         // }
     //     statFile << ref.tabIndex[i+1] - ref.tabIndex[i] << "\n";
     // }
+	// std::cout << "\n\n";
+	// for (size_t i = 500; i < 520; ++i)
+	// {
+	// 	std::cout << "-------------\n";
+	//     auto startIt = ref.kmerTableSmall.begin() + ref.tabIndex[i];
+	//     auto endIt = ref.kmerTableSmall.begin() + ref.tabIndex[i + 1];
+	//     auto tit = ref.strandTable.begin() + ref.tabIndex[i];
+	//     for (auto it = startIt; it != endIt; ++it, ++tit)
+	//     {
+	//         KMER_S::kmer& k = *it;
+	//         const uint64_t m = KMER_S::getMetaCpG(k);
+	//         const bool isStart = KMER_S::isStartCpG(k);
+	//         if (!isStart)
+	//         {
+	// 			std::cout << m << "\n";
+	//         }
+	//     }
+	// }
     // std::vector<uint32_t> counts (10000000, 0);
     // for (size_t i = 0; i < MyConst::HTABSIZE; ++i)
     //     ++counts[ref.tabIndex[i+1] - ref.tabIndex[i]];
@@ -350,12 +371,37 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
     return false;
 }
 
+
+void ReadQueue::decideStrand()
+{
+	if ((float)(r1FwdMatches/r1RevMatches) > 0.1 && (float)(r1FwdMatches/r1RevMatches) < 0.9)
+	{
+		std::cout << "Warning! More than 10% of the reads are mapped against a different strand than the other reads.\n\
+			Stranding might harm the prediction performance.\n\
+			If you built an unstranded library (i.e. read 1 of a paired red can map to either forward or reverse strand) consider running the tool with\n\
+			\"--non_stranded\"\n\
+			flag.\n\n";
+	}
+
+	std::cout << "Deciding strandedness of read 1.\n";
+	if (r1FwdMatches > r1RevMatches)
+	{
+		std::cout << "\tMatching read 1 to forward sequence of reference.\n\n";
+		matchR1Fwd = true;
+	} else {
+		std::cout << "\tMatching read 1 to reverse sequence of reference.\n\n";
+		matchR1Fwd = false;
+	}
+}
+
+
+
 bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch)
 {
 
     // TODO
-    unsigned int pCount = 0;
-
+    // unsigned int pCount = 0;
+	//
     // reset all counters
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
@@ -480,7 +526,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         //     of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
         // }
         // startTime = std::chrono::high_resolution_clock::now();
-        ShiftAnd<MyConst::MISCOUNT> saFwd(r.seq, lmap);
+        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
         // of << runtime << "\t";
@@ -533,7 +579,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // }
         // startTime = std::chrono::high_resolution_clock::now();
         // std::cout << revSeq << "\n";
-        ShiftAnd<MyConst::MISCOUNT> saRev(revSeq, lmap);
+        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq, lmap);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
@@ -906,7 +952,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
     return true;
 }
 
-bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch)
+bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, bool getStranded)
 {
 
 
@@ -917,6 +963,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         nonUniqueStats[i] = 0;
         noMatchStats[i] = 0;
         matchPairedStats[i] = 0;
+		tooShortCounts[i] = 0;
     }
 
 #ifdef _OPENMP
@@ -931,6 +978,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         uint64_t& nonUniqueMatchT = nonUniqueStats[threadnum];
         uint64_t& unSuccMatchT = noMatchStats[threadnum];
         uint64_t& succPairedMatchT = matchPairedStats[threadnum];
+		uint64_t& tooShortCount = tooShortCounts[threadnum];
         Read& r1 = readBuffer[i];
         Read& r2 = readBuffer2[i];
 
@@ -938,16 +986,20 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         const size_t readSize2 = r2.seq.size();
 
 
-        if (readSize1 < MyConst::READLEN - 10)
+        if (readSize1 < MyConst::READLEN - 20)
         {
 
             r1.isInvalid = true;
         }
-        if (readSize2 < MyConst::READLEN - 10)
+        if (readSize2 < MyConst::READLEN - 20)
         {
 
             r2.isInvalid = true;
         }
+		if (r1.isInvalid || r2.isInvalid)
+		{
+			++tooShortCount;
+		}
 
         // get correct offset for reverse strand (strand orientation must be correct)
         size_t revPos = readSize1 - 1;
@@ -1041,80 +1093,90 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
         if (r1.isInvalid || r2.isInvalid)
         {
-            unSuccMatchT += 2;
+            tooShortCount += 2;
             continue;
         }
 
         // set qgram threshold
-        uint16_t qThreshold = readSize1 - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
+        uint16_t qThreshold = std::min(readSize1, readSize2) - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
         if (qThreshold > readSize1)
             qThreshold = 0;
 
+		// TODO
+		qThreshold = std::min(qThreshold, static_cast<uint16_t>(3));
+		// of << "\nq-gram: " << qThreshold << "\n";
+
+
     // POSSIBLE ORIENTATION 1
+		std::vector<MATCH::match> matches1Fwd;
+		matches1Fwd.reserve(20);
+		std::vector<MATCH::match> matches2Rev;
+		matches2Rev.reserve(20);
 
-        // std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+		if (bothStrandsFlag || matchR1Fwd)
+		{
 
-        getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
+			// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 
-        // std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-        // auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << "\n" << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
+			getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
+			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
 
-        getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
+			// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << "\n" << runtime << "\t";
+			// startTime = std::chrono::high_resolution_clock::now();
 
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
+			getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
+			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
 
-        std::vector<MATCH::match> matches1Fwd;
-        matches1Fwd.reserve(20);
-        std::vector<MATCH::match> matches2Rev;
-        matches2Rev.reserve(20);
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\t";
+			// startTime = std::chrono::high_resolution_clock::now();
 
 
-        saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
-        saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
+			saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
+			saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
 
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\t";
+			// startTime = std::chrono::high_resolution_clock::now();
+		}
 
     // POSSIBLE ORIENTATION 2
+		std::vector<MATCH::match> matches1Rev;
+		matches1Rev.reserve(20);
+		std::vector<MATCH::match> matches2Fwd;
+		matches2Fwd.reserve(20);
 
-        getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
+		if (bothStrandsFlag || !matchR1Fwd)
+		{
+			getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
+			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
 
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
-
-
-        getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
-        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
-
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\t";
+			// startTime = std::chrono::high_resolution_clock::now();
 
 
-        std::vector<MATCH::match> matches1Rev;
-        matches1Rev.reserve(20);
-        std::vector<MATCH::match> matches2Fwd;
-        matches2Fwd.reserve(20);
+			getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
+			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
 
-        saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
-        saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\t";
+			// startTime = std::chrono::high_resolution_clock::now();
 
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\n";
+
+			saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
+			saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
+
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\n";
+		}
 
     // TEST IF MATCHING WAS SUCCESSFULL
 
@@ -1137,56 +1199,62 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         bool nonUniqueFlag = false;
         bool mat1OriginalStrand = true;
 
-        for (MATCH::match& mat1 : matches1Fwd)
-        {
-            for (MATCH::match& mat2Rev : matches2Rev)
-            {
-                int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
-                if (extractedMatchErrs >= 0)
-                {
-                    if (extractedMatchErrs == bestErrNum)
-                    {
-                        nonUniqueFlag = true;
+		if (bothStrandsFlag || matchR1Fwd)
+		{
+			for (MATCH::match& mat1 : matches1Fwd)
+			{
+				for (MATCH::match& mat2Rev : matches2Rev)
+				{
+					int extractedMatchErrs = extractPairedMatch(mat1, mat2Rev);
+					if (extractedMatchErrs >= 0)
+					{
+						if (extractedMatchErrs == bestErrNum)
+						{
+							nonUniqueFlag = true;
 
-                    } else if (extractedMatchErrs < bestErrNum) {
+						} else if (extractedMatchErrs < bestErrNum) {
 
-                        bestErrNum = extractedMatchErrs;
-                        bestMatch1 = mat1;
-                        bestMatch2 = mat2Rev;
-                        nonUniqueFlag = false;
+							bestErrNum = extractedMatchErrs;
+							bestMatch1 = mat1;
+							bestMatch2 = mat2Rev;
+							nonUniqueFlag = false;
 
-                    }
-                }
-            }
-        }
+						}
+					}
+				}
+			}
+		}
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
         // of << "Matching sizes: " << matches1Rev.size() << "/" << matches2Fwd.size() << "\tTimings: ";
         // startTime = std::chrono::high_resolution_clock::now();
-        for (MATCH::match& mat1 : matches1Rev)
-        {
-            for (MATCH::match& mat2Fwd : matches2Fwd)
-            {
-                int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
-                if (extractedMatchErrs >= 0)
-                {
-                    if (extractedMatchErrs == bestErrNum)
-                    {
-                        nonUniqueFlag = true;
+		if (bothStrandsFlag || !matchR1Fwd)
+		{
+			for (MATCH::match& mat1 : matches1Rev)
+			{
+				for (MATCH::match& mat2Fwd : matches2Fwd)
+				{
+					int extractedMatchErrs = extractPairedMatch(mat1, mat2Fwd);
+					if (extractedMatchErrs >= 0)
+					{
+						if (extractedMatchErrs == bestErrNum)
+						{
+							nonUniqueFlag = true;
 
-                    } else if (extractedMatchErrs < bestErrNum) {
+						} else if (extractedMatchErrs < bestErrNum) {
 
-                        bestErrNum = extractedMatchErrs;
-                        bestMatch1 = mat1;
-                        bestMatch2 = mat2Fwd;
-                        mat1OriginalStrand = false;
-                        nonUniqueFlag = false;
+							bestErrNum = extractedMatchErrs;
+							bestMatch1 = mat1;
+							bestMatch2 = mat2Fwd;
+							mat1OriginalStrand = false;
+							nonUniqueFlag = false;
 
-                    }
-                }
-            }
-        }
+						}
+					}
+				}
+			}
+		}
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n\n";
@@ -1292,7 +1360,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 
         // Check if no pairing possible
-        if (bestErrNum == 2*MyConst::MISCOUNT + 1)
+        if (bestErrNum == 2*(MyConst::MISCOUNT + MyConst::ADDMIS) + 1)
         {
 // #pragma omp critical
 // {
@@ -1404,11 +1472,17 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             r2.mat = bestMatch2;
             if (mat1OriginalStrand)
             {
+				if (getStranded)
+#pragma omp atomic
+					++r1FwdMatches;
                 computeMethLvl(r1.mat, r1.seq);
                 computeMethLvl(r2.mat, revSeq2);
 
             } else {
 
+				if (getStranded)
+#pragma omp atomic
+					++r1RevMatches;
                 computeMethLvl(r1.mat, revSeq1);
                 computeMethLvl(r2.mat, r2.seq);
 
@@ -1425,6 +1499,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         nonUniqueMatch += nonUniqueStats[i];
         unSuccMatch += noMatchStats[i];
         succPairedMatch += matchPairedStats[i];
+		tooShortCountMatch += tooShortCounts[i];
     }
     return true;
 }

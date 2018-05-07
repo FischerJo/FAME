@@ -24,7 +24,7 @@
 #include "ReadQueue.h"
 
 void queryRoutine(ReadQueue& rQue, const bool isGZ);
-void queryRoutinePaired(ReadQueue& rQue, const bool isGZ);
+void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
 void printHelp();
 
 // --------------- MAIN -----------------
@@ -49,6 +49,9 @@ int main(int argc, char** argv)
     bool noloss = false;
     // true iff two (paired) read files are provided
     bool pairedReadFlag = false;
+	// true iff library is generated without particular stranding of reads
+	//	e.g.: fragment 1 has read 1 from fwd strand and fragment 2 has read 1 from rev strand
+	bool bothStrandsFlag = false;
 
     if (argc == 1)
     {
@@ -186,6 +189,10 @@ int main(int argc, char** argv)
             continue;
         }
 
+		if (std::string(argv[i]) == "--both_strands")
+		{
+			bothStrandsFlag = true;
+		}
 
 
         // no such option
@@ -222,9 +229,9 @@ int main(int argc, char** argv)
                 std::cerr << "Entered paired end mode (\"-r1\" or \"-r2\" flag), but one of the read files is missing. Terminating...\n\n";
                 exit(1);
             }
-            ReadQueue rQue(readFile, readFile2, ref, readsGZ);
+            ReadQueue rQue(readFile, readFile2, ref, readsGZ, bothStrandsFlag);
 
-            queryRoutinePaired(rQue, readsGZ);
+            queryRoutinePaired(rQue, readsGZ, bothStrandsFlag);
 
             rQue.printMethylationLevels(outputFile);
 
@@ -289,10 +296,10 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
     {
         ++i;
         // TODO
-        // if (i >= 1)
+        // if (i > 10)
         //     break;
         rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many reads\n";
+        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " reads\n";
     }
     // match remaining reads
     rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
@@ -304,7 +311,7 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
     std::cout << "Successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\n";
 
 }
-void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
+void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag)
 {
 
     unsigned int readCounter = 0;
@@ -314,24 +321,34 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ)
     uint64_t succMatch = 0;
     uint64_t nonUniqueMatch = 0;
     uint64_t unSuccMatch = 0;
+	uint64_t tooShortCount = 0;
     std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+
+	if (!bothStrandsFlag)
+	{
+		isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter);
+		rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, true);
+		rQue.decideStrand();
+	}
+
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
         // TODO
-        // if (i >= 1)
-        //     break;
-        rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " many paired reads\n";
+        if (i > 0)
+            break;
+        rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
+        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " paired reads\n";
     }
     // match remaining reads
-    rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch);
+    rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
 
     std::cout << "Done processing in " << runtime << "s\n";
-    std::cout << "Overall successfully matched: " << succMatch << " / Unsuccessfully matched: " << unSuccMatch << " / Nonunique matches: " << nonUniqueMatch << "\nFully matched pairs: " << succPairedMatch << "\n";
+	std::cout << "\nOverall number of reads: (2*)" << MyConst::CHUNKSIZE * i + readCounter;
+    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
 
 }
 
@@ -359,7 +376,12 @@ void printHelp()
     std::cout << "\t                 \t\tfastq format. If not specified, index is built and\n";
     std::cout << "\t                 \t\tsaved in file provided via --store_index.\n\n";
 
-// TODO: r2
+    std::cout << "\t-r1, -r2      [.]\t\tSpecification of a filepath to a set of reads in\n";
+    std::cout << "\t                 \t\tfastq format corresponding to the first resp. second\n";
+    std::cout << "\t                 \t\tread infor paired read set\n\n";
+
+    std::cout << "\t--both_strands   \t\tAlways try to match the reads against both strands of\n";
+    std::cout << "\t                 \t\treference file (unstranded libraries).\n\n";
 
     std::cout << "\t--gzip_reads     \t\tRead file specified by -r is treated as gzipped\n";
     std::cout << "\t                 \t\tfile (.gz file ending).\n\n";
