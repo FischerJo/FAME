@@ -119,6 +119,15 @@ namespace KMER_S {
         return (k & 0x80000000UL);
     }
 
+    inline uint32_t getMetaCpG(KMER_S::kmer&& k)
+    {
+        return (k & 0x7fffffffUL);
+    }
+
+    inline bool isStartCpG(KMER_S::kmer&& k)
+    {
+        return (k & 0x80000000UL);
+    }
 } // end namespace KMER_S
 
 
