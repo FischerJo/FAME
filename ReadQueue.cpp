@@ -27,6 +27,8 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
 	,	bothStrandsFlag(false)
+	,	r1FwdMatches(0)
+	,	r1RevMatches(0)
     //TODO
     ,   of("errOut.txt")
 {
@@ -113,6 +115,8 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
 	,	bothStrandsFlag(bsFlag)
+	,	r1FwdMatches(0)
+	,	r1RevMatches(0)
 	// TODO
     ,   of("errOut.txt")
 {
@@ -374,11 +378,12 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
 
 void ReadQueue::decideStrand()
 {
-	if ((float)(r1FwdMatches/r1RevMatches) > 0.1 && (float)(r1FwdMatches/r1RevMatches) < 0.9)
+	std::cout << "\nMatched to fwd strand: " << (float)(r1FwdMatches)/r1RevMatches << "\n\n";
+	if ((float)(r1FwdMatches)/r1RevMatches > 0.05 && (float)(r1FwdMatches)/r1RevMatches < 20)
 	{
-		std::cout << "Warning! More than 10% of the reads are mapped against a different strand than the other reads.\n\
+		std::cout << "Warning! Many of the reads are mapped against a different strands\
 			Stranding might harm the prediction performance.\n\
-			If you built an unstranded library (i.e. read 1 of a paired red can map to either forward or reverse strand) consider running the tool with\n\
+			If you built an unstranded library (i.e. read 1 of a paired read set can map to either forward or reverse strand) consider running the tool with\n\
 			\"--non_stranded\"\n\
 			flag.\n\n";
 	}
@@ -396,12 +401,10 @@ void ReadQueue::decideStrand()
 
 
 
+// TODO: Implement stranding
 bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch)
 {
 
-    // TODO
-    // unsigned int pCount = 0;
-	//
     // reset all counters
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
@@ -528,7 +531,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // startTime = std::chrono::high_resolution_clock::now();
         ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
         // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\t";
         // startTime = std::chrono::high_resolution_clock::now();
         int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
