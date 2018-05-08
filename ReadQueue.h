@@ -24,7 +24,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <array>
-#include <algorithm> // reverse
+#include <algorithm> // reverse, sort
+#include <numeric> // iota
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -2329,6 +2330,94 @@ class ReadQueue
                 }
             }
         }
+
+
+
+		// comparison function for succeeding matching implementation
+		// Order:
+		//		has windows left to process in 1 <  no more windows in 2
+		//			window id 1 < window id 2
+		inline bool compSlices(const std::vector<uint64_t>& sliceHashes, const std::vector<size_t>& sliceOffsets, const std::vector<bool>& sliceIsDone, unsigned int id1, unsigned int id2)
+		{
+			if (sliceIsDone[id1])
+				return false;
+
+			if (KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[id1]] + sliceOffsets[id1]]) <= KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[id2]] + sliceOffsets[id2]]))
+				return true;
+			else
+				return false;
+		}
+		// Karl's matching
+		//
+		// ARGUMENTS:
+		//			seq			read sequence to match
+		//			qThreshold	minimum number of k-mers required in Meta CpG to test for matching
+		//			sa			ShiftAnd automaton
+		//
+		//	MODIFICATION:
+		//			Adapts qThreshold if match is found.
+		//
+		inline void matchSingle(const std::string& seq, uint16_t& qThreshold, const ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa)
+		{
+
+			const size_t kmerNum = seq.size() - MyConst::KMERLEN + 1;
+
+			// slices of hash table currently looking at
+			std::vector<uint64_t> sliceHashes (kmerNum);
+			// offset in slices
+			std::vector<size_t> sliceOffsets (kmerNum, 0);
+			// indices of sorted slices
+			// referencing indices correspond to indices of sliceHashes
+			std::vector<unsigned int> sliceSortedIds (kmerNum);
+			// flags if whole slice is already processed
+			std::vector<bool> sliceIsDone (kmerNum, false);
+
+			std::iota(sliceSortedIds.begin(), sliceSortedIds.end(), 0);
+
+            // retrieve hashes for k-mers
+			sliceHashes[0] = ntHash::NTP64(seq.data());
+			for (size_t i = 1; i < kmerNum; ++i)
+			{
+				sliceHashes[i] = ntHash::NTP64_noVoid(sliceHashes[i-1], seq[i-1], seq[i-1+MyConst::KMERLEN]);
+			}
+
+			std::sort(sliceSortedIds.begin(), sliceSortedIds.end(), [&](unsigned int id1, unsigned int id2){return compSlices(sliceHashes, sliceOffsets, sliceIsDone, id1, id2);});
+
+			bool unchanged = true;
+			while (!sliceIsDone[sliceSortedIds[0]])
+			{
+				uint32_t qWindow = KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[sliceSortedIds[qThreshold-1]]] + sliceOffsets[sliceSortedIds[qThreshold-1]]]);
+				for (size_t i = 0; i < qThreshold-1; ++i)
+				{
+					// test if something is left to process
+					if (sliceIsDone[sliceSortedIds[i]])
+						continue;
+
+					// advance pointers while window id is lower
+					while (KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]]]) < qWindow)
+					{
+						++sliceOffsets[sliceSortedIds[i]];
+						// reached end of vector slice
+						if (ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]] >= ref.tabIndex[sliceHashes[sliceSortedIds[i]]+1])
+						{
+							sliceIsDone[sliceSortedIds[i]] = true;
+							break;
+						}
+						unchanged = false;
+					}
+				}
+				// if nothing has changed and at least one k-mer has windows left to process, test for match
+				if (unchanged)
+				{
+					if (!sliceIsDone[sliceSortedIds[0]])
+					{
+						// TODO: test for match in 
+					}
+				}
+			}
+
+			// TODO: separate by strand?
+		}
 
 
 
