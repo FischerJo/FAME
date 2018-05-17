@@ -2364,7 +2364,6 @@ class ReadQueue
 			sliceOff[0] = ref.tabIndex[fhVal % MyConst::HTABSIZE];
 			sliceEnd[0] = ref.tabIndex[(fhVal % MyConst::HTABSIZE) + 1];
 
-			// sliceHashes[0] = ntHash::NTP64(seq.data());
 			for (size_t i = 1; i < kmerNum; ++i)
 			{
 				ntHash::NTP64(fhVal, seq[i-1], seq[i-1+MyConst::KMERLEN]);
@@ -2453,7 +2452,6 @@ class ReadQueue
 
 				bool unchanged = true;
 				uint32_t qWindow = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[qThreshold-1]]]);
-				bool qIsFwd = ref.strandTable[sliceOff[sliceSortedIds[qThreshold-1]]];
 				//TODO
 				// of << "qWindow ID: " << qWindow << "\t";
 				// of << ref.cpgTable[ref.metaCpGs[qWindow].start].pos << "\n";
@@ -2482,7 +2480,8 @@ class ReadQueue
 
 					// advance pointer if strand is fwd but qStrand is rev
 					if (KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) == qWindow &&
-							!sliceIsDone[sliceSortedIds[i]] && ref.strandTable[sliceOff[sliceSortedIds[i]]] > qIsFwd)
+							!sliceIsDone[sliceSortedIds[i]] &&
+							ref.strandTable[sliceOff[sliceSortedIds[i]]] > ref.strandTable[sliceOff[sliceSortedIds[qThreshold-1]]])
 					{
 						//TODO
 						// of << "WrongStrand++" << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "\n";
@@ -2622,6 +2621,7 @@ class ReadQueue
 					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
 					// of << "\nPostprocessing matches runtime " << runtime << "\t\t";
 					// Advance all offsets of k-mers with matched window
+					const bool qStrand = ref.strandTable[sliceOff[sliceSortedIds[qThreshold-1]]];
 					for (size_t i = 0; i < qThreshold; ++i)
 					{
 						// of << sliceSortedIds[i] << "\t";
@@ -2640,7 +2640,7 @@ class ReadQueue
 							break;
 						if (KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) == qWindow)
 						{
-							if (ref.strandTable[sliceOff[sliceSortedIds[i]]] == qIsFwd)
+							if (ref.strandTable[sliceOff[sliceSortedIds[i]]] == qStrand)
 							{
 								// of << sliceSortedIds[i] << "\t";
 								// of << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "++";
