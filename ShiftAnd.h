@@ -53,7 +53,7 @@ class ShiftAnd
         //              seq     sequence of characters for which the bitmasks should be
         //                      initialized
         //              lMap    array that maps letters to mask indices
-        ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap);
+        ShiftAnd(std::string& seq, std::array<uint8_t, 16>& lMap);
 
         // -------------------
 
@@ -83,6 +83,13 @@ class ShiftAnd
         // query a single letter to the automaton
         inline void queryLetter(const char& c);
 
+		// get index for letter without overhead in memory
+		// ASSUMING ASCII ENCODING!!!
+		// inline uint8_t getCharID(const char c)
+		// {
+		// 	return ((c % 16) >> 1) ^ 1;
+		// }
+
         // test if we have reached an accepting state
         //
         // ARGUMENTS:
@@ -111,14 +118,14 @@ class ShiftAnd
 
 
         // maps characters 'A', 'C', 'G', 'T' to their index
-        std::array<uint8_t, 256>& lmap;
+        std::array<uint8_t, 16>& lmap;
 
 
 };
 
 
 template<size_t E>
-ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 256>& lMap) :
+ShiftAnd<E>::ShiftAnd(std::string& seq, std::array<uint8_t, 16>& lMap) :
         pLen(seq.size())
     ,   lmap(lMap)
 {
@@ -294,13 +301,73 @@ inline void ShiftAnd<2>::reset()
     active[2].B_1 = 0;
 
 }
+template <>
+inline void ShiftAnd<3>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+    active[1].B_0 = 3;
+    active[1].B_1 = 0;
+    active[2].B_0 = 7;
+    active[2].B_1 = 0;
+    active[3].B_0 = 15;
+    active[3].B_1 = 0;
+}
+template <>
+inline void ShiftAnd<4>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+    active[1].B_0 = 3;
+    active[1].B_1 = 0;
+    active[2].B_0 = 7;
+    active[2].B_1 = 0;
+    active[3].B_0 = 15;
+    active[3].B_1 = 0;
+    active[4].B_0 = 31;
+    active[4].B_1 = 0;
+}
+template <>
+inline void ShiftAnd<5>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+    active[1].B_0 = 3;
+    active[1].B_1 = 0;
+    active[2].B_0 = 7;
+    active[2].B_1 = 0;
+    active[3].B_0 = 15;
+    active[3].B_1 = 0;
+    active[4].B_0 = 31;
+    active[4].B_1 = 0;
+    active[5].B_0 = 63;
+    active[5].B_1 = 0;
+}
+template <>
+inline void ShiftAnd<6>::reset()
+{
+    active[0].B_0 = 1;
+    active[0].B_1 = 0;
+    active[1].B_0 = 3;
+    active[1].B_1 = 0;
+    active[2].B_0 = 7;
+    active[2].B_1 = 0;
+    active[3].B_0 = 15;
+    active[3].B_1 = 0;
+    active[4].B_0 = 31;
+    active[4].B_1 = 0;
+    active[5].B_0 = 63;
+    active[5].B_1 = 0;
+    active[6].B_0 = 127;
+    active[6].B_1 = 0;
+}
 
 
 template<size_t E>
 inline void ShiftAnd<E>::queryLetter(const char& c)
 {
 
-    const bitMasks& mask = masks[lmap[c]];
+    const bitMasks& mask = masks[lmap[c%16]];
 
     // Bottom up update part for old values of previous iteration
     for (size_t i = E; i > 0; --i)
@@ -335,7 +402,7 @@ template<>
 inline void ShiftAnd<0>::queryLetter(const char& c)
 {
 
-    const bitMasks& mask = masks[lmap[c]];
+    const bitMasks& mask = masks[lmap[c%16]];
 
     // update zero error layer (at the top)
     active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
@@ -346,7 +413,7 @@ template<>
 inline void ShiftAnd<1>::queryLetter(const char& c)
 {
 
-    const bitMasks& mask = masks[lmap[c]];
+    const bitMasks& mask = masks[lmap[c%16]];
 
     // Bottom up update part for old values of previous iteration for bottom layer
     // Update second part of pattern states
@@ -372,7 +439,7 @@ template<>
 inline void ShiftAnd<2>::queryLetter(const char& c)
 {
 
-    const bitMasks& mask = masks[lmap[c]];
+    const bitMasks& mask = masks[lmap[c%16]];
 
     // Bottom up update part for old values of previous iteration for bottom layer
     // Update second part of pattern states
@@ -542,10 +609,10 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         maskG = (maskG << 1) | 1;
         maskT = (maskT << 1) | 1;
         // save masks
-        masks[lmap['A']].B_0 = maskA;
-        masks[lmap['C']].B_0 = maskC;
-        masks[lmap['G']].B_0 = maskG;
-        masks[lmap['T']].B_0 = maskT;
+        masks[lmap['A'%16]].B_0 = maskA;
+        masks[lmap['C'%16]].B_0 = maskC;
+        masks[lmap['G'%16]].B_0 = maskG;
+        masks[lmap['T'%16]].B_0 = maskT;
 
 
 
@@ -590,10 +657,10 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 
         }
         // save masks
-        masks[lmap['A']].B_1 = maskA;
-        masks[lmap['C']].B_1 = maskC;
-        masks[lmap['G']].B_1 = maskG;
-        masks[lmap['T']].B_1 = maskT;
+        masks[lmap['A'%16]].B_1 = maskA;
+        masks[lmap['C'%16]].B_1 = maskC;
+        masks[lmap['G'%16]].B_1 = maskG;
+        masks[lmap['T'%16]].B_1 = maskT;
 
         // reset mask buffer
         maskA = 0xffffffffffffffffULL;
@@ -641,10 +708,10 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         maskG = (maskG << 1) | 1;
         maskT = (maskT << 1) | 1;
         // save masks
-        masks[lmap['A']].B_0 = maskA;
-        masks[lmap['C']].B_0 = maskC;
-        masks[lmap['G']].B_0 = maskG;
-        masks[lmap['T']].B_0 = maskT;
+        masks[lmap['A'%16]].B_0 = maskA;
+        masks[lmap['C'%16]].B_0 = maskC;
+        masks[lmap['G'%16]].B_0 = maskG;
+        masks[lmap['T'%16]].B_0 = maskT;
 
     } else {
 
@@ -686,10 +753,10 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 
         }
         // save masks
-        masks[lmap['A']].B_1 = maskA;
-        masks[lmap['C']].B_1 = maskC;
-        masks[lmap['G']].B_1 = maskG;
-        masks[lmap['T']].B_1 = maskT;
+        masks[lmap['A'%16]].B_1 = maskA;
+        masks[lmap['C'%16]].B_1 = maskC;
+        masks[lmap['G'%16]].B_1 = maskG;
+        masks[lmap['T'%16]].B_1 = maskT;
 
         // reset mask buffer
         maskA = 0xffffffffffffffffULL;
@@ -737,82 +804,13 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
         maskG = (maskG << 1) | 1;
         maskT = (maskT << 1) | 1;
         // save masks
-        masks[lmap['A']].B_0 = maskA;
-        masks[lmap['C']].B_0 = maskC;
-        masks[lmap['G']].B_0 = maskG;
-        masks[lmap['T']].B_0 = maskT;
+        masks[lmap['A'%16]].B_0 = maskA;
+        masks[lmap['C'%16]].B_0 = maskC;
+        masks[lmap['G'%16]].B_0 = maskG;
+        masks[lmap['T'%16]].B_0 = maskT;
     }
 
 }
-
-
-// COMPILE TIME loop structure to unroll loops for bit updates
-
-
-// Calling example:
-//
-// ForLoop<MyConst::MISCOUNT>::iterate<BottomUpChanges>()
-// template<size_t loopCounter>
-// struct ForLoop
-// {
-//     template<template <size_t> class function>
-//     static void iterate(ShiftAnd<MyConst::MISCOUNT> sa)
-//     {
-//         function<loopCounter>::apply(sa);
-//         ForLoop<loopCounter - 1>::template iterate<function>(sa);
-//     }
-// };
-//
-// template<>
-// struct ForLoop<1>
-// {
-//     template<template <size_t> class function>
-//     static void iterate(ShiftAnd<MyConst::MISCOUNT> sa)
-//     {
-//         function<1>::apply(sa);
-//     }
-// };
-//
-// // function should only be applied to error leayers - this is edge case
-// // for zero mismatch program executions
-// template<>
-// struct ForLoop<0>
-// {
-//
-//     template<template <size_t> class function>
-//     static void iterate(ShiftAnd<MyConst::MISCOUNT> sa)
-//     {
-//     }
-// };
-//
-// template <size_t layer>
-// struct BotomUpChanges
-// {
-//     // TODO: pass mask
-//     static void apply(ShiftAnd<MyConst::MISCOUNT> sa, struct states mask)
-//     {
-//
-//         // Update first part of pattern states
-//         //
-//         //                                      Match                           Insertion           Substitution
-//         sa.active[layer].B_0 = ((sa.active[layer].B_0 << 1 | 1) & mask.B_0) | (sa.active[layer-1].B_0) | (sa.active[layer-1].B_0 << 1);
-//
-//         // Update second part of pattern states
-//         //
-//         //                                      Match                                             Insertion                       Substitution
-//         sa.active[layer].B_1 = ((sa.active[layer].B_1 << 1 | sa.active[layer].B_0 >> 63) & mask.B_1) | (sa.active[layer-1].B_1) | (sa.active[layer-1].B_1 << 1 | sa.active[layer-1].B_0 >> 63);
-//     }
-// };
-//
-// template <size_t layer>
-// struct TopDownChanges
-// {
-//
-//     static void apply(ShiftAnd<MyConst::MISCOUNT> sa)
-//     {
-//
-//     }
-// };
 
 
 #endif /* SHIFTAND_H */

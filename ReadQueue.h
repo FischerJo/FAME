@@ -2327,36 +2327,6 @@ class ReadQueue
 
 
 
-		// comparison function for succeeding matching implementation
-		// Order:
-		//		return false (i.e. id1 > id2) if
-		//			has no windows left to process in 1
-		//		return true (i.e. id1 < id2) if
-		//			window id 1 > window id 2 and
-		//				strand is rev for 1 and is fwd for 2
-		//			else return false
-		inline bool compSlices(const std::vector<uint64_t>& sliceHashes, const std::vector<size_t>& sliceOffsets, const std::vector<bool>& sliceIsDone, unsigned int id1, unsigned int id2)
-		{
-			if (sliceIsDone[id1])
-				return false;
-
-			if (KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[id1]] + sliceOffsets[id1]]) > KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[id2]] + sliceOffsets[id2]]))
-			{
-				return true;
-
-			} else {
-				// test for strand if windows are equal
-				if (KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[id1]] + sliceOffsets[id1]]) == KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[id2]] + sliceOffsets[id2]]) &&
-						(ref.strandTable[ref.tabIndex[sliceHashes[id1]] + sliceOffsets[id1]] < ref.strandTable[ref.tabIndex[sliceHashes[id2]] + sliceOffsets[id2]]))
-				{
-					// Case id1 window is reverse strand, id 2 is fwd strand
-					return true;
-				} else {
-					return false;
-				}
-			}
-
-		}
 		// Karl's matching
 		//
 		// ARGUMENTS:
@@ -2375,29 +2345,56 @@ class ReadQueue
 		inline int matchSingle(const std::string& seq, uint16_t& qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, MATCH::match& mat)
 		{
 
+			// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 			const size_t kmerNum = seq.size() - MyConst::KMERLEN + 1;
 
 			// slices of hash table currently looking at
-			std::vector<uint64_t> sliceHashes (kmerNum);
-			// offset in slices
-			std::vector<size_t> sliceOffsets (kmerNum, 0);
-			// indices of sorted slices
+			std::vector<uint64_t> sliceOff (kmerNum);
+			std::vector<uint64_t> sliceEnd (kmerNum);
 			// referencing indices correspond to indices of sliceHashes
 			std::vector<unsigned int> sliceSortedIds (kmerNum);
 			// flags if whole slice is already processed
 			std::vector<bool> sliceIsDone (kmerNum, false);
 
+
 			std::iota(sliceSortedIds.begin(), sliceSortedIds.end(), 0);
 
-            // retrieve hashes for k-mers
-			sliceHashes[0] = ntHash::NTP64(seq.data());
+            // retrieve start and end of reference kmer list for initial read kmer
+			uint64_t fhVal = ntHash::NTP64(seq.data());
+			sliceOff[0] = ref.tabIndex[fhVal % MyConst::HTABSIZE];
+			sliceEnd[0] = ref.tabIndex[(fhVal % MyConst::HTABSIZE) + 1];
+
+			// sliceHashes[0] = ntHash::NTP64(seq.data());
 			for (size_t i = 1; i < kmerNum; ++i)
 			{
-				sliceHashes[i] = ntHash::NTP64_noVoid(sliceHashes[i-1], seq[i-1], seq[i-1+MyConst::KMERLEN]);
-				sliceHashes[i-1] = sliceHashes[i-1] % MyConst::HTABSIZE;
+				ntHash::NTP64(fhVal, seq[i-1], seq[i-1+MyConst::KMERLEN]);
+				sliceOff[i] = ref.tabIndex[fhVal % MyConst::HTABSIZE];
+				sliceEnd[i] = ref.tabIndex[(fhVal % MyConst::HTABSIZE) + 1];
 			}
-			sliceHashes[kmerNum-1] = sliceHashes[kmerNum-1] % MyConst::HTABSIZE;
+			for (size_t i = 0; i < kmerNum; ++i)
+			{
+				if (sliceOff[i] >= sliceEnd[i])
+				{
+					sliceIsDone[i] = true;
+					// of << "Happening! End for " << i << "\n";
+				}
 
+			}
+			// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+            //
+			// of <<"Runtime init: " << runtime << "\n";
+            //
+			// // TODO
+			// for (size_t j = 0; j < kmerNum; ++j)
+			// {
+			// 	of << "Cell " << j << ":\n";
+			// 	for (unsigned int l = sliceOff[j]; l < sliceEnd[j]; ++l)
+			// 	{
+			// 		of << KMER_S::getMetaCpG(ref.kmerTableSmall[l]) << " / " << ref.cpgTable[ref.metaCpGs[ref.kmerTableSmall[l]].start].pos << "\n";
+			// 	}
+			// 	of << "\n---\n\n";
+			// }
 			// counter for how often we had a match
 			std::array<uint8_t, MyConst::ADDMIS + MyConst::MISCOUNT + 1> multiMatch;
 			multiMatch.fill(0);
@@ -2408,164 +2405,317 @@ class ReadQueue
 			uint8_t prevChr = 0;
 			uint64_t prevOff = 0xffffffffffffffffULL;
 
-			bool unchanged = true;
-			while (!sliceIsDone[sliceSortedIds[0]])
+			// order descending on window and reverse strand > fwd strand
+			// Order:
+			//		return false (i.e. id1 > id2) if
+			//			has no windows left to process in 1
+			//		return true (i.e. id1 < id2) if
+			//			window id 1 > window id 2 and
+			//				strand is rev for 1 and is fwd for 2
+			//			else return false
+			std::nth_element(sliceSortedIds.begin(), sliceSortedIds.begin() + qThreshold - 1, sliceSortedIds.end(),
+					[&](unsigned int id1, unsigned int id2){
+						if (sliceIsDone[id1])
+						{
+							return false;
+						} else if (sliceIsDone[id2])
+						{
+							return true;
+						}
+
+						const auto id1meta = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[id1]]);
+						const auto id2meta = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[id2]]);
+						if (id1meta > id2meta)
+						{
+							return true;
+
+						} else {
+							// test for strand if windows are equal
+							if (id1meta == id2meta &&
+									(ref.strandTable[sliceOff[id1]] > ref.strandTable[sliceOff[id2]]))
+							{
+								// Case id2 window is reverse strand, id1 window is fwd strand
+								return true;
+							} else {
+								return false;
+							}
+						}
+					});
+			// of << "SortedIds:\n\t";
+			// for (size_t i = 0; i < kmerNum; ++i)
+			// {
+			// 	of << sliceSortedIds[i] << "\t";
+			// }
+			// of << "\n";
+
+			while (!sliceIsDone[sliceSortedIds[qThreshold-1]])
 			{
 
-				// order descending on window and reverse strand > fwd strand
-				std::nth_element(sliceSortedIds.begin(), sliceSortedIds.begin() + qThreshold - 1, sliceSortedIds.end(), [&](unsigned int id1, unsigned int id2){return compSlices(sliceHashes, sliceOffsets, sliceIsDone, id1, id2);});
-
-				uint32_t qWindow = KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[sliceSortedIds[qThreshold-1]]] + sliceOffsets[sliceSortedIds[qThreshold-1]]]);
-				bool qIsFwd = ref.strandTable[ref.tabIndex[sliceHashes[sliceSortedIds[qThreshold-1]]] + sliceOffsets[sliceSortedIds[qThreshold-1]]];
+				bool unchanged = true;
+				uint32_t qWindow = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[qThreshold-1]]]);
+				bool qIsFwd = ref.strandTable[sliceOff[sliceSortedIds[qThreshold-1]]];
+				//TODO
+				// of << "qWindow ID: " << qWindow << "\t";
+				// of << ref.cpgTable[ref.metaCpGs[qWindow].start].pos << "\n";
+                //
+				// startTime = std::chrono::high_resolution_clock::now();
 				for (size_t i = 0; i < qThreshold-1; ++i)
 				{
-					// test if something is left to process
-					if (sliceIsDone[sliceSortedIds[i]])
-						continue;
-
+					// of << sliceSortedIds[i] << "\t";
 					// advance pointers while window id is larger
-					while (KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]]]) > qWindow)
+					while (KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) > qWindow)
 					{
-						++sliceOffsets[sliceSortedIds[i]];
+						//TODO
+						// of << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "++";
+						++sliceOff[sliceSortedIds[i]];
+						unchanged = false;
 						// reached end of vector slice
-						if (ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]] >= ref.tabIndex[sliceHashes[sliceSortedIds[i]]+1])
+						if (sliceOff[sliceSortedIds[i]] >= sliceEnd[sliceSortedIds[i]])
 						{
+							// TODO
+							// of << "Setting " << sliceSortedIds[i] << " to End\n";
 							sliceIsDone[sliceSortedIds[i]] = true;
 							break;
 						}
-						unchanged = false;
 					}
-					// advance pointer if strand is rev but qStrand is fwd
-					if (!sliceIsDone[sliceSortedIds[i]] && ref.strandTable[ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]]] < qIsFwd)
+					// of << "\n";
+
+					// advance pointer if strand is fwd but qStrand is rev
+					if (KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) == qWindow &&
+							!sliceIsDone[sliceSortedIds[i]] && ref.strandTable[sliceOff[sliceSortedIds[i]]] > qIsFwd)
 					{
-						++sliceOffsets[sliceSortedIds[i]];
+						//TODO
+						// of << "WrongStrand++" << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "\n";
+						++sliceOff[sliceSortedIds[i]];
 						unchanged = false;
+						// reached end of vector slice
+						if (sliceOff[sliceSortedIds[i]] >= sliceEnd[sliceSortedIds[i]])
+						{
+							//TODO
+							// of << "Setting " << sliceSortedIds[i] << " to End\n";
+							sliceIsDone[sliceSortedIds[i]] = true;
+						}
 					}
 				}
+
+				// endTime = std::chrono::high_resolution_clock::now();
+				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+				// of << "\nAdvance runtime " << runtime << "\t\t";
 				// if nothing has changed and at least one k-mer has windows left to process, test for match
 				if (unchanged)
 				{
-					if (!sliceIsDone[sliceSortedIds[0]])
+					// startTime = std::chrono::high_resolution_clock::now();
+					const uint32_t metaID = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[0]]]);
+					// TODO
+					// of << "\nMatching Meta:\n\t" << metaID << "\t\t <--- \n";
+					const bool metaStrand = ref.strandTable[sliceOff[sliceSortedIds[0]]];
+
+					const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[metaID].start];
+					const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[metaID].end];
+					auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+					auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
+
+					// check if CpG was too near to the end
+					if (endIt > ref.fullSeq[startCpg.chrom].end())
 					{
-						// test for match
+						// if so move end iterator appropriately
+						endIt = ref.fullSeq[startCpg.chrom].end();
+					}
 
-						const uint32_t metaID = KMER_S::getMetaCpG(ref.tabIndex[sliceHashes[sliceSortedIds[0]]] + sliceOffsets[sliceSortedIds[0]]);
-
-						const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[metaID].start];
-						const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[metaID].end];
-						auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-						auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
-
-						// check if CpG was too near to the end
-						if (endIt > ref.fullSeq[startCpg.chrom].end())
-						{
-							// if so move end iterator appropriately
-							endIt = ref.fullSeq[startCpg.chrom].end();
-						}
-
-						// use shift and to find all matchings
-						std::vector<uint64_t> matchings;
-						std::vector<uint8_t> errors;
+					// use shift and to find all matchings
+					std::vector<uint64_t> matchings;
+					std::vector<uint8_t> errors;
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << "\nMatch preprocessing runtime " << runtime << "\t\t";
+					// startTime = std::chrono::high_resolution_clock::now();
+					if (metaStrand)
+					{
 						sa.querySeq(startIt, endIt, matchings, errors);
+					} else {
+						--startIt, --endIt;
+						sa.queryRevSeq(endIt, startIt, matchings, errors);
+					}
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << "\nShiftAnd runtime " << runtime << "\t\t";
 
-						size_t i = 0;
-						// compare first found match with last found match of previous meta CpG
-						if (matchings.size() > 0)
+					// startTime = std::chrono::high_resolution_clock::now();
+
+					size_t i = 0;
+					// compare first found match with last found match of previous meta CpG
+					if (matchings.size() > 0)
+					{
+						// compare chromosome and offset
+						if (matchings[0] + ref.cpgTable[ref.metaCpGs[metaID].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[metaID].start].chrom == prevChr)
 						{
-							// compare chromosome and offset
-							if (matchings[0] + ref.cpgTable[ref.metaCpGs[metaID].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[metaID].start].chrom == prevChr)
-							{
-								++i;
-							}
+							++i;
 						}
-						// go through matching and see if we had such a match (with that many errors) before - if so,
-						// return to caller reporting no match
-						for (; i < matchings.size(); ++i)
+					}
+					// go through matching and see if we had such a match (with that many errors) before - if so,
+					// return to caller reporting no match
+					for (; i < matchings.size(); ++i)
+					{
+
+						// check if we had a match with that many errors before
+						if (multiMatch[errors[i]])
 						{
 
-							// check if we had a match with that many errors before
-							if (multiMatch[errors[i]])
+							MATCH::match& match_2 = uniqueMatches[errors[i]];
+							// const bool isStart = MATCH::isStart(match_2);
+							const bool isFwd = MATCH::isFwd(match_2);
+							// check if same k-mer (borders of meta CpGs)
+							if (ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(match_2)].start].pos + MATCH::getOffset(match_2) == startCpg.pos + matchings[i])
 							{
-
-								MATCH::match& match_2 = uniqueMatches[errors[i]];
-								const bool isStart = MATCH::isStart(match_2);
-								const bool isFwd = MATCH::isFwd(match_2);
-								// check if same k-mer (borders of meta CpGs)
-								if (isFwd && !isStart && ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(match_2)].start].pos + MATCH::getOffset(match_2) == startCpg.pos + matchings[i])
-								{
+								if ((isFwd && metaStrand) || (!isFwd && !metaStrand))
 									continue;
-
-								} else {
-
-									// check if this is a match without errors
-									if (!errors[i])
-									{
-
-										// if so, return without a match
-										return -1;
-
-									}
-									// set the number of matches with that many errors to 2
-									// indicating that we do not have a unique match with that many errors
-									multiMatch[errors[i]] = 2;
-								}
-
 
 							} else {
 
-								// update qgram lemma
-								uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
-								// check for overflow and if we improved old q
-								if (newQ < sa.size() && newQ > qThreshold)
-									qThreshold = newQ;
+								// check if this is a match without errors
+								if (!errors[i])
+								{
 
+									// if so, return without a match
+									// of << "\tNonunique <---\n\n";
+									return -1;
 
-								// we don't have such a match yet,
-								// so save this match at the correct position
-								uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], errors[i], 1, 0, metaID);
-								multiMatch[errors[i]] = 1;
+								}
+								// set the number of matches with that many errors to 2
+								// indicating that we do not have a unique match with that many errors
+								multiMatch[errors[i]] = 2;
 							}
-						}
-						if (matchings.size() > 0)
-						{
 
-							prevChr = ref.cpgTable[ref.metaCpGs[metaID].start].chrom;
-							prevOff = ref.cpgTable[ref.metaCpGs[metaID].start].pos + matchings[matchings.size() - 1];
 
 						} else {
 
-							prevChr = 0;
-							prevOff = 0xffffffffffffffffULL;
+							// update qgram lemma
+							uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
+							// check for overflow and if we improved old q
+							if (newQ < sa.size() && newQ > qThreshold)
+								qThreshold = newQ;
+
+
+							// we don't have such a match yet,
+							// so save this match at the correct position
+							if (metaStrand)
+							{
+								uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], errors[i], 1, 0, metaID);
+							} else {
+								uniqueMatches[errors[i]] = MATCH::constructMatch(matchings[i], errors[i], 0, 0, metaID);
+							}
+							multiMatch[errors[i]] = 1;
 						}
 					}
+					if (matchings.size() > 0)
+					{
 
-				}
-				// Advance all offsets of k-mers with matched window
-				for (size_t i = 0; i < qThreshold; ++i)
-				{
-					++sliceOffsets[sliceSortedIds[i]];
-					// reached end of vector slice
-					if (ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]] >= ref.tabIndex[sliceHashes[sliceSortedIds[i]]+1])
-					{
-						sliceIsDone[sliceSortedIds[i]] = true;
+						prevChr = ref.cpgTable[ref.metaCpGs[metaID].start].chrom;
+						prevOff = ref.cpgTable[ref.metaCpGs[metaID].start].pos + matchings[matchings.size() - 1];
+
+					} else {
+
+						prevChr = 0;
+						prevOff = 0xffffffffffffffffULL;
 					}
-				}
-				for (size_t i = qThreshold; i < kmerNum; ++i)
-				{
-					if (KMER_S::getMetaCpG(ref.kmerTableSmall[ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]]]) == qWindow)
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << "\nPostprocessing matches runtime " << runtime << "\t\t";
+					// Advance all offsets of k-mers with matched window
+					for (size_t i = 0; i < qThreshold; ++i)
 					{
-						if (ref.strandTable[ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]]] == qIsFwd)
+						// of << sliceSortedIds[i] << "\t";
+						// of << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "++";
+						++sliceOff[sliceSortedIds[i]];
+						// reached end of vector slice
+						if (sliceOff[sliceSortedIds[i]] >= sliceEnd[sliceSortedIds[i]])
 						{
-							++sliceOffsets[sliceSortedIds[i]];
-							// reached end of vector slice
-							if (ref.tabIndex[sliceHashes[sliceSortedIds[i]]] + sliceOffsets[sliceSortedIds[i]] >= ref.tabIndex[sliceHashes[sliceSortedIds[i]]+1])
+							// of << "Setting " << sliceSortedIds[i] << " to End\n";
+							sliceIsDone[sliceSortedIds[i]] = true;
+						}
+					}
+					for (size_t i = qThreshold; i < kmerNum; ++i)
+					{
+						if (sliceIsDone[sliceSortedIds[i]])
+							break;
+						if (KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) == qWindow)
+						{
+							if (ref.strandTable[sliceOff[sliceSortedIds[i]]] == qIsFwd)
 							{
-								sliceIsDone[sliceSortedIds[i]] = true;
+								// of << sliceSortedIds[i] << "\t";
+								// of << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "++";
+								++sliceOff[sliceSortedIds[i]];
+								// reached end of vector slice
+								if (sliceOff[sliceSortedIds[i]] >= sliceEnd[sliceSortedIds[i]])
+								{
+									// of << "Setting " << sliceSortedIds[i] << " to End\n";
+									sliceIsDone[sliceSortedIds[i]] = true;
+								}
 							}
 						}
 					}
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << "Advance after match runtime " << runtime << "\t\t";
 				}
+
+				// order descending on window and reverse strand > fwd strand
+				// Order:
+				//		return false (i.e. id1 > id2) if
+				//			has no windows left to process in 1
+				//		return true (i.e. id1 < id2) if
+				//			window id 1 > window id 2 and
+				//				strand is rev for 1 and is fwd for 2
+				//			else return false
+				// startTime = std::chrono::high_resolution_clock::now();
+				std::nth_element(sliceSortedIds.begin(), sliceSortedIds.begin() + qThreshold - 1, sliceSortedIds.end(),
+						[&](unsigned int id1, unsigned int id2){
+							if (sliceIsDone[id1])
+							{
+								return false;
+							} else if (sliceIsDone[id2])
+							{
+								return true;
+							}
+
+							const auto id1meta = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[id1]]);
+							const auto id2meta = KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[id2]]);
+							if (id1meta > id2meta)
+							{
+								return true;
+
+							} else {
+								// test for strand if windows are equal
+								if (id1meta == id2meta &&
+										(ref.strandTable[sliceOff[id1]] > ref.strandTable[sliceOff[id2]]))
+								{
+									// Case id2 window is reverse strand, id1 window is fwd strand
+									return true;
+								} else {
+									return false;
+								}
+							}
+						});
+				// endTime = std::chrono::high_resolution_clock::now();
+				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+				// of << "Sort runtime " << runtime << "\n\n";
+				// of << "SortedIds:\n\t";
+				// for (size_t i = 0; i < kmerNum; ++i)
+				// {
+				// 	of << sliceSortedIds[i] << "\t";
+				// }
+				// of << "\n";
+
 			}
+
+			// of << "qGrams at end: \n";
+			// for (size_t i = 0; i < kmerNum; ++i)
+			// {
+			// 	if (!sliceIsDone[sliceSortedIds[qThreshold-1]])
+			// 		of << "\t" << KMER_S::getMetaCpG(ref.kmerTableSmall[sliceOff[sliceSortedIds[i]]]) << "\n";
+			// 	else
+			// 		of << "\tEnd\n";
+			// }
 
             // go through found matches for each [0,maxErrorNumber] and see if it is unique
             for (size_t i = 0; i < multiMatch.size(); ++i)
@@ -2580,16 +2730,19 @@ class ReadQueue
                 if (multiMatch[i] > 1)
                 {
 
+					// of << "\tNonunique <---\n\n";
                     return -1;
 
                 // exactly one with that many errors - return successfull
                 } else {
 
+					// of << "\tSuccessfull match <---\n\n";
                     return 1;
                 }
 
             }
             // we have not a single match at all, return unsuccessfull to caller
+			// of << "\tNo match <---\n\n";
             return 0;
 		}
 
@@ -3380,7 +3533,7 @@ class ReadQueue
         // 'C' -> 1
         // 'G' -> 2
         // 'T' -> 3
-        std::array<uint8_t, 256> lmap;
+        std::array<uint8_t, 16> lmap;
 
         // holds counts for each thread for counting heuristic
         // for forward and reverse strand metaCpGs, respectively
