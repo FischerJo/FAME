@@ -378,7 +378,7 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
 
 void ReadQueue::decideStrand()
 {
-	std::cout << "\nMatched to fwd strand: " << (float)(r1FwdMatches + 1)/(r1RevMatches + 1) << "\n\n";
+	std::cout << "\nOdds of matching to fwd/rev strand: " << (float)(r1FwdMatches + 1)/(r1RevMatches + 1) << "\n\n";
 	if ((float)(r1FwdMatches + 1)/(r1RevMatches + 1) > 0.05 && (float)(r1FwdMatches + 1)/(r1RevMatches + 1) < 20)
 	{
 		std::cout << "Warning! Many of the reads are mapped against a different strands\
@@ -495,11 +495,14 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         //
         // of << runtime << "\n";
+		//
 
         // set qgram threshold
         uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
         if (qThreshold > readSize)
             qThreshold = 0;
+
+		qThreshold = 10;
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
@@ -786,103 +789,107 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 // #pragma omp critical
 // #endif
 // {
-                // construct hash and look up the hash table entries
-                // size_t lPos = r.id.find_last_of('_');
-                // std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
-                // size_t rPos = r.id.find_last_of('R');
-                // std::string stringChrom (r.id.begin() + 1 + rPos, r.id.begin() + lPos);
-                // uint8_t chrom = std::stoul(stringChrom);
-                // unsigned long offset = std::stoul(stringOffset);
-                // of << "\nreal seq/real revSeq/sequence in genome: " << r.id << "\n" << r.seq << "\n" << revSeq << "\n" << std::string(ref.fullSeq[chrom].begin() + offset, ref.fullSeq[chrom].begin() + offset + 100) << "\n\n\n";
-                //
-                //
-                // uint64_t hVal = ntHash::NTP64(r.seq.data()) % MyConst::HTABSIZE;
-                // auto startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
-                // auto endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
-                // auto tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                // for (auto it = startIt; it != endIt; ++it, ++tit)
-                // {
-                //     KMER_S::kmer& k = *it;
-                //     const uint32_t m = KMER_S::getMetaCpG(k);
-                //     const bool isStart = KMER_S::isStartCpG(k);
-                //     if (!isStart)
-                //     {
-                //         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                //         if (*tit)
-                //         {
-                //             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                //             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
-                //             of << std::string(stIt, enIt) << "\n";
-                //         }
-                //     }
-                // }
-                // of << "Last Sequence part:\n";
-                // hVal = ntHash::NTP64(r.seq.data()+70) % MyConst::HTABSIZE;
-                // startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
-                // endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
-                // tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                // for (auto it = startIt; it != endIt; ++it, ++tit)
-                // {
-                //     KMER_S::kmer& k = *it;
-                //     const uint32_t m = KMER_S::getMetaCpG(k);
-                //     const bool isStart = KMER_S::isStartCpG(k);
-                //     if (!isStart)
-                //     {
-                //         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                //         if (*tit)
-                //         {
-                //             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                //             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
-                //             of << std::string(stIt, enIt) << "\n";
-                //         }
-                //     }
-                // }
-                //
-                // of << "\n\nReverse seq matches\n";
-                // hVal = ntHash::NTP64(revSeq.data()) % MyConst::HTABSIZE;
-                // startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
-                // endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
-                // tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                // for (auto it = startIt; it != endIt; ++it, ++tit)
-                // {
-                //     KMER_S::kmer& k = *it;
-                //     const uint64_t m = KMER_S::getMetaCpG(k);
-                //     const bool isStart = KMER_S::isStartCpG(k);
-                //     if (!isStart)
-                //     {
-                //         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                //         if (*tit)
-                //         {
-                //             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                //             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
-                //             of << std::string(stIt, enIt) << "\n";
-                //         }
-                //     }
-                // }
-                // of << "Last Sequence part:\n";
-                // hVal = ntHash::NTP64(revSeq.data()+70) % MyConst::HTABSIZE;
-                // startIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal];
-                // endIt = ref.kmerTableSmall.begin() + ref.tabIndex[hVal + 1];
-                // tit = ref.strandTable.begin() + ref.tabIndex[hVal];
-                // for (auto it = startIt; it != endIt; ++it, ++tit)
-                // {
-                //     KMER_S::kmer& k = *it;
-                //     const uint64_t m = KMER_S::getMetaCpG(k);
-                //     const bool isStart = KMER_S::isStartCpG(k);
-                //     if (!isStart)
-                //     {
-                //         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
-                //         if (*tit)
-                //         {
-                //             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-                //             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
-                //             of << std::string(stIt, enIt) << "\n";
-                //         }
-                //     }
-                // }
-                // of << "\n\n--------------------\n\n";
-                //
-
+//                 // construct hash and look up the hash table entries
+//                 size_t lPos = r.id.find_last_of('_');
+//                 std::string stringOffset (r.id.begin() + lPos + 1, r.id.end());
+//                 size_t rPos = r.id.find_last_of('R');
+//                 std::string stringChrom (r.id.begin() + 1 + rPos, r.id.begin() + lPos);
+//                 uint8_t chrom = std::stoul(stringChrom);
+//                 unsigned long offset = std::stoul(stringOffset);
+//                 of << "\nreal seq/real revSeq/sequence in genome: " << r.id << "\n" << r.seq << "\n" << revSeq << "\n" << std::string(ref.fullSeq[chrom].begin() + offset, ref.fullSeq[chrom].begin() + offset + 100) << "\n\n\n";
+//
+//
+//                 uint64_t hVal;
+// 				uint64_t sVal = ntHash::NTPS64(r.seq.data(), MyConst::SEED, MyConst::KMERLEN, hVal) % MyConst::HTABSIZE;
+//                 auto startIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal];
+//                 auto endIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal + 1];
+//                 auto tit = ref.strandTable.begin() + ref.tabIndex[sVal];
+//                 for (auto it = startIt; it != endIt; ++it, ++tit)
+//                 {
+//                     KMER_S::kmer& k = *it;
+//                     const uint32_t m = KMER_S::getMetaCpG(k);
+//                     const bool isStart = KMER_S::isStartCpG(k);
+//                     if (!isStart)
+//                     {
+//                         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+//                         if (*tit)
+//                         {
+//                             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+//                             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+//                             of << std::string(stIt, enIt) << "\n";
+//                         }
+//                     }
+//                 }
+//                 of << "Last Sequence part:\n";
+//                 hVal = 0;
+// 				sVal = ntHash::NTPS64(r.seq.data()+70, MyConst::SEED, MyConst::KMERLEN, hVal) % MyConst::HTABSIZE;
+//                 startIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal];
+//                 endIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal + 1];
+//                 tit = ref.strandTable.begin() + ref.tabIndex[sVal];
+//                 for (auto it = startIt; it != endIt; ++it, ++tit)
+//                 {
+//                     KMER_S::kmer& k = *it;
+//                     const uint32_t m = KMER_S::getMetaCpG(k);
+//                     const bool isStart = KMER_S::isStartCpG(k);
+//                     if (!isStart)
+//                     {
+//                         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+//                         if (*tit)
+//                         {
+//                             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+//                             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+//                             of << std::string(stIt, enIt) << "\n";
+//                         }
+//                     }
+//                 }
+//
+//                 of << "\n\nReverse seq matches\n";
+//                 hVal = 0;
+// 				sVal = ntHash::NTPS64(revSeq.data(), MyConst::SEED, MyConst::KMERLEN, hVal) % MyConst::HTABSIZE;
+//                 startIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal];
+//                 endIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal + 1];
+//                 tit = ref.strandTable.begin() + ref.tabIndex[sVal];
+//                 for (auto it = startIt; it != endIt; ++it, ++tit)
+//                 {
+//                     KMER_S::kmer& k = *it;
+//                     const uint64_t m = KMER_S::getMetaCpG(k);
+//                     const bool isStart = KMER_S::isStartCpG(k);
+//                     if (!isStart)
+//                     {
+//                         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+//                         if (*tit)
+//                         {
+//                             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+//                             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+//                             of << std::string(stIt, enIt) << "\n";
+//                         }
+//                     }
+//                 }
+//                 of << "Last Sequence part:\n";
+//                 hVal = 0;
+// 				sVal = ntHash::NTPS64(revSeq.data()+70, MyConst::SEED, MyConst::KMERLEN, hVal) % MyConst::HTABSIZE;
+//                 startIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal];
+//                 endIt = ref.kmerTableSmall.begin() + ref.tabIndex[sVal + 1];
+//                 tit = ref.strandTable.begin() + ref.tabIndex[sVal];
+//                 for (auto it = startIt; it != endIt; ++it, ++tit)
+//                 {
+//                     KMER_S::kmer& k = *it;
+//                     const uint64_t m = KMER_S::getMetaCpG(k);
+//                     const bool isStart = KMER_S::isStartCpG(k);
+//                     if (!isStart)
+//                     {
+//                         const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m].start];
+//                         if (*tit)
+//                         {
+//                             auto stIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
+//                             auto enIt = ref.fullSeq[startCpg.chrom].begin() + 2*MyConst::READLEN - 2 + startCpg.pos;
+//                             of << std::string(stIt, enIt) << "\n";
+//                         }
+//                     }
+//                 }
+//                 of << "\n\n--------------------\n\n";
+//
+//
 // // END PRAGMA OMP CRITICAL
 // }
             }
@@ -1117,7 +1124,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             qThreshold = 0;
 
 		// TODO
-		qThreshold = std::min(qThreshold, static_cast<uint16_t>(1));
+		qThreshold = 10;
 		// of << "\nq-gram: " << qThreshold << "\n";
 
 

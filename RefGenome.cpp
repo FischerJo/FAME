@@ -707,41 +707,51 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + bpsAfterCpG - off);
 
     // initial hash backward
-    uint64_t rhVal = ntHash::NTP64(seqStartRev);
+    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
+	// TODO: spaced
+	uint64_t rhVal;
+	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
     // first kmer on reverse complement corresponds to last kmer in forward sequence
     uint64_t kPosRev = off - MyConst::KMERLEN;
 
     // update kmer table
-    kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-    strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
+    kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
+    strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
 
 
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         --kPosRev;
-        ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update kmer table
-        kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-        strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
+        kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
+        strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
     }
 
     // initial hash forward
-    uint64_t fhVal = ntHash::NTP64(seqStart);
+    // uint64_t fhVal = ntHash::NTP64(seqStart);
+	// TODO: spaced
+	uint64_t fhVal;
+	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
     uint64_t kPos = lasN;
 
     // update kmer table
-    kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-    strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
+    kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
+    strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ++kPos;
-        ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update kmer table
-        kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-        strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
+        kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
+        strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
     }
 }
 
@@ -873,41 +883,51 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + posOfCpG - off);
 
     // initial hash backward
-    uint64_t rhVal = ntHash::NTP64(seqStartRev);
+    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
+	// TODO: spaced
+	uint64_t rhVal;
+	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
     // first kmer on reverse complement corresponds to last kmer in forward sequence
     uint64_t kPosRev = off - MyConst::KMERLEN;
 
     // update kmer table
-    kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
-    strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
+    kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
+    strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
 
 
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         --kPosRev;
-        ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update kmer table
-        kmerTable[--tabIndex[rhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
-        strandTable[tabIndex[rhVal % MyConst::HTABSIZE]] = false;
+        kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
+        strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
     }
 
     // initial hash forward
-    uint64_t fhVal = ntHash::NTP64(seqStart);
+    // uint64_t fhVal = ntHash::NTP64(seqStart);
+	// TODO: spaced
+	uint64_t fhVal;
+	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
     uint64_t kPos = lasN;
 
     // update kmer table
-    kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
-    strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
+    kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
+    strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ++kPos;
-        ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update kmer table
-        kmerTable[--tabIndex[fhVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
-        strandTable[tabIndex[fhVal % MyConst::HTABSIZE]] = true;
+        kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
+        strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
     }
     lastPos = off - MyConst::KMERLEN + 1;
 
@@ -1042,29 +1062,39 @@ void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const un
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + posOfCpG - off);
 
     // initial hash backward
-    uint64_t rhVal = ntHash::NTP64(seqStartRev);
+    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
+	// TODO: spaced
+	uint64_t rhVal;
+	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
 
     // update kmer table
-    ++tabIndex[rhVal % MyConst::HTABSIZE];
+    ++tabIndex[srVal % MyConst::HTABSIZE];
 
 
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-        ++tabIndex[rhVal % MyConst::HTABSIZE];
+        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
+        ++tabIndex[srVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
-    uint64_t fhVal = ntHash::NTP64(seqStart);
+    // uint64_t fhVal = ntHash::NTP64(seqStart);
+	// TODO: spaced
+	uint64_t fhVal;
+	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
 
-    ++tabIndex[fhVal % MyConst::HTABSIZE];
+    ++tabIndex[sfVal % MyConst::HTABSIZE];
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-        ++tabIndex[fhVal % MyConst::HTABSIZE];
+        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
+        ++tabIndex[sfVal % MyConst::HTABSIZE];
     }
     lastPos = off - MyConst::KMERLEN + 1;
 
@@ -1197,32 +1227,42 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + bpsAfterCpG - off);
 
     // initial hash backward
-    uint64_t rhVal = ntHash::NTP64(seqStartRev);
+    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
+	// TODO: spaced
+	uint64_t rhVal;
+	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
 
     // update indices
-    ++tabIndex[rhVal % MyConst::HTABSIZE];
+    ++tabIndex[srVal % MyConst::HTABSIZE];
 
 
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update indices
-        ++tabIndex[rhVal % MyConst::HTABSIZE];
+        ++tabIndex[srVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
-    uint64_t fhVal = ntHash::NTP64(seqStart);
+    // uint64_t fhVal = ntHash::NTP64(seqStart);
+	// TODO: spaced
+	uint64_t fhVal;
+	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
 
     // update indices
-    ++tabIndex[fhVal % MyConst::HTABSIZE];
+    ++tabIndex[sfVal % MyConst::HTABSIZE];
 
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
+		// TODO: spaced
+		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update indices
-        ++tabIndex[fhVal % MyConst::HTABSIZE];
+        ++tabIndex[sfVal % MyConst::HTABSIZE];
     }
 }
 

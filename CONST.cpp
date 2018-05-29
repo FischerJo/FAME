@@ -24,11 +24,17 @@
 void MyConst::sanityChecks()
 {
 
-    // if (MyConst::KMERLEN >= 33)
-    // {
-    //     std::cerr << "The chosen length for kmers is too large. Maximum value allowed is 32. Please redefine KMERLEN.\n\n";
-    //     exit(1);
-    // }
+    if (MyConst::KMERLEN >= 33)
+    {
+        std::cerr << "The chosen length for kmers is too large. Maximum value allowed is 32. Please redefine KMERLEN.\n\n";
+        exit(1);
+    }
+
+	if (MyConst::KMERLEN != MyConst::SEED.size())
+	{
+		std::cerr << "Seed size is different from k-mer length! Aborting.\n\n";
+		exit(1);
+	}
 
     if (MyConst::READLEN <= MyConst::KMERLEN)
     {
@@ -37,12 +43,12 @@ void MyConst::sanityChecks()
         exit(1);
     }
 
-    if (MyConst::READLEN - MyConst::KMERLEN - (MyConst::KMERLEN*MyConst::MISCOUNT))
-    {
-        std::cerr << "The maximum read length is too small to allow for so many errors. Please redefine the number of allowed mismatches (MISCOUNT).\n\n";
-        exit(1);
-    }
-
+    // if (MyConst::READLEN - MyConst::KMERLEN - (MyConst::KMERLEN*MyConst::MISCOUNT))
+    // {
+    //     std::cerr << "The maximum read length is too small to allow for so many errors. Please redefine the number of allowed mismatches (MISCOUNT).\n\n";
+    //     exit(1);
+    // }
+    //
     if (MyConst::MISCOUNT >= 3)
     {
 
@@ -50,7 +56,7 @@ void MyConst::sanityChecks()
 
     }
 
-    if (MyConst::WINLEN > (1 << 8))
+    if (MyConst::WINLEN <= (1 << 9))
     {
 
         std::cout << "The chosen Meta CpG window length (" << MyConst::WINLEN << ") is quite small. You should consider redefining WINLEN (default is 2^12).\n\n";

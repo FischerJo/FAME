@@ -20,6 +20,7 @@
 #define CONST_H
 
 #include <cstdint>
+#include <vector>
 #include <array>
 
 namespace MyConst {
@@ -38,10 +39,14 @@ constexpr unsigned int READLEN = 101;
 
 // closed interval borders for distances allowed between paired reads
 constexpr uint32_t MINPDIST = 20;
-constexpr uint32_t MAXPDIST = 1000;
+constexpr uint32_t MAXPDIST = 2000;
 
 // number of chromosomes in organism
 constexpr unsigned int CHROMNUM = 24;
+
+// seed used for spaced k-mer hashing
+const std::vector<bool> SEED = {1,1,1,1,0,0,1,1,0,1,0,1,1,1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1};
+// const std::vector<bool> SEED = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 //  --------------------------------------
 
@@ -62,10 +67,11 @@ constexpr unsigned int CPGMAX = 100000000;
 // (note that very large values may increase the required amount of RAM drastically)
 // recommended is 300 000
 constexpr unsigned int CHUNKSIZE = 300000;
+//  constexpr unsigned int CHUNKSIZE = 20;
 
 // Length of a kmer in bp
 // recommended is 25
-constexpr unsigned int KMERLEN = 25;
+constexpr unsigned int KMERLEN = 32;
 
 // Kmer bitmask to build reverse complement of 64bit kmer
 constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 2*KMERLEN) - 1);
@@ -87,7 +93,7 @@ constexpr unsigned int WINLEN = 1024;
 // recommended is 2
 constexpr uint8_t MISCOUNT = 2;
 // number of mismatches we allow additionally for shift-and and alignment
-constexpr uint8_t ADDMIS = 3;
+constexpr uint8_t ADDMIS = 6;
 
 // maximum number of times a k-mer is allowed to occur in the whole genome
 constexpr uint64_t KMERCUTOFF = 1500;
