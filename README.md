@@ -10,6 +10,9 @@ The code is written in C++ and parallelized using OpenMP and is licensed under G
 \*In WGBS experiments, unmethylated Cytosines are converted to Thymines in Reads, thus it is necessary to allow
 Read Cytosines to Reference Thymines, but not vice versa. This is termed asymmetric mapping problem and is commonly tackled by working only on the reduced alphabet (A,T,G), which results in false matchings of reference Ts to read Cs.
 
+## 0) News
+
+This tool is still under development. We will update the news section once we published the algorithm and a stable version of the code is available.
 
 
 ## 1) Getting Started
