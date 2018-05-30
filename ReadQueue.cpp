@@ -21,12 +21,12 @@
 
 #include "ReadQueue.h"
 
-ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
+ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, const bool isGZ, const bool bsFlag) :
         ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
-	,	bothStrandsFlag(false)
+	,	bothStrandsFlag(bsFlag)
 	,	r1FwdMatches(0)
 	,	r1RevMatches(0)
     //TODO
@@ -108,7 +108,7 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, bool isGZ) :
     //     statFile << j << "\t" << counts[j] << "\n";
     // statFile.close();
 }
-ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ, bool bsFlag) :
+ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, const bool isGZ, const bool bsFlag) :
         ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
     ,   readBuffer2(MyConst::CHUNKSIZE)
@@ -402,7 +402,7 @@ void ReadQueue::decideStrand()
 
 
 // TODO: Implement stranding
-bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch)
+bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, const bool getStranded)
 {
 
     // reset all counters
@@ -532,16 +532,19 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         //     of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
         // }
         // startTime = std::chrono::high_resolution_clock::now();
-        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\t";
-        // startTime = std::chrono::high_resolution_clock::now();
-		// of << "--------------------------------\n\n";
-		// of << "Matching read " << r.id << "\n\n";
-        // int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
-		// TODO: test this
-		int succQueryFwd = matchSingle(r.seq, qThreshold, saFwd, matchFwd);
+		int succQueryFwd = 0;
+		if (bothStrandsFlag || matchR1Fwd)
+		{
+			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\t";
+			// startTime = std::chrono::high_resolution_clock::now();
+			// of << "--------------------------------\n\n";
+			// of << "Matching read " << r.id << "\n\n";
+			// int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
+			succQueryFwd = matchSingle(r.seq, qThreshold, saFwd, matchFwd);
+		}
 
 
         // endTime = std::chrono::high_resolution_clock::now();
@@ -591,14 +594,17 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // }
         // startTime = std::chrono::high_resolution_clock::now();
         // std::cout << revSeq << "\n";
-        ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq, lmap);
-        // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-        // of << runtime << "\n";
-        // startTime = std::chrono::high_resolution_clock::now();
-        // int succQueryRev = saQuerySeedSetRef(saRev, matchRev, qThreshold);
-		// TODO: test this
-		int succQueryRev = matchSingle(revSeq, qThreshold, saRev, matchRev);
+		int succQueryRev = 0;
+		if (bothStrandsFlag || !matchR1Fwd)
+		{
+			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq, lmap);
+			// endTime = std::chrono::high_resolution_clock::now();
+			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << runtime << "\n";
+			// startTime = std::chrono::high_resolution_clock::now();
+			// int succQueryRev = saQuerySeedSetRef(saRev, matchRev, qThreshold);
+			succQueryRev = matchSingle(revSeq, qThreshold, saRev, matchRev);
+		}
 
 
         // endTime = std::chrono::high_resolution_clock::now();
@@ -626,7 +632,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
             // of << "Meta CpGs passing q-gram (q=" << qThreshold << ") filter: " << qcount << "\n";
         // }
 
-        // found match for fwd and rev strand
+        // found match for fwd and rev automaton
         if (succQueryFwd == 1 && succQueryRev == 1)
         {
 
@@ -639,6 +645,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
             if (fwdErr < revErr)
             {
 
+				if (getStranded)
+					++r1FwdMatches;
                 ++succMatchT;
                 r.mat = matchFwd;
                 // startTime = std::chrono::high_resolution_clock::now();
@@ -652,6 +660,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 if (fwdErr > revErr)
                 {
 
+					if (getStranded)
+						++r1RevMatches;
                     ++succMatchT;
                     r.mat = matchRev;
                     // startTime = std::chrono::high_resolution_clock::now();
@@ -688,6 +698,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                     if ((m1_isStart == m2_isStart) && (m1_isFwd == m2_isFwd) && (m1_pos == m2_pos))
                     {
                         ++succMatchT;
+						if (getStranded)
+							++r1FwdMatches;
                         r.mat = matchFwd;
                         // startTime = std::chrono::high_resolution_clock::now();
                         computeMethLvl(matchFwd, r.seq);
@@ -712,6 +724,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 {
                     // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
                     ++succMatchT;
+					if (getStranded)
+						++r1FwdMatches;
                     r.mat = matchFwd;
                     // startTime = std::chrono::high_resolution_clock::now();
                     computeMethLvl(matchFwd, r.seq);
@@ -727,6 +741,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 
                 // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
                 ++succMatchT;
+				if (getStranded)
+					++r1FwdMatches;
                 r.mat = matchFwd;
                 // startTime = std::chrono::high_resolution_clock::now();
                 computeMethLvl(matchFwd, r.seq);
@@ -744,6 +760,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 {
                     // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
                     ++succMatchT;
+					if (getStranded)
+						++r1RevMatches;
                     r.mat = matchRev;
                     // startTime = std::chrono::high_resolution_clock::now();
                     computeMethLvl(matchRev, revSeq);
@@ -759,6 +777,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 
                 // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
                 ++succMatchT;
+				if (getStranded)
+					++r1RevMatches;
                 r.mat = matchRev;
                 // startTime = std::chrono::high_resolution_clock::now();
                 computeMethLvl(matchRev, revSeq);
@@ -973,7 +993,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
     return true;
 }
 
-bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, bool getStranded)
+bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, const bool getStranded)
 {
 
 

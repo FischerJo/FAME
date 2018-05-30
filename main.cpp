@@ -23,7 +23,7 @@
 #include "RefGenome.h"
 #include "ReadQueue.h"
 
-void queryRoutine(ReadQueue& rQue, const bool isGZ);
+void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
 void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
 void printHelp();
 
@@ -32,6 +32,7 @@ void printHelp();
 //
 int main(int argc, char** argv)
 {
+	MyConst::sanityChecks();
 
     std::string indexFile = "";
     std::string genomeFile = "";
@@ -237,9 +238,9 @@ int main(int argc, char** argv)
 
         } else {
 
-            ReadQueue rQue(readFile, ref, readsGZ);
+            ReadQueue rQue(readFile, ref, readsGZ, bothStrandsFlag);
 
-            queryRoutine(rQue, readsGZ);
+            queryRoutine(rQue, readsGZ, bothStrandsFlag);
 
             rQue.printMethylationLevels(outputFile);
         }
@@ -282,7 +283,7 @@ int main(int argc, char** argv)
 
 
 
-void queryRoutine(ReadQueue& rQue, const bool isGZ)
+void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag)
 {
 
     unsigned int readCounter = 0;
@@ -292,17 +293,26 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ)
     uint64_t nonUniqueMatch = 0;
     uint64_t unSuccMatch = 0;
     std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+
+	if (!bothStrandsFlag)
+	{
+		isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter);
+		rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, true);
+		rQue.decideStrand();
+	}
+
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
         // TODO
-        // if (i > 10)
-        //     break;
-        rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " reads\n";
+        if (i > 3)
+            break;
+        rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " reads\n";
     }
     // match remaining reads
-    rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch);
+    rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
+	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+2) << " reads\n";
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
@@ -335,13 +345,14 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
     {
         ++i;
         // TODO
-        if (i > 0)
+        if (i > 10)
             break;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * i << " paired reads\n";
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " paired reads\n";
     }
     // match remaining reads
     rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
+	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+2) << " paired reads\n";
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();

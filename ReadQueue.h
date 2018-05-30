@@ -57,7 +57,8 @@ class ReadQueue
         //          filePath    path to file containing reads in fastq format
         //          ref         internal representation of reference genome
         //          isGZ        flag - true iff file is gzipped
-        ReadQueue(const char* filePath, RefGenome& ref, bool isGZ);
+		//          bsFlag		flag - true iff there is no orientation of the read (i.e. could be C->T or G->A converted)
+        ReadQueue(const char* filePath, RefGenome& ref, const bool isGZ, const bool bsFlag);
 
         // for paired end
         // ARGUMENTS:
@@ -69,7 +70,7 @@ class ReadQueue
         //
         // NOTE:
         //          provided files are ASSUMED to have equal number of reads in correct (paired) order!
-        ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, bool isGZ, bool bsFlag);
+        ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, const bool isGZ, const bool bsFlag);
 
         // -----------
 
@@ -91,8 +92,8 @@ class ReadQueue
 		//          getStranded	flag for initial stranding counters
         // Make full match using bit shift trick
         // Align match using banded levenshtein alignment to update methylation counts
-        bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch);
-        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, bool getStranded);
+        bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, const bool getStranded);
+        bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, const bool getStranded);
 
         // Print the CpG methylation levels to the given filename
         // Two files are generated, one called filename_cpg.tsv
