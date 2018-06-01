@@ -47,20 +47,19 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, const bool isGZ
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
 
-        // fwdMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
-        // revMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
-        // fwdMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
-        // revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
         fwdMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
         revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
         fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
         revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
         fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
         revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
-        // countsFwd[i] = std::vector<uint16_t>();
-        // countsRev[i] = std::vector<uint16_t>();
         countsFwdStart[i] = std::vector<uint16_t>();
         countsRevStart[i] = std::vector<uint16_t>();
+
+		sliceOffThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
+		sliceEndThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
+		sliceSortedIdsThreads[i] = std::vector<unsigned int>(MyConst::READLEN - MyConst::KMERLEN + 1);
+		sliceIsDoneThreads[i] = std::vector<bool>(MyConst::READLEN - MyConst::KMERLEN + 1);
     }
     // fill array mapping - locale specific filling
     lmap['A'%16] = 0;
@@ -138,20 +137,19 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
 
-        // fwdMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
-        // revMetaIDs[i] = std::unordered_map<uint32_t, uint16_t, MetaHash>();
-        // fwdMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
-        // revMetaIDs[i] = spp::sparse_hash_map<uint32_t, uint16_t, MetaHash>();
         paired_fwdMetaIDs[i] = google::dense_hash_map<uint32_t, std::tuple<uint16_t, uint16_t, bool>, MetaHash>();
         paired_revMetaIDs[i] = google::dense_hash_map<uint32_t, std::tuple<uint16_t, uint16_t, bool>, MetaHash>();
         paired_fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
         paired_revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
         paired_fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
         paired_revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
-        // countsFwd[i] = std::vector<uint16_t>();
-        // countsRev[i] = std::vector<uint16_t>();
         countsFwdStart[i] = std::vector<uint16_t>();
         countsRevStart[i] = std::vector<uint16_t>();
+
+		sliceOffThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
+		sliceEndThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
+		sliceSortedIdsThreads[i] = std::vector<unsigned int>(MyConst::READLEN - MyConst::KMERLEN + 1);
+		sliceIsDoneThreads[i] = std::vector<bool>(MyConst::READLEN - MyConst::KMERLEN + 1);
     }
     // fill array mapping - locale specific filling
     lmap['A'%16] = 0;
@@ -401,7 +399,6 @@ void ReadQueue::decideStrand()
 
 
 
-// TODO: Implement stranding
 bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, const bool getStranded)
 {
 
@@ -533,7 +530,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // }
         // startTime = std::chrono::high_resolution_clock::now();
 		int succQueryFwd = 0;
-		if (bothStrandsFlag || matchR1Fwd)
+		if (bothStrandsFlag || matchR1Fwd || getStranded)
 		{
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -543,7 +540,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 			// of << "--------------------------------\n\n";
 			// of << "Matching read " << r.id << "\n\n";
 			// int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
-			succQueryFwd = matchSingle(r.seq, qThreshold, saFwd, matchFwd);
+			succQueryFwd = matchSingle(r.seq, qThreshold, saFwd, matchFwd, threadnum);
 		}
 
 
@@ -595,7 +592,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // startTime = std::chrono::high_resolution_clock::now();
         // std::cout << revSeq << "\n";
 		int succQueryRev = 0;
-		if (bothStrandsFlag || !matchR1Fwd)
+		if (bothStrandsFlag || !matchR1Fwd || getStranded)
 		{
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq, lmap);
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -603,7 +600,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 			// of << runtime << "\n";
 			// startTime = std::chrono::high_resolution_clock::now();
 			// int succQueryRev = saQuerySeedSetRef(saRev, matchRev, qThreshold);
-			succQueryRev = matchSingle(revSeq, qThreshold, saRev, matchRev);
+			succQueryRev = matchSingle(revSeq, qThreshold, saRev, matchRev, threadnum);
 		}
 
 
@@ -1154,7 +1151,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 		std::vector<MATCH::match> matches2Rev;
 		matches2Rev.reserve(20);
 
-		if (bothStrandsFlag || matchR1Fwd)
+		if (bothStrandsFlag || matchR1Fwd || getStranded)
 		{
 
 			// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
@@ -1191,7 +1188,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 		std::vector<MATCH::match> matches2Fwd;
 		matches2Fwd.reserve(20);
 
-		if (bothStrandsFlag || !matchR1Fwd)
+		if (bothStrandsFlag || !matchR1Fwd || getStranded)
 		{
 			getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);

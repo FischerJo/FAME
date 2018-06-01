@@ -2389,6 +2389,7 @@ class ReadQueue
 		//			qThreshold	minimum number of k-mers required in Meta CpG to test for matching
 		//			sa			ShiftAnd automaton
 		//			mat			Best match found (or dummy if none)
+		//			threadnum	Number of the thread in which this function is called
 		//
 		//	RETURN:
 		//			-1			iff no successfull match (e.g. nonunique)
@@ -2398,19 +2399,21 @@ class ReadQueue
 		//	MODIFICATION:
 		//			Adapts qThreshold if match is found.
 		//
-		inline int matchSingle(const std::string& seq, uint16_t& qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, MATCH::match& mat)
+		inline int matchSingle(const std::string& seq, uint16_t& qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, MATCH::match& mat, const int threadnum)
 		{
 
 			// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 			const size_t kmerNum = seq.size() - MyConst::KMERLEN + 1;
 
 			// slices of hash table currently looking at
-			std::vector<uint64_t> sliceOff (kmerNum);
-			std::vector<uint64_t> sliceEnd (kmerNum);
+			std::vector<uint64_t>& sliceOff = sliceOffThreads[threadnum];
+			std::vector<uint64_t>& sliceEnd = sliceEndThreads[threadnum];
 			// referencing indices correspond to indices of sliceHashes
-			std::vector<unsigned int> sliceSortedIds (kmerNum);
+			std::vector<unsigned int>& sliceSortedIds = sliceSortedIdsThreads[threadnum];
+			sliceSortedIds.resize(kmerNum);
 			// flags if whole slice is already processed
-			std::vector<bool> sliceIsDone (kmerNum, false);
+			std::vector<bool>& sliceIsDone = sliceIsDoneThreads[threadnum];
+			std::fill(sliceIsDone.begin(), sliceIsDone.end(), false);
 
 
 			std::iota(sliceSortedIds.begin(), sliceSortedIds.end(), 0);
@@ -4138,6 +4141,12 @@ class ReadQueue
         std::array<uint64_t, CORENUM> noMatchStats;
         std::array<uint64_t, CORENUM> matchPairedStats;
         std::array<uint64_t, CORENUM> tooShortCounts;
+
+		// buffer arrays for Karl's matching
+		std::array<std::vector<uint64_t>, CORENUM> sliceOffThreads;
+		std::array<std::vector<uint64_t>, CORENUM> sliceEndThreads;
+		std::array<std::vector<unsigned int>, CORENUM> sliceSortedIdsThreads;
+		std::array<std::vector<bool>, CORENUM> sliceIsDoneThreads;
 
 		bool bothStrandsFlag;
 		// counter for read 1 matches to fwd strand

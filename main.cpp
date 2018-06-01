@@ -193,6 +193,7 @@ int main(int argc, char** argv)
 		if (std::string(argv[i]) == "--both_strands")
 		{
 			bothStrandsFlag = true;
+			continue;
 		}
 
 
@@ -296,9 +297,11 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag)
 
 	if (!bothStrandsFlag)
 	{
+		++i;
 		isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter);
 		rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, true);
 		rQue.decideStrand();
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " reads\n";
 	}
 
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
@@ -308,11 +311,11 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag)
         if (i > 3)
             break;
         rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " reads\n";
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " reads\n";
     }
     // match remaining reads
     rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
-	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+2) << " reads\n";
+	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " reads\n";
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
@@ -336,9 +339,11 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
 
 	if (!bothStrandsFlag)
 	{
+		++i;
 		isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter);
 		rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, true);
 		rQue.decideStrand();
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
 	}
 
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
@@ -348,11 +353,11 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
         if (i > 10)
             break;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
-        std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " paired reads\n";
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
     }
     // match remaining reads
     rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
-	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+2) << " paired reads\n";
+	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " paired reads\n";
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
@@ -413,6 +418,9 @@ void printHelp()
     std::cout << "\t                 \t\tFormat is specified as header in first line of file.\n\n";
 
     std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n\n";
+
+	std::cout << "\t--both_strands	\t\tThe original read and its reverse complement are\n";
+	std::cout << "\t                \t\tare tested for a match.\n\n";
 
     std::cout << "\nEXAMPLES\n\n";
 

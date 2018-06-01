@@ -120,7 +120,7 @@ Examples on how to use FAME in the command line are given in 2.D.
 | -r | Filepath | Forces the tool to query the specified single end read .fastq file to a loaded index. |
 | -r1 | Filepath | Path to file with first reads of a paired read set. Read format must be .fastq. |
 | -r2 | Filepath | Path to file with second reads of a paired read set. Read format must be .fastq. |
-|--both_strands | None | Always try to match reads against both strands of reference file (unstranded libraries). |
+|--both_strands | None | Always try both, the read and its reverse complement for matching against the genome. This is required if reads are could potentially be C->T and G->A converted. |
 | --gzip_reads | None | Treats the read files passed to -r or -r1 and -r2 as gzipped files. |
 | -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
 | --out_basename | Filepath | see -o |
