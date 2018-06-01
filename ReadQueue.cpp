@@ -499,11 +499,11 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         if (qThreshold > readSize)
             qThreshold = 0;
 
-		qThreshold = 10;
+		qThreshold = 6;
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
-        // getSeedRefs(r.seq, readSize, qThreshold);
+        getSeedRefs(r.seq, readSize, qThreshold);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
@@ -539,8 +539,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 			// startTime = std::chrono::high_resolution_clock::now();
 			// of << "--------------------------------\n\n";
 			// of << "Matching read " << r.id << "\n\n";
-			// int succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
-			succQueryFwd = matchSingle(r.seq, qThreshold, saFwd, matchFwd, threadnum);
+			succQueryFwd = saQuerySeedSetRef(saFwd, matchFwd, qThreshold);
+			// succQueryFwd = matchSingle(r.seq, qThreshold, saFwd, matchFwd, threadnum);
 		}
 
 
@@ -550,7 +550,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         //
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchRev = 0;
-        // getSeedRefs(revSeq, readSize, qThreshold);
+        getSeedRefs(revSeq, readSize, qThreshold);
         // if (!succFlag)
         // {
         //     ++readCount;
@@ -599,8 +599,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
 			// of << runtime << "\n";
 			// startTime = std::chrono::high_resolution_clock::now();
-			// int succQueryRev = saQuerySeedSetRef(saRev, matchRev, qThreshold);
-			succQueryRev = matchSingle(revSeq, qThreshold, saRev, matchRev, threadnum);
+			succQueryRev = saQuerySeedSetRef(saRev, matchRev, qThreshold);
+			// succQueryRev = matchSingle(revSeq, qThreshold, saRev, matchRev, threadnum);
 		}
 
 
