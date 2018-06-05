@@ -419,8 +419,8 @@ void printHelp()
 
     std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n\n";
 
-	std::cout << "\t--both_strands	\t\tThe original read and its reverse complement are\n";
-	std::cout << "\t                \t\tare tested for a match.\n\n";
+	std::cout << "\t--both_strands	\t\tThe original read and its reverse complement\n";
+	std::cout << "\t                \t\tare tested for a match..\n\n";
 
     std::cout << "\nEXAMPLES\n\n";
 
