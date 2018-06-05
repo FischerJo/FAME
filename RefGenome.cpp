@@ -17,6 +17,7 @@
 //	Jonas Fischer	jonaspost@web.de
 
 #include <chrono>
+#include <algorithm> // max
 
 #include "RefGenome.h"
 
@@ -74,22 +75,6 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
 RefGenome::RefGenome(std::string filepath)
 {
     load(filepath);
-    // TODO
-    // generate file
-    // std::ofstream ofDummy ("dummy_human_ref_onlyCpG.fasta");
-    // size_t i = 0;
-    // for (const auto& m : metaCpGs)
-    // {
-    //     const struct CpG& startCpg2 = cpgTable[m.start];
-    //     const struct CpG& endCpg2 = cpgTable[m.end];
-    //     auto startIt2 = fullSeq[startCpg2.chrom].begin() + startCpg2.pos;
-    //     auto endIt2 = fullSeq[startCpg2.chrom].begin() + endCpg2.pos + (MyConst::READLEN*2 - 2);
-    //     ofDummy << ">MetaID=" << i << "\n";
-    //     ofDummy << std::string(startIt2, endIt2)<< "\n";
-    //     ++i;
-    //
-    // }
-    // ofDummy.close();
 }
 
 
@@ -579,10 +564,187 @@ void RefGenome::generateHashes(std::vector<std::vector<char> >& genomeSeq)
     }
 }
 
+
+
+
+
+
+inline void RefGenome::ntHashChunk(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const uint32_t& metacpg, const uint32_t&& metaOff)
+{
+
+	// kmers to be skipped
+	const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
+	// construct corresponding sequence with reduced alphabet
+	std::vector<char> redSeq(2*MyConst::READLEN - 2);
+	std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
+
+	std::vector<char>::const_iterator start = seq.begin();
+	std::vector<char>::const_iterator end = seq.begin();
+
+	// last N before the CpG or last position that was looked at
+	int lasN = skipKmer - 1;
+	unsigned int j;
+
+	// if we need to hash kmer starting at the left of current CpG
+	if (lastPos < pos + MyConst::READLEN - MyConst::KMERLEN)
+	{
+		std::advance(start, pos + skipKmer);
+		std::advance(end, pos + MyConst::READLEN);
+
+		// position in substring
+		j = skipKmer;
+		// move over sequence until CpG, construct reduced alphabet string and retrieve the positions of the last N
+		for ( ; start != end; ++start, ++j)
+		{
+
+			const int revPos = 2*MyConst::READLEN - 3 - j;
+			switch (*start)
+			{
+				case 'N':
+					lasN = j;
+					break;
+
+				case 'C':
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'G';
+					break;
+
+				case 'G':
+					redSeq[j] = 'G';
+					redSeqRev[revPos] = 'T';
+					break;
+
+				case 'T':
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'A';
+					break;
+
+				case 'A':
+					redSeq[j] = 'A';
+					redSeqRev[revPos] = 'T';
+					break;
+
+				default:
+					std::cerr << "Read has unknown character \'" << *start << "\' result will not be reliable.\n\n";
+
+			}
+
+		}
+		// move to one after last N
+		++lasN;
+		// reassign end to the position of G or one after last hashed kmer
+		end = seq.begin() + pos + MyConst::READLEN - 1;
+	} else {
+
+		++lasN;
+		end = seq.begin() + pos + skipKmer - 1;
+	}
+	// move over second half in reverse order
+	// reassign current position
+	j = 2*MyConst::READLEN - 3;
+	// reassign start to final position
+	start = seq.begin() + pos + j;
+
+	// offset where the first N after the CpG is
+	int off = 2*MyConst::READLEN - 2;
+	for ( ; start != end; --start, --j)
+	{
+		const int revPos = 2*MyConst::READLEN - 3 - j;
+		switch (*start)
+		{
+			case 'N':
+				off = j;
+				break;
+
+			case 'C':
+				redSeq[j] = 'T';
+				redSeqRev[revPos] = 'G';
+				break;
+
+			case 'G':
+				redSeq[j] = 'G';
+				redSeqRev[revPos] = 'T';
+				break;
+
+			case 'T':
+				redSeq[j] = 'T';
+				redSeqRev[revPos] = 'A';
+				break;
+
+			case 'A':
+				redSeq[j] = 'A';
+				redSeqRev[revPos] = 'T';
+				break;
+
+			default:
+				std::cerr << "Read has unknown character \'" << *start << "\' result will not be reliable.\n\n";
+		}
+
+
+	}
+
+	// length of the context around the CpG without Ns
+	unsigned int contextLen = off - lasN;
+	// if we don't have enough to read, return without hashing
+	if (contextLen < MyConst::KMERLEN)
+	{
+		return;
+	}
+
+	const char* seqStart = redSeq.data() + lasN;
+	const char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
+
+	// initial hash backward
+	uint64_t rhVal;
+	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
+	// first kmer on reverse complement corresponds to last kmer in forward sequence
+	uint64_t kPosRev = off - MyConst::KMERLEN + metaOff;
+
+	// update kmer table
+	kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev));
+	strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+
+
+	// hash kmers of backward strand
+	for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+	{
+		--kPosRev;
+		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
+		// update kmer table
+		kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev));
+		strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+	}
+
+	// initial hash forward
+	uint64_t fhVal;
+	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
+	uint64_t kPos = lasN + metaOff;
+
+	// update kmer table
+	kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos));
+	strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+
+	// hash kmers of forward strand
+	for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+	{
+		++kPos;
+		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
+		// update kmer table
+		kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos));
+		strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+	}
+	lastPos = pos + off - MyConst::KMERLEN + 1;
+
+}
+
+
+
+
+
 void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff)
 {
     // kmers to be skipped
-    const int skipKmer = max(lastPos - pos, 0);
+    const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
     // construct corresponding sequence with reduced alphabet
     std::vector<char> redSeq(MyConst::READLEN + bpsAfterCpG);
     std::vector<char> redSeqRev(MyConst::READLEN + bpsAfterCpG);
@@ -707,8 +869,6 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + bpsAfterCpG - off);
 
     // initial hash backward
-    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
-	// TODO: spaced
 	uint64_t rhVal;
 	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
     // first kmer on reverse complement corresponds to last kmer in forward sequence
@@ -723,8 +883,6 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         --kPosRev;
-        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update kmer table
         kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
@@ -732,8 +890,6 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
     }
 
     // initial hash forward
-    // uint64_t fhVal = ntHash::NTP64(seqStart);
-	// TODO: spaced
 	uint64_t fhVal;
 	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
     uint64_t kPos = lasN;
@@ -746,8 +902,6 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ++kPos;
-        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update kmer table
         kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
@@ -883,8 +1037,6 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + posOfCpG - off);
 
     // initial hash backward
-    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
-	// TODO: spaced
 	uint64_t rhVal;
 	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
     // first kmer on reverse complement corresponds to last kmer in forward sequence
@@ -899,8 +1051,6 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         --kPosRev;
-        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update kmer table
         kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPosRev));
@@ -908,8 +1058,6 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     }
 
     // initial hash forward
-    // uint64_t fhVal = ntHash::NTP64(seqStart);
-	// TODO: spaced
 	uint64_t fhVal;
 	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
     uint64_t kPos = lasN;
@@ -922,8 +1070,6 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
         ++kPos;
-        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update kmer table
         kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(1, metacpg, kPos));
@@ -932,6 +1078,177 @@ void RefGenome::ntHashFirst(const std::vector<char>& seq, uint32_t& lastPos, con
     lastPos = off - MyConst::KMERLEN + 1;
 
 }
+
+
+
+
+
+inline void RefGenome::ntCountChunk(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos)
+{
+
+	// kmers to be skipped
+	const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
+	// construct corresponding sequence with reduced alphabet
+	std::vector<char> redSeq(2*MyConst::READLEN - 2);
+	std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
+
+	std::vector<char>::const_iterator start = seq.begin();
+	std::vector<char>::const_iterator end = seq.begin();
+
+	// last N before the CpG or last position that was looked at
+	int lasN = skipKmer - 1;
+	unsigned int j;
+
+	// if we need to hash kmer starting at the left of current CpG
+	if (lastPos < pos + MyConst::READLEN - MyConst::KMERLEN)
+	{
+		std::advance(start, pos + skipKmer);
+		std::advance(end, pos + MyConst::READLEN);
+
+		// position in substring
+		j = skipKmer;
+		// move over sequence until CpG, construct reduced alphabet string and retrieve the positions of the last N
+		for ( ; start != end; ++start, ++j)
+		{
+
+			const int revPos = 2*MyConst::READLEN - 3 - j;
+			switch (*start)
+			{
+				case 'N':
+					lasN = j;
+					break;
+
+				case 'C':
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'G';
+					break;
+
+				case 'G':
+					redSeq[j] = 'G';
+					redSeqRev[revPos] = 'T';
+					break;
+
+				case 'T':
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'A';
+					break;
+
+				case 'A':
+					redSeq[j] = 'A';
+					redSeqRev[revPos] = 'T';
+					break;
+
+				default:
+					std::cerr << "Read has unknown character \'" << *start << "\' result will not be reliable.\n\n";
+
+			}
+
+		}
+		// reassign end to the position of G or one after last hashed kmer
+		end = seq.begin();
+		std::advance(end, pos + MyConst::READLEN - 1);
+	} else {
+
+		end = seq.begin();
+		std::advance(end, pos + skipKmer - 1);
+	}
+	// move to one after last N/ one after last hashed kmer
+	++lasN;
+	// move over second half in reverse order
+	// reassign start to final position
+	start = seq.begin();
+	std::advance(start, pos + 2*MyConst::READLEN - 3);
+
+	// reassign current position
+	j = 2*MyConst::READLEN - 3;
+	// offset where the first N after the CpG start is
+	int off = 2*MyConst::READLEN - 2;
+	for ( ; start != end; --start, --j)
+	{
+		const int revPos = 2*MyConst::READLEN - 3 - j;
+		switch (*start)
+		{
+			case 'N':
+				off = j;
+				break;
+
+			case 'C':
+				redSeq[j] = 'T';
+				redSeqRev[revPos] = 'G';
+				break;
+
+			case 'G':
+				redSeq[j] = 'G';
+				redSeqRev[revPos] = 'T';
+				break;
+
+			case 'T':
+				redSeq[j] = 'T';
+				redSeqRev[revPos] = 'A';
+				break;
+
+			case 'A':
+				redSeq[j] = 'A';
+				redSeqRev[revPos] = 'T';
+				break;
+
+			default:
+				std::cerr << "Read has unknown character \'" << *start << "\' result will not be reliable.\n\n";
+		}
+
+
+	}
+
+	// length of the context around the CpG that should be hashed
+	unsigned int contextLen = off - lasN;
+	// if we don't have enough to read, return without hashing
+	if (contextLen < MyConst::KMERLEN)
+	{
+		return;
+	}
+
+	const char* seqStart = redSeq.data() + lasN;
+	const char* seqStartRev = redSeqRev.data() + (2*MyConst::READLEN - 2 - off);
+
+	// initial hash backward
+	uint64_t rhVal;
+	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
+
+	// update indices
+	++tabIndex[srVal % MyConst::HTABSIZE];
+
+	// hash kmers of backward strand
+	for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+	{
+		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
+		// update indices
+		++tabIndex[srVal % MyConst::HTABSIZE];
+
+	}
+
+	// initial hash forward
+	uint64_t fhVal;
+	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
+
+	// update indices
+	++tabIndex[sfVal % MyConst::HTABSIZE];
+
+	// hash kmers of forward strand
+	for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
+	{
+
+		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
+		// update indices
+		++tabIndex[sfVal % MyConst::HTABSIZE];
+	}
+	// update position of last hashed kmer (+ 1)
+	lastPos = pos + off - MyConst::KMERLEN + 1;
+
+}
+
+
+
+
 
 void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& posOfCpG)
 {
@@ -1062,8 +1379,6 @@ void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const un
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + posOfCpG - off);
 
     // initial hash backward
-    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
-	// TODO: spaced
 	uint64_t rhVal;
 	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
 
@@ -1074,15 +1389,11 @@ void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const un
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         ++tabIndex[srVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
-    // uint64_t fhVal = ntHash::NTP64(seqStart);
-	// TODO: spaced
 	uint64_t fhVal;
 	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
 
@@ -1091,18 +1402,22 @@ void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const un
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         ++tabIndex[sfVal % MyConst::HTABSIZE];
     }
     lastPos = off - MyConst::KMERLEN + 1;
 
 }
+
+
+
+
+
+
 void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG)
 {
     // kmers to be skipped
-    const int skipKmer = max(lastPos - pos, 0);
+    const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
     // construct corresponding sequence with reduced alphabet
     std::vector<char> redSeq(MyConst::READLEN + bpsAfterCpG);
     std::vector<char> redSeqRev(MyConst::READLEN + bpsAfterCpG);
@@ -1227,8 +1542,6 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
     const char* seqStartRev = redSeqRev.data() + (MyConst::READLEN + bpsAfterCpG - off);
 
     // initial hash backward
-    // uint64_t rhVal = ntHash::NTP64(seqStartRev);
-	// TODO: spaced
 	uint64_t rhVal;
 	uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
 
@@ -1239,16 +1552,12 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
     // hash kmers of backward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        // ntHash::NTP64(rhVal, seqStartRev[i], seqStartRev[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update indices
         ++tabIndex[srVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
-    // uint64_t fhVal = ntHash::NTP64(seqStart);
-	// TODO: spaced
 	uint64_t fhVal;
 	uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
 
@@ -1258,8 +1567,6 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
     // hash kmers of forward strand
     for (unsigned int i = 0; i < (contextLen - MyConst::KMERLEN); ++i)
     {
-        // ntHash::NTP64(fhVal, seqStart[i], seqStart[MyConst::KMERLEN + i]);
-		// TODO: spaced
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update indices
         ++tabIndex[sfVal % MyConst::HTABSIZE];
@@ -1345,6 +1652,150 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
     // fill dummy value
     tabIndex[MyConst::HTABSIZE] = sum;
 }
+
+
+
+
+
+inline void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned int& KSliceEnd, std::unordered_map<uint64_t, unsigned int>& bl)
+{
+
+	// iterate over kmerTable in the specified range
+	for (unsigned int i = KSliceStart; i < KSliceEnd; ++i)
+	{
+
+		// get the kmer at that position
+		KMER::kmer& k = kmerTable[i];
+		bool sFlag = strandTable[i];
+
+		const uint64_t kHash = reproduceKmerSeq(k, sFlag);
+
+		// try to put sequence in map - if already in, count up
+		// NOTE:    hash function is perfect, hence no implicit collisions before putting it into hashmap
+		auto insertion = bl.find(kHash);
+		if (insertion == bl.end())
+		{
+
+			bl[kHash] = 1;
+
+		} else {
+
+			insertion->second += 1;
+		}
+	}
+}
+
+
+
+
+
+
+inline uint64_t RefGenome::reproduceKmerSeq(KMER::kmer& k, bool sFlag)
+{
+
+	uint32_t pos = 0;
+	uint8_t chrom;
+	// reproduce kmer sequence
+	if (KMER::isStartCpG(k))
+	{
+
+		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+		const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
+		chrom = startCpG.chrom;
+
+	} else {
+
+		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+		const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+		pos = startCpG.pos;
+		chrom = startCpG.chrom;
+
+	}
+
+	// retrieve sequence
+	//
+	// get iterator to sequence start
+	auto seqStart = fullSeq[chrom].begin() + KMER::getOffset(k) + pos;
+	uint64_t kSeq = 0;
+
+	// if from forward strand, just translate
+	if (sFlag)
+	{
+
+		for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+		{
+			kSeq = kSeq << 2;
+
+			if (MyConst::SEED[i])
+			{
+				switch (seqStart[i])
+				{
+
+					case 'C':
+					case 'T':
+
+						kSeq += 3;
+						break;
+
+					// case 'C':
+					//
+					//     kSeq += 1;
+					//     break;
+
+					case 'G':
+
+						kSeq += 2;
+						break;
+
+				// end switch
+				}
+			}
+
+		// end forloop over sequence
+		}
+
+	// otherwise, build reverse complement
+	} else {
+
+		for (unsigned int i = MyConst::KMERLEN; i > 0; --i)
+		{
+			kSeq = kSeq << 2;
+
+			if (MyConst::SEED[MyConst::KMERLEN - i])
+			{
+				switch (seqStart[i - 1])
+				{
+
+					case 'G':
+					case 'A':
+
+						kSeq += 3;
+						break;
+
+					// case 'G':
+					//
+					//     kSeq += 1;
+					//     break;
+
+					case 'C':
+
+						kSeq += 2;
+						break;
+
+				// end switch
+				}
+			}
+
+		// end forloop over sequence
+		}
+	}
+
+	return kSeq;
+
+}
+
+
+
 
 
 void RefGenome::filterRedundancyInHashTable()
