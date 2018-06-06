@@ -25,7 +25,6 @@
 RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&& cpgStartTab, std::vector<std::vector<char> >& genomeSeq, const bool noloss, std::unordered_map<uint8_t, std::string>& chromMap) :
         cpgTable(cpgTab)
     ,   cpgStartTable(cpgStartTab)
-    ,   genomeBit()
     ,   fullSeq(std::move(genomeSeq))
     ,   tabIndex(MyConst::HTABSIZE + 1, 0)
     ,   kmerTable()
@@ -139,11 +138,12 @@ void RefGenome::save(const std::string& filepath)
     // store kmers
     size_t kmerNum = kmerTable.size();
     of.write(reinterpret_cast<char*>(&kmerNum), sizeof(kmerNum));
-    // of.write(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
     for (size_t i = 0; i < kmerNum; ++i)
     {
         const uint32_t k = KMER::getCore(kmerTable[i]);
+		const uint32_t kTMask = getTMask(kmerTable[i]);
         of.write(reinterpret_cast<const char*>(&k),sizeof(uint32_t));
+        of.write(reinterpret_cast<const char*>(&kTMask),sizeof(uint32_t));
     }
 
     if (of.fail())
@@ -286,12 +286,14 @@ void RefGenome::load(const std::string& filepath)
     // load kmers
     size_t kmerNum;
     ifs.read(reinterpret_cast<char*>(&kmerNum), sizeof(kmerNum));
-    // kmerTable.resize(kmerNum);
-    // ifs.read(reinterpret_cast<char*>(kmerTable.data()), sizeof(kmerTable[0])*kmerNum);
     kmerTableSmall.resize(kmerNum);
     for (size_t i = 0; i < kmerNum; ++i)
     {
-        ifs.read(reinterpret_cast<char*>(&(kmerTableSmall[i])),sizeof(uint32_t));
+		uint32_t metaCpG;
+		uint32_t tMask;
+        ifs.read(reinterpret_cast<char*>(&(metaCpG)),sizeof(uint32_t));
+        ifs.read(reinterpret_cast<char*>(&(tMask)),sizeof(uint32_t));
+		kmerTableSmall[i] = KMER_S::constructKmerS(metaCpG, tMask);
     }
 
     // load strands
@@ -488,31 +490,6 @@ void RefGenome::generateMetaCpGs()
 }
 
 
-void RefGenome::generateBitStrings(std::vector<std::vector<char> >& genomeSeq)
-{
-
-    unsigned int genSeqIndex = 0;
-    // generate genome encodings with bitmasks
-    for (std::vector<char>& seq : genomeSeq)
-    {
-        const unsigned int segLen = seq.size() / 32;
-        genomeBit.emplace_back(seq.size());
-
-        for (unsigned int i = 0; i < segLen; ++i)
-        {
-
-            genomeBit[genSeqIndex].setBitStrN( std::string(seq.data() + (i*32), 32), i);
-        }
-        if ((seq.size() % 32) != 0)
-        {
-
-            genomeBit[genSeqIndex].setBitStrLast( std::string(seq.data() + (segLen*32), seq.size() % 32));
-        }
-        ++genSeqIndex;
-    }
-
-}
-
 void RefGenome::generateHashes(std::vector<std::vector<char> >& genomeSeq)
 {
 
@@ -573,7 +550,7 @@ inline void RefGenome::ntHashChunk(const std::vector<char>& seq, uint32_t& lastP
 {
 
 	// kmers to be skipped
-	const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
+	const int skipKmer = std::max((int)lastPos - (int)pos, (int)0);
 	// construct corresponding sequence with reduced alphabet
 	std::vector<char> redSeq(2*MyConst::READLEN - 2);
 	std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
@@ -744,7 +721,7 @@ inline void RefGenome::ntHashChunk(const std::vector<char>& seq, uint32_t& lastP
 void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG, const uint32_t& metacpg, uint32_t&& metaOff)
 {
     // kmers to be skipped
-    const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
+	const int skipKmer = std::max((int)lastPos - (int)pos, (int)0);
     // construct corresponding sequence with reduced alphabet
     std::vector<char> redSeq(MyConst::READLEN + bpsAfterCpG);
     std::vector<char> redSeqRev(MyConst::READLEN + bpsAfterCpG);
@@ -1087,7 +1064,7 @@ inline void RefGenome::ntCountChunk(const std::vector<char>& seq, uint32_t& last
 {
 
 	// kmers to be skipped
-	const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
+	const int skipKmer = std::max((int)lastPos - (int)pos, (int)0);
 	// construct corresponding sequence with reduced alphabet
 	std::vector<char> redSeq(2*MyConst::READLEN - 2);
 	std::vector<char> redSeqRev(2*MyConst::READLEN - 2);
@@ -1417,7 +1394,7 @@ void RefGenome::ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const un
 void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG)
 {
     // kmers to be skipped
-    const int skipKmer = std::max(lastPos - pos, (unsigned int)0);
+	const int skipKmer = std::max((int)lastPos - (int)pos, (int)0);
     // construct corresponding sequence with reduced alphabet
     std::vector<char> redSeq(MyConst::READLEN + bpsAfterCpG);
     std::vector<char> redSeqRev(MyConst::READLEN + bpsAfterCpG);

@@ -57,6 +57,48 @@ class RefGenome
 
         ~RefGenome() = default;
 
+
+		// compute the T mask for a given k-mer k, that is, returns a bit string
+		// that is 1 at position i (from right) iff k[i] == T AND seed[i] == 1
+		inline uint32_t getTMask(KMER::kmer& k)
+		{
+			if (!KMER::isStartCpG(k))
+			{
+				const char* seq = fullSeq[cpgTable[metaCpGs[KMER::getMetaCpG(k)].start].chrom].data() +
+							cpgTable[metaCpGs[KMER::getMetaCpG(k)].start].pos + KMER::getOffset(k);
+				uint32_t mask = 0;
+				if (strandTable[KMER::getMetaCpG(k)])
+				{
+					for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+					{
+						mask = mask << 1;
+						if (seq[i] == 'T')
+						{
+							mask |= 1;
+						}
+					}
+				// is reverse complement sequence
+				} else {
+
+					for (unsigned int i = MyConst::KMERLEN - 1; i > 0; --i)
+					{
+						mask = mask << 1;
+						if (seq[i] == 'A')
+						{
+							mask |= 1;
+						}
+					}
+				}
+				return mask;
+
+			// TODO: make this happen right
+			} else {
+
+				return 0;
+			}
+		}
+
+
         // functions to save and load the index structure represented by this class to a binary file
         void save(const std::string& filepath);
         void load(const std::string& filepath);
@@ -70,11 +112,6 @@ class RefGenome
 
         // produces all struct Meta CpGs
         void generateMetaCpGs();
-
-
-        // generate Bit representation of whole genome for genomeBit
-        // using full alphabet
-        void generateBitStrings(std::vector<std::vector<char> >& genomeSeq);
 
 
         // hash all kmers in all CpGs to _kmerTable using ntHash
@@ -149,18 +186,6 @@ class RefGenome
         std::vector<struct CpG> cpgTable;
         std::vector<struct CpG> cpgStartTable;
 
-        // table of bitstrings* holding a bit representation of genomeSeq
-        // used as a perfect hash later on
-        // encoding:
-        //          A -> 00
-        //          C -> 01
-        //          T -> 11
-        //          G -> 10
-        //
-        //          N -> 00   DISCARDED for all computations
-        //
-        // *own implementation of bitstrings
-        std::vector<DnaBitStr> genomeBit;
         // full sequence
         std::vector<std::vector<char> > fullSeq;
 
