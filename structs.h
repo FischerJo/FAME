@@ -107,27 +107,36 @@ namespace KMER {
 namespace KMER_S {
 
 
-    typedef uint32_t kmer;
+    typedef struct kmer
+	{
+		uint32_t meta;
+		uint32_t tmask;
+	} kmer;
 
-    inline uint32_t getMetaCpG(KMER_S::kmer& k)
+    inline uint32_t getMetaCpG(const KMER_S::kmer& k)
     {
-        return (k & 0x7fffffffUL);
+        return (k.meta & 0x7fffffffUL);
     }
 
-    inline bool isStartCpG(KMER_S::kmer& k)
+    inline bool isStartCpG(const KMER_S::kmer& k)
     {
-        return (k & 0x80000000UL);
+        return (k.meta & 0x80000000UL);
     }
 
     inline uint32_t getMetaCpG(KMER_S::kmer&& k)
     {
-        return (k & 0x7fffffffUL);
+        return (k.meta & 0x7fffffffUL);
     }
 
     inline bool isStartCpG(KMER_S::kmer&& k)
     {
-        return (k & 0x80000000UL);
+        return (k.meta & 0x80000000UL);
     }
+
+	inline kmer constructKmerS(uint32_t metaCpG, uint32_t tMask)
+	{
+		return {metaCpG, tMask};
+	}
 } // end namespace KMER_S
 
 
