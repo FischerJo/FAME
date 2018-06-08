@@ -96,6 +96,8 @@ void RefGenome::save(const std::string& filepath)
     of.write(reinterpret_cast<char*>(&kmerl), sizeof(kmerl));
     auto kmerc = MyConst::KMERCUTOFF;
     of.write(reinterpret_cast<char*>(&kmerc), sizeof(kmerc));
+	auto seedbits = MyConst::SEEDBITS;
+	of.write(reinterpret_cast<char*>(&seedbits), sizeof(seedbits));
 
     // store NON-start CpGs
     size_t cpgNum = cpgTable.size();
@@ -255,6 +257,13 @@ void RefGenome::load(const std::string& filepath)
         std::cerr << "k-mer cutoff used in source code and index file are different!\n\n";
         exit(1);
     }
+	auto seedbits = MyConst::SEEDBITS;
+	ifs.read(reinterpret_cast<char*>(&seedbits), sizeof(seedbits));
+	if (seedbits != MyConst::SEEDBITS)
+	{
+		std::cerr << "Different seed used in index and methylation prediction!\n\n";
+		exit(1);
+	}
 
     // load NON-start CpGs
     size_t cpgNum;

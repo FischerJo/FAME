@@ -30,8 +30,7 @@
 #include "CONST.h"
 #include "structs.h"
 #include "DnaBitStr.h"
-// #include "ntHash-1.0.2/nthash.hpp"
-// spaced
+// spaced seeds
 #include "spaced_nthash/nthash.hpp"
 
 
