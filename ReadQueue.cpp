@@ -283,20 +283,20 @@ void ReadQueue::decideStrand()
 	std::cout << "\nOdds of matching to fwd/rev strand: " << (float)(r1FwdMatches + 1)/(r1RevMatches + 1) << "\n\n";
 	if ((float)(r1FwdMatches + 1)/(r1RevMatches + 1) > 0.05 && (float)(r1FwdMatches + 1)/(r1RevMatches + 1) < 20)
 	{
-		std::cout << "Warning! Many of the reads are mapped against a different strands\
+		std::cout << "Warning! Many of the reads are mapped in different orientation\
 			Stranding might harm the prediction performance.\n\
-			If you built an unstranded library (i.e. read 1 of a paired read set can map to either forward or reverse strand) consider running the tool with\n\
+			If you built a library where read 1 can occur as C->T or G->A converted, consider running the tool with\n\
 			\"--non_stranded\"\n\
 			flag.\n\n";
 	}
 
-	std::cout << "Deciding strandedness of read 1.\n";
+	std::cout << "Deciding conversion status of read 1.\n";
 	if (r1FwdMatches > r1RevMatches)
 	{
-		std::cout << "\tMatching read 1 to forward sequence of reference.\n\n";
+		std::cout << "\tMatching read 1 as C->T converted.\n\n";
 		matchR1Fwd = true;
 	} else {
-		std::cout << "\tMatching read 1 to reverse sequence of reference.\n\n";
+		std::cout << "\tMatching read 1 as G->A converted.\n\n";
 		matchR1Fwd = false;
 	}
 }
@@ -978,86 +978,95 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         }
 
         // set qgram threshold
-        uint16_t qThreshold = std::min(readSize1, readSize2) - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
-        if (qThreshold > readSize1)
-            qThreshold = 0;
-
+        // uint16_t qThreshold = std::min(readSize1, readSize2) - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
+        // if (qThreshold > readSize1)
+        //     qThreshold = 0;
+        //
 		// TODO
-		qThreshold = 10;
+		const uint16_t qThreshold = 10;
 		// of << "\nq-gram: " << qThreshold << "\n";
 
 
     // POSSIBLE ORIENTATION 1
 		std::vector<MATCH::match> matches1Fwd;
-		matches1Fwd.reserve(20);
 		std::vector<MATCH::match> matches2Rev;
-		matches2Rev.reserve(20);
+
+		// std::chrono::high_resolution_clock::time_point startTime;
+		// std::chrono::high_resolution_clock::time_point endTime;
 
 		if (bothStrandsFlag || matchR1Fwd || getStranded)
 		{
 
-			// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+			// startTime = std::chrono::high_resolution_clock::now();
 
-			getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
+			unsigned int candCount = getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
 
-			// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			// endTime = std::chrono::high_resolution_clock::now();
 			// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-			// of << "\n" << runtime << "\t";
-			// startTime = std::chrono::high_resolution_clock::now();
+			// of << "\nHashtable sizes after first read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\t\tRuntime: "  << runtime << "\t\tCandidates1: " << candCount << "\n";
 
-			getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
-			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
+			if ((paired_fwdMetaIDs[threadnum].size() || paired_revMetaIDs[threadnum].size()) )
+				// || paired_fwdMetaIDs[threadnum].size() < 100 || paired_revMetaIDs[threadnum].size() < 100)
+			{
+				// startTime = std::chrono::high_resolution_clock::now();
 
-			// endTime = std::chrono::high_resolution_clock::now();
-			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-			// of << runtime << "\t";
-			// startTime = std::chrono::high_resolution_clock::now();
+				candCount = getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
+				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
+
+				// endTime = std::chrono::high_resolution_clock::now();
+				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+				// of << "\nHashtable sizes after second read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\t\tRuntime: "  << runtime << "\t\tCandidates2: " << candCount << "\n";
+				// startTime = std::chrono::high_resolution_clock::now();
 
 
-			saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
-			if (!matches1Fwd.empty())
-				saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
+				saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
+				if (!matches1Fwd.empty())
+					saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
 
-			// endTime = std::chrono::high_resolution_clock::now();
-			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-			// of << runtime << "\t";
-			// startTime = std::chrono::high_resolution_clock::now();
+				// endTime = std::chrono::high_resolution_clock::now();
+				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+				// of << runtime << "\n\n";
+			}
 		}
 
     // POSSIBLE ORIENTATION 2
 		std::vector<MATCH::match> matches1Rev;
-		matches1Rev.reserve(20);
 		std::vector<MATCH::match> matches2Fwd;
-		matches2Fwd.reserve(20);
 
 		if (bothStrandsFlag || !matchR1Fwd || getStranded)
 		{
+			// startTime = std::chrono::high_resolution_clock::now();
+
 			getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
 
 			// endTime = std::chrono::high_resolution_clock::now();
-			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-			// of << runtime << "\t";
-			// startTime = std::chrono::high_resolution_clock::now();
+			// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+			// of << "\nHashtable sizes after first read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\tRuntime: "  << runtime << "\n";
+
+			if ((paired_fwdMetaIDs[threadnum].size() || paired_revMetaIDs[threadnum].size()))
+			{
+				// startTime = std::chrono::high_resolution_clock::now();
 
 
-			getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
-			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
+				getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
+				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
 
-			// endTime = std::chrono::high_resolution_clock::now();
-			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-			// of << runtime << "\t";
-			// startTime = std::chrono::high_resolution_clock::now();
+				// endTime = std::chrono::high_resolution_clock::now();
+				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+				// of << "\nHashtable sizes after second read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\tRuntime: "  << runtime << "\n";
+				// startTime = std::chrono::high_resolution_clock::now();
 
 
-			saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
-			if (!matches1Rev.empty())
-				saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
+				saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
+				if (!matches1Rev.empty())
+					saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
 
-			// endTime = std::chrono::high_resolution_clock::now();
-			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-			// of << runtime << "\n";
+				// endTime = std::chrono::high_resolution_clock::now();
+				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+				// of << runtime << "\n";
+			}
 		}
 
     // TEST IF MATCHING WAS SUCCESSFULL
@@ -1067,6 +1076,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             r1.isInvalid = true;
             r2.isInvalid = true;
             unSuccMatchT += 2;
+			// of << "\nNo Match\n";
+			// of << "---------------------------\n\n";
             continue;
         }
 
@@ -1107,7 +1118,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 			}
 		}
         // endTime = std::chrono::high_resolution_clock::now();
-        // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+        // auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
         // of << "Matching sizes: " << matches1Rev.size() << "/" << matches2Fwd.size() << "\tTimings: ";
         // startTime = std::chrono::high_resolution_clock::now();
@@ -1308,6 +1319,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 // }
             // }
 
+			// of << "\nNo Match\n";
             r1.isInvalid = true;
             r2.isInvalid = true;
             unSuccMatchT += 2;
@@ -1344,12 +1356,14 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 //             of << "\n";
 // // end pragma omp critical
 // }
+			// of << "\nWas nonunique\n";
             nonUniqueMatchT += 2;
             r1.isInvalid = true;
             r2.isInvalid = true;
 
         } else {
 
+			// of << "\nWas match\n";
             r1.mat = bestMatch1;
             r2.mat = bestMatch2;
             if (mat1OriginalStrand)
@@ -1372,6 +1386,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             ++succPairedMatchT;
             succMatchT += 2;
         }
+		// of << "---------------------------\n\n";
     }
 
     // sum up counts
@@ -1817,7 +1832,7 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 
 
 
-inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, const uint16_t& qThreshold)
 {
 
 	// use counters to flag what has been processed so far
@@ -1834,9 +1849,8 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 	// check all fwd meta CpGs
 	for (const auto& m : fwdMetaIDs_t)
 	{
-		// apply qgram lemma
 		// check for this read the counts
-		if (std::get<0>(m.second) < qThreshold || !std::get<2>(m.second))
+		if (!std::get<2>(m.second))
 			continue;
 
 		const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
@@ -1854,7 +1868,12 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 		// use shift and to find all matchings
 		std::vector<uint64_t> matchings;
 		std::vector<uint8_t> errors;
+
+		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 		sa.querySeq(startIt, endIt, matchings, errors);
+		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		// of << "SA: " << runtime << "\n";
 
 		size_t i = 0;
 		// compare first found match with last found match of previous meta CpG
@@ -1903,7 +1922,7 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 
 		// apply qgram lemma
 		// check for this read the counts
-		if (std::get<0>(m.second) < qThreshold || !std::get<2>(m.second))
+		if (!std::get<2>(m.second))
 			continue;
 
 		// retrieve sequence
@@ -1922,7 +1941,12 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 		// use shift and to find all matchings
 		std::vector<uint64_t> matchings;
 		std::vector<uint8_t> errors;
+
+		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 		sa.queryRevSeq(startIt, endIt, matchings, errors);
+		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		// of << "SA: " << runtime << "\n";
 
 		size_t i = 0;
 		// compare first found match with last found match of previous meta CpG
@@ -2037,7 +2061,7 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 
 
 
-inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, uint16_t& qThreshold)
+inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, const uint16_t& qThreshold)
 {
 
 	// use counters to flag what has been processed so far
@@ -2074,7 +2098,11 @@ inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyCo
 		// use shift and to find all matchings
 		std::vector<uint64_t> matchings;
 		std::vector<uint8_t> errors;
+		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 		sa.querySeq(startIt, endIt, matchings, errors);
+		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		// of << "SA: " << runtime << "\n";
 
 		size_t i = 0;
 		// compare first found match with last found match of previous meta CpG
@@ -2130,7 +2158,11 @@ inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyCo
 		// use shift and to find all matchings
 		std::vector<uint64_t> matchings;
 		std::vector<uint8_t> errors;
+		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 		sa.queryRevSeq(startIt, endIt, matchings, errors);
+		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+		// of << "SA: " << runtime << "\n";
 
 		size_t i = 0;
 		// compare first found match with last found match of previous meta CpG
@@ -2388,7 +2420,7 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 
 
-inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
+inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
 	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
@@ -2401,8 +2433,9 @@ inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t
 	auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
 	fwdMetaIDs_t.clear();
 	revMetaIDs_t.clear();
-	fwdMetaIDs_t.resize(600);
-	revMetaIDs_t.resize(600);
+	// TODO: test this for larger index
+	fwdMetaIDs_t.resize(800);
+	revMetaIDs_t.resize(800);
 
 	// retrieve kmers for first hash
 	uint64_t fhVal;
@@ -2414,15 +2447,32 @@ inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t
 	bool wasFwd = false;
 	bool wasStart = false;
 
+	// compute bitmask for all positions where C occurrs
+	uint32_t cMask = 0;
+	for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+	{
+		cMask = cMask << 1;
+		if (seq[i] == 'C')
+		{
+			cMask |= 1;
+		}
+	}
+
 	// maximum position until we can insert completely new meta cpgs
 	uint32_t maxQPos = seq.size() - MyConst::KMERLEN + 1 - qThreshold;
 
 	for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
 	{
 
-		const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
+		const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
+		const uint32_t metaId = KMER_S::getMetaCpG(currentKmer);
+		// test for asymmetric mapping
+		if (cMask & MyConst::SEEDBITS & currentKmer.tmask)
+		{
+			continue;
+		}
 		const bool isFwd = ref.strandTable[i];
-		const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
+		const bool isStart = KMER_S::isStartCpG(currentKmer);
 		// check if we visited meta CpG before
 		if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
 		{
@@ -2462,6 +2512,13 @@ inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t
 	for (unsigned int cIdx = 0; cIdx < (seq.size() - MyConst::KMERLEN); ++cIdx)
 	{
 
+		// TODO: check if correct for k-mer lengths < 32
+		cMask = (cMask << 1) & MyConst::KMERMASK;
+		if (seq[MyConst::KMERLEN + cIdx] == 'C')
+		{
+			cMask |= 1;
+		}
+
 		// use rolling hash
 		sfVal = ntHash::NTPS64(seq.data()+cIdx+1, MyConst::SEED, seq[cIdx], seq[cIdx + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
 
@@ -2474,9 +2531,14 @@ inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t
 		for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
 		{
 
-			const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
+			const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
+			const uint32_t metaId = KMER_S::getMetaCpG(currentKmer);
+			if (cMask & MyConst::SEEDBITS & currentKmer.tmask)
+			{
+				continue;
+			}
 			const bool isFwd = ref.strandTable[i];
-			const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
+			const bool isStart = KMER_S::isStartCpG(currentKmer);
 			// check if we visited meta CpG before
 			if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
 			{
@@ -2537,6 +2599,26 @@ inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t
 			}
 		}
 	}
+	unsigned int c = 0;
+	for (auto hIt = fwdMetaIDs_t.begin(); hIt != fwdMetaIDs_t.end(); ++hIt)
+	{
+		if (std::get<0>(hIt->second) < qThreshold)
+			fwdMetaIDs_t.erase(hIt);
+		else
+			++c;
+	}
+	for (auto hIt = revMetaIDs_t.begin(); hIt != revMetaIDs_t.end(); ++hIt)
+	{
+		if (std::get<0>(hIt->second) < qThreshold)
+			revMetaIDs_t.erase(hIt);
+		else
+			++c;
+	}
+	if (c == 0)
+		return c;
+	fwdMetaIDs_t.resize(0);
+	revMetaIDs_t.resize(0);
+	return c;
 }
 
 
@@ -2544,7 +2626,7 @@ inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t
 
 
 
-inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
+inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
 	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
@@ -2566,16 +2648,36 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 	bool wasFwd = false;
 	bool wasStart = false;
 
+	// compute bitmask for all positions where C occurrs
+	uint32_t cMask = 0;
+	for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+	{
+		cMask = cMask << 1;
+		if (seq[i] == 'C')
+		{
+			cMask |= 1;
+		}
+	}
 	// maximum position until we can insert completely new meta cpgs
 	uint32_t maxQPos = seq.size() - MyConst::KMERLEN + 1 - qThreshold;
 
+	// how many we need to look for around current meta CpG
 	constexpr int contextWLen = (int)(((double)MyConst::MAXPDIST / MyConst::WINLEN) + 0.5);
+	// TODO
+	// count how often we have a meta CpG candidate for matching
+	unsigned int candCount = 0;
 	for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
 	{
 
-		const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
+		const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
+		const uint32_t metaId = KMER_S::getMetaCpG(currentKmer);
+		// test for asymmetric mapping
+		if (cMask & MyConst::SEEDBITS & currentKmer.tmask)
+		{
+			continue;
+		}
 		const bool isFwd = ref.strandTable[i];
-		const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
+		const bool isStart = KMER_S::isStartCpG(currentKmer);
 		// check if we visited meta CpG before
 		if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
 		{
@@ -2601,80 +2703,77 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 		} else {
 
 			// test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
-			// bool isMatchable = false;
-			// auto foundMeta = fwdMetaIDs_t.end();
-			// if ( (foundMeta = fwdMetaIDs_t.find(metaId - 1)) != fwdMetaIDs_t.end())
-			// {
-			//
-			//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-			//
-			// }
-			// if ( (foundMeta = revMetaIDs_t.find(metaId - 1)) != revMetaIDs_t.end())
-			// {
-			//
-			//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-			//
-			// }
-			// if ( (foundMeta = fwdMetaIDs_t.find(metaId + 1)) != fwdMetaIDs_t.end())
-			// {
-			//
-			//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-			//
-			// }
-			// if ( (foundMeta = revMetaIDs_t.find(metaId + 1)) != revMetaIDs_t.end())
-			// {
-			//
-			//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-			//
-			// }
-			// if (isMatchable || std::get<0>(fwdMetaIDs_t[metaId]) >= qThreshold || std::get<0>(revMetaIDs_t[metaId]) >= qThreshold)
-			// {
-				// update counts for second read
-				if (isFwd)
+			auto foundMeta = fwdMetaIDs_t.end();
+			// update counts for second read
+			if (isFwd)
+			{
+				for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
 				{
-					++std::get<1>(fwdMetaIDs_t[metaId]);
-					// propagate information to adjacent meta CpGs if enough kmers are matched
-					if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
+					if ((foundMeta = fwdMetaIDs_t.find(metaId + cOff)) != fwdMetaIDs_t.end())
 					{
-						std::get<2>(fwdMetaIDs_t[metaId]) = true;
-						for (int cOff = 1; cOff <= contextWLen; ++cOff)
-						{
-							auto it = fwdMetaIDs_t.find(metaId + cOff);
-							if (it != fwdMetaIDs_t.end())
-								std::get<2>(it->second) = true;
-							it = fwdMetaIDs_t.find(metaId - cOff);
-							if (it != fwdMetaIDs_t.end())
-								std::get<2>(it->second) = true;
-						}
-					}
-				} else {
-					++std::get<1>(revMetaIDs_t[metaId]);
-					if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
-					{
-						std::get<2>(revMetaIDs_t[metaId]) = true;
-						for (int cOff = 1; cOff <= contextWLen; ++cOff)
-						{
-							auto it = revMetaIDs_t.find(metaId + cOff);
-							if (it != revMetaIDs_t.end())
-								std::get<2>(it->second) = true;
-							it = revMetaIDs_t.find(metaId - cOff);
-							if (it != revMetaIDs_t.end())
-								std::get<2>(it->second) = true;
-						}
+						// if (std::get<0>(foundMeta->second) >= qThreshold)
+						// {
+							++std::get<1>(fwdMetaIDs_t[metaId]);
+							// propagate information to adjacent meta CpGs if enough kmers are matched
+							if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
+							{
+								++candCount;
+								std::get<2>(fwdMetaIDs_t[metaId]) = true;
+								for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
+								{
+									auto it = fwdMetaIDs_t.find(metaId + cOffUp);
+									if (it != fwdMetaIDs_t.end())
+										std::get<2>(it->second) = true;
+									it = fwdMetaIDs_t.find(metaId - cOffUp);
+									if (it != fwdMetaIDs_t.end())
+										std::get<2>(it->second) = true;
+								}
+							}
+							break;
+						// }
 					}
 				}
+			} else {
 
-			// }
-
+				for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
+				{
+					if ((foundMeta = revMetaIDs_t.find(metaId + cOff)) != revMetaIDs_t.end())
+					{
+						// if (std::get<0>(foundMeta->second) >= qThreshold)
+						// {
+							++std::get<1>(revMetaIDs_t[metaId]);
+							// propagate information to adjacent meta CpGs if enough kmers are matched
+							if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
+							{
+								++candCount;
+								std::get<2>(revMetaIDs_t[metaId]) = true;
+								for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
+								{
+									auto it = revMetaIDs_t.find(metaId + cOffUp);
+									if (it != revMetaIDs_t.end())
+										std::get<2>(it->second) = true;
+									it = revMetaIDs_t.find(metaId - cOffUp);
+									if (it != revMetaIDs_t.end())
+										std::get<2>(it->second) = true;
+								}
+							}
+							break;
+						// }
+					}
+				}
+			}
 		}
 	}
 
 	for (unsigned int cIdx = 0; cIdx < (seq.size() - MyConst::KMERLEN); ++cIdx)
 	{
 
+		cMask = (cMask << 1) & MyConst::KMERMASK;
+		if (seq[MyConst::KMERLEN + cIdx] == 'C')
+		{
+			cMask |= 1;
+		}
 		// use rolling hash
-		// ntHash::NTP64(fhVal, seq[cIdx], seq[cIdx + MyConst::KMERLEN]);
-		// TODO: spaced
 		sfVal = ntHash::NTPS64(seq.data()+cIdx+1, MyConst::SEED, seq[cIdx], seq[cIdx + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
 
 		key = sfVal % MyConst::HTABSIZE;
@@ -2686,9 +2785,14 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 		for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
 		{
 
-			const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
+			const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
+			const uint32_t metaId = KMER_S::getMetaCpG(currentKmer);
+			if (cMask & MyConst::SEEDBITS & currentKmer.tmask)
+			{
+				continue;
+			}
 			const bool isFwd = ref.strandTable[i];
-			const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
+			const bool isStart = KMER_S::isStartCpG(currentKmer);
 			// check if we visited meta CpG before
 			if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
 			{
@@ -2718,71 +2822,65 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 				if (cIdx < maxQPos)
 				{
 					// test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
-					// bool isMatchable = false;
-					// auto foundMeta = fwdMetaIDs_t.end();
-					// if ( (foundMeta = fwdMetaIDs_t.find(metaId - 1)) != fwdMetaIDs_t.end())
-					// {
-					//
-					//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-					//
-					// }
-					// if ( (foundMeta = revMetaIDs_t.find(metaId - 1)) != revMetaIDs_t.end())
-					// {
-					//
-					//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-					//
-					// }
-					// if ( (foundMeta = fwdMetaIDs_t.find(metaId + 1)) != fwdMetaIDs_t.end())
-					// {
-					//
-					//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-					//
-					// }
-					// if ( (foundMeta = revMetaIDs_t.find(metaId + 1)) != revMetaIDs_t.end())
-					// {
-					//
-					//     isMatchable = isMatchable || (std::get<0>(foundMeta->second) >= qThreshold);
-					//
-					// }
-					// if (isMatchable || std::get<0>(fwdMetaIDs_t[metaId]) >= qThreshold || std::get<0>(revMetaIDs_t[metaId]) >= qThreshold)
-					// {
-						// update counts for second read
-						if (isFwd)
+					auto foundMeta = fwdMetaIDs_t.end();
+					// update counts for second read
+					if (isFwd)
+					{
+						for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
 						{
-							++std::get<1>(fwdMetaIDs_t[metaId]);
-							// propagate information to adjacent meta CpGs if enough kmers are matched
-							if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
+							if ((foundMeta = fwdMetaIDs_t.find(metaId + cOff)) != fwdMetaIDs_t.end())
 							{
-								std::get<2>(fwdMetaIDs_t[metaId]) = true;
-								for (int cOff = 1; cOff <= contextWLen; ++cOff)
-								{
-									auto it = fwdMetaIDs_t.find(metaId + cOff);
-									if (it != fwdMetaIDs_t.end())
-										std::get<2>(it->second) = true;
-									it = fwdMetaIDs_t.find(metaId - cOff);
-									if (it != fwdMetaIDs_t.end())
-										std::get<2>(it->second) = true;
-								}
-							}
-						} else {
-							++std::get<1>(revMetaIDs_t[metaId]);
-							// propagate information to adjacent meta CpGs if enough kmers are matched
-							if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
-							{
-								std::get<2>(revMetaIDs_t[metaId]) = true;
-								for (int cOff = 1; cOff <= contextWLen; ++cOff)
-								{
-									auto it = revMetaIDs_t.find(metaId + cOff);
-									if (it != revMetaIDs_t.end())
-										std::get<2>(it->second) = true;
-									it = revMetaIDs_t.find(metaId - cOff);
-									if (it != revMetaIDs_t.end())
-										std::get<2>(it->second) = true;
-								}
+								// if (std::get<0>(foundMeta->second) >= qThreshold)
+								// {
+									++std::get<1>(fwdMetaIDs_t[metaId]);
+									// propagate information to adjacent meta CpGs if enough kmers are matched
+									if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
+									{
+										++candCount;
+										std::get<2>(fwdMetaIDs_t[metaId]) = true;
+										for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
+										{
+											auto it = fwdMetaIDs_t.find(metaId + cOffUp);
+											if (it != fwdMetaIDs_t.end())
+												std::get<2>(it->second) = true;
+											it = fwdMetaIDs_t.find(metaId - cOffUp);
+											if (it != fwdMetaIDs_t.end())
+												std::get<2>(it->second) = true;
+										}
+									}
+									break;
+								// }
 							}
 						}
+					} else {
 
-					// }
+						for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
+						{
+							if ((foundMeta = revMetaIDs_t.find(metaId + cOff)) != revMetaIDs_t.end())
+							{
+								// if (std::get<0>(foundMeta->second) >= qThreshold)
+								// {
+									++std::get<1>(revMetaIDs_t[metaId]);
+									// propagate information to adjacent meta CpGs if enough kmers are matched
+									if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
+									{
+										++candCount;
+										std::get<2>(revMetaIDs_t[metaId]) = true;
+										for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
+										{
+											auto it = revMetaIDs_t.find(metaId + cOffUp);
+											if (it != revMetaIDs_t.end())
+												std::get<2>(it->second) = true;
+											it = revMetaIDs_t.find(metaId - cOffUp);
+											if (it != revMetaIDs_t.end())
+												std::get<2>(it->second) = true;
+										}
+									}
+									break;
+								// }
+							}
+						}
+					}
 
 				} else {
 
@@ -2795,10 +2893,11 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 							// propagate information to adjacent meta CpGs if enough kmers are matched
 							if (std::get<1>(it->second) == qThreshold)
 							{
+								++candCount;
 								std::get<2>(it->second) = true;
 								for (int cOff = 1; cOff <= contextWLen; ++cOff)
 								{
-									auto it = fwdMetaIDs_t.find(metaId + cOff);
+									it = fwdMetaIDs_t.find(metaId + cOff);
 									if (it != fwdMetaIDs_t.end())
 										std::get<2>(it->second) = true;
 									it = fwdMetaIDs_t.find(metaId - cOff);
@@ -2816,10 +2915,11 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 							// propagate information to adjacent meta CpGs if enough kmers are matched
 							if (std::get<1>(it->second) == qThreshold)
 							{
+								++candCount;
 								std::get<2>(revMetaIDs_t[metaId]) = true;
 								for (int cOff = 1; cOff <= contextWLen; ++cOff)
 								{
-									auto it = revMetaIDs_t.find(metaId + cOff);
+									it = revMetaIDs_t.find(metaId + cOff);
 									if (it != revMetaIDs_t.end())
 										std::get<2>(it->second) = true;
 									it = revMetaIDs_t.find(metaId - cOff);
@@ -2833,6 +2933,7 @@ inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 			}
 		}
 	}
+	return candCount;
 }
 
 
