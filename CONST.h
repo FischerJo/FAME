@@ -45,8 +45,8 @@ constexpr uint32_t MAXPDIST = 2000;
 constexpr unsigned int CHROMNUM = 24;
 
 // seed used for spaced k-mer hashing
-const std::vector<bool> SEED = {1,1,1,1,0,0,1,1,0,1,0,1,1,1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1};
-// const std::vector<bool> SEED = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+const std::vector<bool> SEED = {1,1,1,1,1,0,1,1,1,0,0,1,1,0,1,1,0,1,0,1,1,1,0,0,1,0,1,1,1,1,1};
+constexpr uint32_t SEEDBITS = 0b1111101110011011010111001011111;
 
 //  --------------------------------------
 
@@ -71,13 +71,10 @@ constexpr unsigned int CHUNKSIZE = 300000;
 
 // Length of a kmer in bp
 // recommended is 25
-constexpr unsigned int KMERLEN = 32;
+constexpr unsigned int KMERLEN = 31;
 
-// Kmer bitmask to build reverse complement of 64bit kmer
-constexpr uint64_t KMERMASK = (KMERLEN == 32 ? 0xffffffffffffffffULL : (1ULL << 2*KMERLEN) - 1);
-
-// yields value for number of kmers in one read at compile time
-// constexpr KPERREAD = READLEN - KMERLEN + 1;
+// Kmer bitmask
+constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMERLEN) - 1);
 
 
 // size of hash table
@@ -93,7 +90,7 @@ constexpr unsigned int WINLEN = 1024;
 // recommended is 2
 constexpr uint8_t MISCOUNT = 2;
 // number of mismatches we allow additionally for shift-and and alignment
-constexpr uint8_t ADDMIS = 6;
+constexpr uint8_t ADDMIS = 4;
 
 // maximum number of times a k-mer is allowed to occur in the whole genome
 constexpr uint64_t KMERCUTOFF = 1500;
