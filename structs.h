@@ -78,22 +78,22 @@ namespace KMER {
 
 
     // return the offset of given kmer inside its cpg
-    inline uint64_t getOffset(KMER::kmer& k)
+    inline uint64_t getOffset(const KMER::kmer& k)
     {
         return k & 0x00000000ffffffffULL;
     }
 
-    inline uint64_t getMetaCpG(KMER::kmer& k)
+    inline uint64_t getMetaCpG(const KMER::kmer& k)
     {
         return (k & 0x7fffffff00000000ULL) >> 32;
     }
 
-    inline bool isStartCpG(KMER::kmer& k)
+    inline bool isStartCpG(const KMER::kmer& k)
     {
         return (k & 0x8000000000000000ULL);
     }
 
-    inline uint32_t getCore(KMER::kmer& k)
+    inline uint32_t getCore(const KMER::kmer& k)
     {
         return k >> 32;
     }
