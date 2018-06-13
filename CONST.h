@@ -45,8 +45,8 @@ constexpr uint32_t MAXPDIST = 2000;
 constexpr unsigned int CHROMNUM = 24;
 
 // seed used for spaced k-mer hashing
-const std::vector<bool> SEED = {1,1,1,1,1,0,1,1,1,0,0,1,1,0,1,1,0,1,0,1,1,1,0,0,1,0,1,1,1,1,1};
-constexpr uint32_t SEEDBITS = 0b1111101110011011010111001011111;
+const std::vector<bool> SEED = {1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,1,0,0,1,0,1,1,1,0,1,1,1,0,1,1,1,1};
+constexpr uint32_t SEEDBITS = 0b11110111011011110010111011101111;
 
 //  --------------------------------------
 
@@ -71,7 +71,7 @@ constexpr unsigned int CHUNKSIZE = 300000;
 
 // Length of a kmer in bp
 // recommended is 25
-constexpr unsigned int KMERLEN = 31;
+constexpr unsigned int KMERLEN = 32;
 
 // Kmer bitmask
 constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMERLEN) - 1);
@@ -84,7 +84,7 @@ constexpr uint64_t HTABSIZE = 1ULL << 30;
 
 // window length for meta CpGs
 // recommended is 2048
-constexpr unsigned int WINLEN = 1024;
+constexpr unsigned int WINLEN = 2048;
 
 // number of mismatches we allow initially (for q-gram lemma)
 // recommended is 2

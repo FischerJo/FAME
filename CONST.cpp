@@ -43,16 +43,10 @@ void MyConst::sanityChecks()
         exit(1);
     }
 
-    // if (MyConst::READLEN - MyConst::KMERLEN - (MyConst::KMERLEN*MyConst::MISCOUNT))
-    // {
-    //     std::cerr << "The maximum read length is too small to allow for so many errors. Please redefine the number of allowed mismatches (MISCOUNT).\n\n";
-    //     exit(1);
-    // }
-    //
     if (MyConst::MISCOUNT >= 3)
     {
 
-        std::cout << "The chosen number of allowed mismatches (" << MyConst::MISCOUNT << ") is quite large. Most of the heuristics won't work.\n\n";
+        std::cout << "The chosen number of allowed mismatches (" << MyConst::MISCOUNT << ") is quite large. Some of the heuristics won't work.\n\n";
 
     }
 
