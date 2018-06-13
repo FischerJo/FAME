@@ -169,8 +169,13 @@ class RefGenome
         // ARGUMENTS:
         //              k       k-mer
         //              sFlag   flag stating if kmer is of forward (true) or reverse (false) strand
-        //              kSeq    empty fixed length array to be filled with the kmer sequence
-        inline uint64_t reproduceKmerSeq(KMER::kmer& k, bool sFlag);
+        inline uint64_t reproduceKmerSeq(const KMER::kmer& k, const bool sFlag);
+		// reproduce T maksk of sequence given by kmer
+		//
+		// ARGUMENTS:
+		// 				k		k-mer
+		// 				sFlag	flag stating if kmer is of forward (true) or reverse (false) strand
+		inline uint32_t reproduceTMask(const KMER::kmer& k, const bool sFlag);
 
         // filter the current hash table according to the given blacklist
         // overwrites the internal kmerTable and strandTable structure, as well as tabIndex

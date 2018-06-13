@@ -1676,7 +1676,7 @@ inline void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned
 
 
 
-inline uint64_t RefGenome::reproduceKmerSeq(KMER::kmer& k, bool sFlag)
+inline uint64_t RefGenome::reproduceKmerSeq(const KMER::kmer& k, const bool sFlag)
 {
 
 	uint32_t pos = 0;
@@ -1781,7 +1781,58 @@ inline uint64_t RefGenome::reproduceKmerSeq(KMER::kmer& k, bool sFlag)
 }
 
 
+inline uint32_t RefGenome::reproduceTMask(const KMER::kmer& k, const bool sFlag)
+{
+	uint32_t tMask = 0;
+	uint32_t pos = 0;
+	uint8_t chrom;
+	// reproduce kmer sequence
+	if (KMER::isStartCpG(k))
+	{
 
+		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+		const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
+		chrom = startCpG.chrom;
+
+	} else {
+
+		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+		const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+		pos = startCpG.pos;
+		chrom = startCpG.chrom;
+
+	}
+
+	// retrieve sequence
+	//
+	// get iterator to sequence start
+	auto seqStart = fullSeq[chrom].begin() + KMER::getOffset(k) + pos;
+
+	// if from forward strand, just translate
+	if (sFlag)
+	{
+
+		for (unsigned int i = 0; i < MyConst::KMERLEN; ++i)
+		{
+			tMask = tMask << 1;
+			if (seqStart[i] == 'T')
+			{
+				tMask |= 1;
+			}
+		}
+	} else {
+
+		for (unsigned int i = MyConst::KMERLEN; i > 0; --i)
+		{
+			tMask = tMask << 1;
+			if (seqStart[i-1] == 'A')
+			{
+				tMask |= 1;
+			}
+		}
+	}
+	return tMask;
+}
 
 
 void RefGenome::filterRedundancyInHashTable()
@@ -1801,6 +1852,7 @@ void RefGenome::filterRedundancyInHashTable()
     for (uint64_t i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
+		std::unordered_set<uint32_t> masks;
         // previous IDs and flags
         bool isStart = false;
         bool isFwd = false;
@@ -1814,6 +1866,8 @@ void RefGenome::filterRedundancyInHashTable()
             if (KMER::getMetaCpG(*srcItK) != metaID || *srcItS != isFwd || KMER::isStartCpG(*srcItK) != isStart)
             {
 
+				masks.clear();
+				masks.insert(reproduceTMask(*srcItK, *srcItS));
                 isFwd = *srcItS;
                 isStart = KMER::isStartCpG(*srcItK);
                 metaID = KMER::getMetaCpG(*srcItK);
@@ -1821,7 +1875,20 @@ void RefGenome::filterRedundancyInHashTable()
                 *filterItS = *srcItS;
                 ++filterItK;
                 ++filterItS;
-            }
+            } else {
+
+				if (masks.count(reproduceTMask(*srcItK, *srcItS)) == 0)
+				{
+					masks.insert(reproduceTMask(*srcItK, *srcItS));
+					isFwd = *srcItS;
+					isStart = KMER::isStartCpG(*srcItK);
+					metaID = KMER::getMetaCpG(*srcItK);
+					*filterItK = *srcItK;
+					*filterItS = *srcItS;
+					++filterItK;
+					++filterItS;
+				}
+			}
 
         }
         // update the indexing structure for collisions
