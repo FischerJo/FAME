@@ -280,8 +280,9 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
 
 void ReadQueue::decideStrand()
 {
-	std::cout << "\nOdds of matching to fwd/rev strand: " << (float)(r1FwdMatches + 1)/(r1RevMatches + 1) << "\n\n";
-	if ((float)(r1FwdMatches + 1)/(r1RevMatches + 1) > 0.05 && (float)(r1FwdMatches + 1)/(r1RevMatches + 1) < 20)
+	const double odds = (double)(r1FwdMatches + 1)/(double)(r1RevMatches + 1);
+	std::cout << "\nOdds of matching to fwd/rev strand: " << odds << "\n\n";
+	if (odds > 0.005 && odds < 200)
 	{
 		std::cout << "Warning! Many of the reads are mapped in different orientation\
 			Stranding might harm the prediction performance.\n\
@@ -983,7 +984,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         //     qThreshold = 0;
         //
 		// TODO
-		const uint16_t qThreshold = 10;
+		const uint16_t qThreshold = 12;
 		// of << "\nq-gram: " << qThreshold << "\n";
 
 
@@ -999,7 +1000,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 			// startTime = std::chrono::high_resolution_clock::now();
 
-			unsigned int candCount = getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
+			getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
 
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -1007,11 +1008,10 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 			// of << "\nHashtable sizes after first read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\t\tRuntime: "  << runtime << "\t\tCandidates1: " << candCount << "\n";
 
 			if ((paired_fwdMetaIDs[threadnum].size() || paired_revMetaIDs[threadnum].size()) )
-				// || paired_fwdMetaIDs[threadnum].size() < 100 || paired_revMetaIDs[threadnum].size() < 100)
 			{
 				// startTime = std::chrono::high_resolution_clock::now();
 
-				candCount = getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
+				getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
 				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
 
 				// endTime = std::chrono::high_resolution_clock::now();
@@ -2293,7 +2293,8 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 	// maximum position until we can insert completely new meta cpgs
 	uint32_t maxQPos = seq.size() - MyConst::KMERLEN + 1 - qThreshold;
 
-	for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+	uint64_t endIdx = ref.tabIndex[key+1];
+	for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
 	{
 
 		const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
@@ -2347,7 +2348,8 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 		wasFwd = false;
 		wasStart = false;
 
-		for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+		endIdx = ref.tabIndex[key+1];
+		for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
 		{
 
 			const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
@@ -2420,7 +2422,7 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 
 
-inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
+inline void ReadQueue::getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
 	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
@@ -2433,7 +2435,6 @@ inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, cons
 	auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
 	fwdMetaIDs_t.clear();
 	revMetaIDs_t.clear();
-	// TODO: test this for larger index
 	fwdMetaIDs_t.resize(800);
 	revMetaIDs_t.resize(800);
 
@@ -2461,7 +2462,8 @@ inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, cons
 	// maximum position until we can insert completely new meta cpgs
 	uint32_t maxQPos = seq.size() - MyConst::KMERLEN + 1 - qThreshold;
 
-	for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+	uint64_t endIdx = ref.tabIndex[key+1];
+	for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
 	{
 
 		const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
@@ -2528,7 +2530,8 @@ inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, cons
 		wasFwd = false;
 		wasStart = false;
 
-		for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+		endIdx = ref.tabIndex[key+1];
+		for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
 		{
 
 			const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
@@ -2615,10 +2618,9 @@ inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, cons
 			++c;
 	}
 	if (c == 0)
-		return c;
+		return;
 	fwdMetaIDs_t.resize(0);
 	revMetaIDs_t.resize(0);
-	return c;
 }
 
 
@@ -2626,7 +2628,7 @@ inline unsigned int ReadQueue::getSeedRefsFirstRead(const std::string& seq, cons
 
 
 
-inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
+inline void ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
 	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
@@ -2665,8 +2667,9 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 	constexpr int contextWLen = (int)(((double)MyConst::MAXPDIST / MyConst::WINLEN) + 0.5);
 	// TODO
 	// count how often we have a meta CpG candidate for matching
-	unsigned int candCount = 0;
-	for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+	// unsigned int candCount = 0;
+	uint64_t endIdx = ref.tabIndex[key+1];
+	for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
 	{
 
 		const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
@@ -2717,7 +2720,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 							// propagate information to adjacent meta CpGs if enough kmers are matched
 							if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
 							{
-								++candCount;
+								// ++candCount;
 								std::get<2>(fwdMetaIDs_t[metaId]) = true;
 								for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
 								{
@@ -2745,7 +2748,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 							// propagate information to adjacent meta CpGs if enough kmers are matched
 							if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
 							{
-								++candCount;
+								// ++candCount;
 								std::get<2>(revMetaIDs_t[metaId]) = true;
 								for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
 								{
@@ -2782,7 +2785,8 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 		wasFwd = false;
 		wasStart = false;
 
-		for (uint64_t i = ref.tabIndex[key]; i < ref.tabIndex[key+1]; ++i)
+		endIdx = ref.tabIndex[key+1];
+		for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
 		{
 
 			const KMER_S::kmer currentKmer = ref.kmerTableSmall[i];
@@ -2836,7 +2840,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 									// propagate information to adjacent meta CpGs if enough kmers are matched
 									if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
 									{
-										++candCount;
+										// ++candCount;
 										std::get<2>(fwdMetaIDs_t[metaId]) = true;
 										for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
 										{
@@ -2864,7 +2868,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 									// propagate information to adjacent meta CpGs if enough kmers are matched
 									if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
 									{
-										++candCount;
+										// ++candCount;
 										std::get<2>(revMetaIDs_t[metaId]) = true;
 										for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
 										{
@@ -2893,7 +2897,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 							// propagate information to adjacent meta CpGs if enough kmers are matched
 							if (std::get<1>(it->second) == qThreshold)
 							{
-								++candCount;
+								// ++candCount;
 								std::get<2>(it->second) = true;
 								for (int cOff = 1; cOff <= contextWLen; ++cOff)
 								{
@@ -2915,7 +2919,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 							// propagate information to adjacent meta CpGs if enough kmers are matched
 							if (std::get<1>(it->second) == qThreshold)
 							{
-								++candCount;
+								// ++candCount;
 								std::get<2>(revMetaIDs_t[metaId]) = true;
 								for (int cOff = 1; cOff <= contextWLen; ++cOff)
 								{
@@ -2933,7 +2937,7 @@ inline unsigned int ReadQueue::getSeedRefsSecondRead(const std::string& seq, con
 			}
 		}
 	}
-	return candCount;
+	// return candCount;
 }
 
 

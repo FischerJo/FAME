@@ -154,9 +154,9 @@ class ReadQueue
         //          a call to this function
 		inline void getSeedRefs(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
         // TODO start Metas
-		inline unsigned int getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
+		inline void getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
         // TODO start Metas
-		inline unsigned int getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
+		inline void getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
 
 
 		inline void sort_by_n(std::vector<unsigned int>::iterator it_start, std::vector<unsigned int>::iterator it_n, std::vector<unsigned int>::iterator it_end, std::vector<uint64_t>& sliceOff, std::vector<bool>& sliceIsDone)
