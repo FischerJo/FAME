@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <unordered_map>
+#include <list>
 
 
 // --------------- PARAMS ---------------
@@ -14,10 +15,12 @@
 constexpr size_t refLen = 1000000000;
 constexpr double mthRate = 0.6;
 constexpr size_t readLen = 100;
-constexpr size_t readNum = 100000000;
+constexpr size_t readNum = 250000000;
 constexpr size_t pairedMinDist = 100;
-constexpr size_t pairedMaxDist = 600;
+constexpr size_t pairedMaxDist = 400;
 constexpr unsigned int errNum = 2;
+// TODO
+// make each distribution thread safe?
 #define CORENUM  1
 
 // class representing a synthetic dataset
@@ -73,7 +76,7 @@ class SynthDS
         std::vector<std::string> genReadsRevRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs);
 
         // generate set of PAIRED reads of given length drawn from LOADED reference
-        std::pair<std::vector<std::string>, std::vector<std::string> > genReadsPairedRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::array<int, errNum> >, std::vector<std::array<int, errNum> > >& errOffs);
+        std::pair<std::vector<std::string>, std::vector<std::string> > genReadsPairedRef(const size_t readLen, const size_t readNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::list<int> >, std::vector<std::list<int> > >& errOffs);
 
         inline std::string& getRef() { return refFwd;}
 

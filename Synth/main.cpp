@@ -129,16 +129,16 @@ int main(int argc, char** argv)
     {
         std::cout << "Generating paired end reads.\n\n";
         std::pair<std::vector<std::pair<size_t,size_t> >, std::vector<std::pair<size_t,size_t> > >  offsets;
-        std::pair<std::vector<std::array<int, errNum> >, std::vector<std::array<int, errNum> > > errOffs;
-        std::pair<std::vector<std::string>, std::vector<std::string> > pairedReads = synthGen.genReadsPairedRef(readLen, readNum, errNum, offsets, errOffs);
+        std::pair<std::vector<std::list<int> >, std::vector<std::list<int> > > errOffs;
+        std::pair<std::vector<std::string>, std::vector<std::string> > pairedReads = synthGen.genReadsPairedRef(readLen, readNum, offsets, errOffs);
         std::ofstream ofsReads1(std::string(argv[2]) + "_p1.fastq");
         std::ofstream ofsReads2(std::string(argv[2]) + "_p2.fastq");
         for (size_t i = 0; i < pairedReads.first.size(); ++i)
         {
             // generate fastq format of reads
             ofsReads1 << '@' << i;
-            for (unsigned int e = 0; e < errNum; ++e)
-                ofsReads1 << "_" << errOffs.first[i][e];
+            for (int errPos : errOffs.first[i])
+                ofsReads1 << "_" << errPos;
             ofsReads1 << "_CHR" << offsets.first[i].second << "_" << offsets.first[i].first << "\n";
             ofsReads1 << pairedReads.first[i] << "\n";
             ofsReads1 << '+' << i << "\n";
@@ -148,8 +148,8 @@ int main(int argc, char** argv)
             ofsReads1 << "\n";
             // generate fastq format of reads
             ofsReads2 << '@' << i;
-            for (unsigned int e = 0; e < errNum; ++e)
-                ofsReads2 << "_" << errOffs.second[i][e];
+            for (int errPos : errOffs.second[i])
+                ofsReads2 << "_" << errPos;
             ofsReads2 << "_CHR" << offsets.second[i].second << "_" << offsets.second[i].first << "\n";
             ofsReads2 << pairedReads.second[i] << "\n";
             ofsReads2 << '+' << i << "\n";

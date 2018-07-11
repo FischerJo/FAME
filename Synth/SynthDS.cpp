@@ -651,7 +651,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 // }
 //
 
-std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::array<int, errNum> >, std::vector<std::array<int, errNum> > >& errOffs)
+std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::list<int> >, std::vector<std::list<int>> >& errOffs)
 {
 
     std::cout << "Start generating paired read set.\n\n";
@@ -662,6 +662,11 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
     offsets.second.resize(readNum);
     errOffs.first.resize(readNum);
     errOffs.second.resize(readNum);
+
+	std::vector<int> errPosis(readLen);
+	std::iota(errPosis.begin(), errPosis.end(), 0);
+
+	std::poisson_distribution<int> errNumDist(0.5);
 
     size_t processedReads = 0;
 
@@ -707,67 +712,70 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
 
             bool read1isFwd;
             // flip a coin if read 1 is from main strand
-            if (coin(MT))
-            {
-                read1isFwd = true;
-
-            // read 2 is on main strand
-            } else {
-
-                read1isFwd = false;
-            }
-
+			read1isFwd = coin(MT);
 
             // test if CpG is contained
-            bool prevC = false;
-            bool hasCpG = false;
+            // bool prevC = false;
+            // bool hasCpG = false;
             // test if N is contained
             bool hasN = false;
             // search for CpGs in both reads
             for (const char c : read1)
             {
-                if (c == 'C')
-                {
-                    prevC = true;
-                    continue;
-                } else if (c == 'N') {
-
-                    hasN = true;
-                    break;
-                } else if (c == 'G') {
-
-                    if (prevC)
-                        hasCpG = true;
-                }
-                prevC = false;
+				if (c == 'N')
+				{
+					hasN = true;
+					break;
+				}
+                // if (c == 'C')
+                // {
+                //     prevC = true;
+                //     continue;
+                // } else if (c == 'N') {
+                //
+                //     hasN = true;
+                //     break;
+                // } else if (c == 'G') {
+                //
+                //     if (prevC)
+                //         hasCpG = true;
+                // }
+                // prevC = false;
             }
-            if (!hasCpG || hasN)
+            if (hasN)
+            // if (!hasCpG || hasN)
             {
                 --i;
                 continue;
             }
-            prevC = false;
-            hasCpG = false;
+            // prevC = false;
+            // hasCpG = false;
             for (const char c : read2)
             {
-                if (c == 'C')
-                {
-                    prevC = true;
-                    continue;
-                } else if (c == 'N') {
-
-                    hasN = true;
-                    break;
-                } else if (c == 'G') {
-
-                    if (prevC)
-                        hasCpG = true;
-                }
-                prevC = false;
+				if (c == 'N')
+				{
+					hasN = true;
+					break;
+				}
+                // if (c == 'C')
+                // {
+                //     prevC = true;
+                //     continue;
+                // } else if (c == 'N') {
+                //
+                //     hasN = true;
+                //     break;
+                // } else if (c == 'G') {
+                //
+                //     if (prevC)
+                //         hasCpG = true;
+                // }
+                // prevC = false;
             }
 
             // produce only reads where both of the two have at least one CpG
-            if (!hasCpG || hasN)
+            // if (!hasCpG || hasN)
+            if (hasN)
             {
                 --i;
                 continue;
@@ -1270,41 +1278,31 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 }
             }
 
-            // draw number of errors
-            unsigned int err = getErrNum();
-            // introduce errors at random positions
-            size_t errID = 0;
-            // for read 1
-            for (unsigned int e = 0; e < err; ++e)
-            {
-                int eOff = toOffRead(MT);
-                read1[eOff] = alphabet[toIndex(MT)];
-                errOffs.first[i][errID] = eOff;
-                ++errID;
-            }
-            for (; errID < errNum; ++errID)
-            {
-                errOffs.first[i][errID] = -1;
-            }
 
-            // and read 2
-            err = getErrNum();
-            errID = 0;
-            for (unsigned int e = 0; e < err; ++e)
+            if (read1isFwd)
             {
-                int eOff = toOffRead(MT);
-                read2[eOff] = alphabet[toIndex(MT)];
-                errOffs.second[i][errID] = eOff;
-                ++errID;
-            }
-            for (; errID < errNum; ++errID)
-            {
-                errOffs.second[i][errID] = -1;
-            }
+				// draw number of errors
+				int err = errNumDist(MT);
+				// introduce errors at random positions
+				std::shuffle(errPosis.begin(), errPosis.end(), MT);
+				// for read 1
+				for (unsigned int e = 0; e < err; ++e)
+				{
+					int eOff = errPosis[e];
+					read1[eOff] = alphabet[toIndex(MT)];
+					errOffs.first[i].push_back(eOff);
+				}
 
-            // shuffle pairs
-            if (coin(MT))
-            {
+				// and read 2
+				err = errNumDist(MT);
+				std::shuffle(errPosis.begin(), errPosis.end(), MT);
+				for (unsigned int e = 0; e < err; ++e)
+				{
+					int eOff = errPosis[e];
+					read2[eOff] = alphabet[toIndex(MT)];
+					errOffs.second[i].push_back(eOff);
+				}
+
                 readSet1[i] = std::move(read1);
                 offsets.first[i] = std::pair<size_t,size_t>(offset, chr);
 
@@ -1312,6 +1310,28 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 offsets.second[i] = std::pair<size_t,size_t>(offset + pDist, chr);
 
             } else {
+
+				// draw number of errors
+				int err = errNumDist(MT);
+				// introduce errors at random positions
+				std::shuffle(errPosis.begin(), errPosis.end(), MT);
+				// for read 1
+				for (unsigned int e = 0; e < err; ++e)
+				{
+					int eOff = errPosis[e];
+					read1[eOff] = alphabet[toIndex(MT)];
+					errOffs.second[i].push_back(eOff);
+				}
+
+				// and read 2
+				err = errNumDist(MT);
+				std::shuffle(errPosis.begin(), errPosis.end(), MT);
+				for (unsigned int e = 0; e < err; ++e)
+				{
+					int eOff = errPosis[e];
+					read2[eOff] = alphabet[toIndex(MT)];
+					errOffs.first[i].push_back(eOff);
+				}
 
                 readSet2[i] = std::move(read1);
                 offsets.second[i] = std::pair<size_t,size_t>(offset, chr);
@@ -1375,7 +1395,7 @@ void SynthDS::loadRefSeq(const char* genFile)
                 seqFwd.shrink_to_fit();
                 seqRev.shrink_to_fit();
                 refSeqFwd.emplace_back(move(seqFwd));
-                std::reverse(seqRev.begin(), seqFwd.end());
+                std::reverse(seqRev.begin(), seqRev.end());
                 refSeqRev.emplace_back(move(seqRev));
                 // reset buffer
                 seqFwd = std::string();
