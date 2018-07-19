@@ -166,7 +166,7 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
             // if we matched in previous round, overwrite that match
             if (wasMatch)
             {
-                if (errNum < prevErrs)
+                if (errNum <= prevErrs)
                 {
                     matches.back() = it - start;
                     errors.back() = errNum;
@@ -239,8 +239,9 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
             // if we matched in previous round, overwrite that match
             if (wasMatch)
             {
-                if (errNum < prevErrs)
+                if (errNum <= prevErrs)
                 {
+					// TODO make this safe for insertions!!
                     matches.back() = it - end + pLen - 2;
                     errors.back() = errNum;
                     prevErrs = errNum;
@@ -248,6 +249,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
 
             } else {
 
+				// TODO make this safe for insertions!!
                 matches.emplace_back(it - end + pLen - 2);
                 errors.emplace_back(errNum);
                 wasMatch = true;
