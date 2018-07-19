@@ -53,6 +53,8 @@ int main(int argc, char** argv)
 	// true iff library is generated without particular stranding of reads
 	//	e.g.: fragment 1 has read 1 from fwd strand and fragment 2 has read 1 from rev strand
 	bool bothStrandsFlag = false;
+	// true iff human reference genome optimization should be used to discard unlocalized contigs etc
+	bool humanOptFlag = false;
 
     if (argc == 1)
     {
@@ -196,6 +198,12 @@ int main(int argc, char** argv)
 			continue;
 		}
 
+		if (std::string(argv[i]) == "--human_opt")
+		{
+			humanOptFlag = true;
+			continue;
+		}
+
 
         // no such option
         std::cerr << "Don\'t know the option \"" << argv[i] << "\". Terminating...\n\n";
@@ -264,7 +272,7 @@ int main(int argc, char** argv)
         std::vector<std::vector<char>> genSeq;
 		std::unordered_map<uint8_t, std::string> chrMap;
 
-        readReference(genomeFile, cpgTab, cpgStartTab, genSeq, chrMap);
+        readReference(genomeFile, cpgTab, cpgStartTab, genSeq, chrMap, humanOptFlag);
         RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq, noloss, chrMap);
 
         if (storeIndexFlag)
@@ -348,10 +356,10 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
 
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
-        ++i;
         // TODO
-        if (i > 10)
-            break;
+        // if (i > 2)
+        //     break;
+        ++i;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
         std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
     }
@@ -421,6 +429,9 @@ void printHelp()
 
 	std::cout << "\t--both_strands	\t\tThe original read and its reverse complement\n";
 	std::cout << "\t                \t\tare tested for a match..\n\n";
+
+	std::cout << "\t--human_opt     \t\tThe reference genome is treated as GRCH or HG version\n";
+	std::cout << "\t                \t\tof the human genome. Unlocalized contigs etc are pruned.\n";
 
     std::cout << "\nEXAMPLES\n\n";
 

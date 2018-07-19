@@ -34,7 +34,7 @@
 //              cpg.pos for all CpGs in cpgStartTab will be the offset to the C in CpG!
 // produces sequence strings seperated by chromosome saved to genSeq, their length to genSeqLen
 //      underlying vectors should be empty on calling
-void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq, std::unordered_map<uint8_t,std::string>& chrMap);
+void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab, std::vector<struct CpG>& cpgStartTab, std::vector<std::vector<char> >& genSeq, std::unordered_map<uint8_t,std::string>& chrMap, const bool humanOptFlag);
 
 // read a line of the reference, constructing possible CpGs, appending and counting the read characters
 //
@@ -49,71 +49,6 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
 {
 
     chrIndex = chrIndex - 1;
-    // check for G if last letter in previous line was C
-    // if (lastC)
-    // {
-    //
-    //     std::string::iterator it = line.begin();
-    //     if (it != line.end())
-    //     {
-    //
-    //         if (*it == 'G')
-    //         {
-    //             // start reading for CpG READLEN - 2 chars before, offsets are started counting at 0 but string.size() starts at 1
-    //             // so we need to start at sequencesize - (READLEN - 2) - 1
-    //             if (seq.size() < (MyConst::READLEN - 1))
-    //             {
-    //
-    //                 // note that seq.size() > 1 because lastC is only set if we read a C before
-    //                 cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
-    //
-    //             } else {
-    //
-    //                 cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
-    //             }
-    //
-    //         }
-    //     }
-    // }
-    //
-    // // search for CpGs
-    // for (std::string::iterator it = line.begin(); it != line.end(); ++it)
-    // {
-    //
-    //     seq += *it;
-    //
-    //     // test if letter is C
-    //     if (*it == 'C')
-    //     {
-    //
-    //         // if there exists next letter, check if g
-    //         if ( (it + 1) != line.end() )
-    //         {
-    //
-    //             if (*(it + 1) == 'G')
-    //             {
-    //                 if (seq.size() < (MyConst::READLEN - 1))
-    //                 {
-    //
-    //                     cpgStartTab.emplace_back(chrIndex, seq.size() - 1);
-    //
-    //                 } else {
-    //
-    //                     cpgTab.emplace_back(chrIndex, seq.size() - MyConst::READLEN + 1);
-    //                 }
-    //                 seq += *(++it);
-    //             }
-    //
-    //         // else update lastC because we are at the end of line
-    //         } else {
-    //
-    //             lastC = true;
-    //             return;
-    //         }
-    //     }
-    // }
-    // lastC = false;
-    //
 
     // parse the line
     // transform lower case to upper case, construct cpg objects and write unknowns as N
