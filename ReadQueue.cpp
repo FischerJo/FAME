@@ -848,7 +848,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
     }
 
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM) schedule(static)
+#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,5)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
@@ -984,7 +984,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         //     qThreshold = 0;
         //
 		// TODO
-		const uint16_t qThreshold = 12;
+		const uint16_t qThreshold = 14;
 		// of << "\nq-gram: " << qThreshold << "\n";
 
 
@@ -1076,8 +1076,6 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             r1.isInvalid = true;
             r2.isInvalid = true;
             unSuccMatchT += 2;
-			// of << "\nNo Match\n";
-			// of << "---------------------------\n\n";
             continue;
         }
 
@@ -1371,7 +1369,17 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 				if (getStranded)
 #pragma omp atomic
 					++r1FwdMatches;
+// #pragma omp critical
+// 				{
+// 					std::cerr << "Match of read 1, ID " << r1.id << "\n" << (MATCH::isFwd(r1.mat) ? "Fwd" : "Rev") << "\t";
+// 					std::cerr << "Pos " << MATCH::getOffset(r1.mat) + ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(r1.mat)].start].pos << "\n";
+// 				}
                 computeMethLvl(r1.mat, r1.seq);
+// #pragma omp critical
+// 				{
+// 					std::cerr << "Match of read 2, ID " << r2.id << "\n" << (MATCH::isFwd(r2.mat) ? "Fwd" : "Rev") << "\t";
+// 					std::cerr << "Pos " << MATCH::getOffset(r2.mat) + ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(r2.mat)].start].pos << "\n";
+// 				}
                 computeMethLvl(r2.mat, revSeq2);
 
             } else {
@@ -3038,7 +3046,11 @@ inline int ReadQueue::extractPairedMatch(MATCH::match& mat1, MATCH::match& mat2)
 	// check if in range
 	uint32_t mat1Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat1)].start].pos + MATCH::getOffset(mat1);
 	uint32_t mat2Pos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat2)].start].pos + MATCH::getOffset(mat2);
-	uint32_t matDist = std::min(mat2Pos - mat1Pos, mat1Pos - mat2Pos);
+	uint32_t matDist;
+	if (mat2Pos > mat1Pos)
+		matDist = mat2Pos - mat1Pos;
+	else
+		matDist = mat1Pos - mat2Pos;
 	if (matDist <= MyConst::MAXPDIST)
 	{
 		return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
@@ -3156,6 +3168,15 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 						++methLevels[cpgId].methFwd;
+					// TODO
+// 					} else {
+//
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 						{
+// 						std::cerr << "WHAT fwd!?\n";
+// 						}
 					}
 					// else std::cout << "This should not happen 1!\n";
 
@@ -3174,6 +3195,15 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 						++methLevels[cpgId].methRev;
+					// TODO
+// 					} else {
+//
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 						{
+// 						std::cerr << "WHAT rev!?\n";
+// 						}
 					}
 				}
 			}
@@ -3423,6 +3453,17 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 							++methLevels[cpgID].unmethFwd;
+						// TODO
+// 						} else {
+//
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 							{
+// 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos + 1] << "\n";
+// 							std::cerr << "\tPos: " << readSeqPos << "\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
+// 							}
 						}
 
 					// }
@@ -3482,6 +3523,17 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 							++methLevels[cpgID].unmethRev;
+						// TODO
+// 						} else {
+//
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 							{
+// 							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos + 1] << "\n";
+// 							std::cerr << "\tPos: " << readSeqPos + 1 << "\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
+// 							}
 						}
 
 					// }
