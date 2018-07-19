@@ -118,8 +118,8 @@ Examples on how to use FAME in the command line are given in 2.D.
 | --genome | Filepath | Forces the tool to build an index for the specified .fasta reference file |
 | --gzip_reads | None | Treats the read files passed to -r or -r1 and -r2 as gzipped files. |
 | -h      | None | Lists all available options with a description. |
-| --human_opt | None | Uses optimizations for human reference genomes to prune away unlocalized contigs etc |
 | --help | None | see -h |
+| --human_opt | None | Uses optimizations for human reference genomes to prune away unlocalized contigs etc |
 | --load_index | Filepath | Loads the index constructed before. NOTE: Parameters in `CONST.h` must be the same. |
 | --no_loss | None | Builds the index with lossless filter (NOT RECOMMENDED). |
 | -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
