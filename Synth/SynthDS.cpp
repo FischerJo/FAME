@@ -651,7 +651,7 @@ std::vector<std::string> SynthDS::genReadsFwdRef(const size_t readLen, const siz
 // }
 //
 
-std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::list<int> >, std::vector<std::list<int>> >& errOffs)
+std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReadsPairedRef(const size_t readLen, const size_t readNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::list<int> >, std::vector<std::list<int>> >& errOffs, std::vector<bool>& readsHaveCpG)
 {
 
     std::cout << "Start generating paired read set.\n\n";
@@ -662,6 +662,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
     offsets.second.resize(readNum);
     errOffs.first.resize(readNum);
     errOffs.second.resize(readNum);
+	readsHaveCpG.resize(readNum);
 
 	std::vector<int> errPosis(readLen);
 	std::iota(errPosis.begin(), errPosis.end(), 0);
@@ -680,7 +681,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
     {
 
         // for single chromosome data set
-        if (chr != 21)
+        if (chrMap[chr] != "chr22")
             continue;
         const size_t chrReadNum = readNum;
         //
@@ -715,8 +716,8 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
 			read1isFwd = coin(MT);
 
             // test if CpG is contained
-            // bool prevC = false;
-            // bool hasCpG = false;
+            bool prevC = false;
+            bool hasCpG = false;
             // test if N is contained
             bool hasN = false;
             // search for CpGs in both reads
@@ -727,20 +728,20 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
 					hasN = true;
 					break;
 				}
-                // if (c == 'C')
-                // {
-                //     prevC = true;
-                //     continue;
-                // } else if (c == 'N') {
-                //
-                //     hasN = true;
-                //     break;
-                // } else if (c == 'G') {
-                //
-                //     if (prevC)
-                //         hasCpG = true;
-                // }
-                // prevC = false;
+                if (c == 'C')
+                {
+                    prevC = true;
+                    continue;
+                } else if (c == 'N') {
+
+                    hasN = true;
+                    break;
+                } else if (c == 'G') {
+
+                    if (prevC)
+                        hasCpG = true;
+                }
+                prevC = false;
             }
             if (hasN)
             // if (!hasCpG || hasN)
@@ -748,8 +749,8 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 --i;
                 continue;
             }
-            // prevC = false;
-            // hasCpG = false;
+            prevC = false;
+            bool hasCpG2 = false;
             for (const char c : read2)
             {
 				if (c == 'N')
@@ -757,20 +758,20 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
 					hasN = true;
 					break;
 				}
-                // if (c == 'C')
-                // {
-                //     prevC = true;
-                //     continue;
-                // } else if (c == 'N') {
-                //
-                //     hasN = true;
-                //     break;
-                // } else if (c == 'G') {
-                //
-                //     if (prevC)
-                //         hasCpG = true;
-                // }
-                // prevC = false;
+                if (c == 'C')
+                {
+                    prevC = true;
+                    continue;
+                } else if (c == 'N') {
+
+                    hasN = true;
+                    break;
+                } else if (c == 'G') {
+
+                    if (prevC)
+                        hasCpG2 = true;
+                }
+                prevC = false;
             }
 
             // produce only reads where both of the two have at least one CpG
@@ -781,9 +782,12 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 continue;
             }
 
+			readsHaveCpG[i] = hasCpG && hasCpG2;
+
             // draw if main strand or second strand is originally methylated
             // i.e. if read on main strand is C->T (1) or G->A (0)
-            if (coin(MT))
+			bool mainMeth = coin(MT);
+            if (mainMeth)
             {
 
                 if (read1isFwd)
@@ -1203,7 +1207,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                             }
                         }
                     }
-                    // go through read 2 and introduce methylation
+                    // go through read 1 and introduce methylation
                     std::reverse(read1.begin(), read1.end());
                     for (size_t j = 0; j < readLen; ++j)
                     {
@@ -1279,7 +1283,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
             }
 
 
-            if (read1isFwd)
+            if (read1isFwd == mainMeth)
             {
 				// draw number of errors
 				int err = errNumDist(MT);
@@ -1307,7 +1311,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 offsets.first[i] = std::pair<size_t,size_t>(offset, chr);
 
                 readSet2[i] = std::move(read2);
-                offsets.second[i] = std::pair<size_t,size_t>(offset + pDist, chr);
+                offsets.second[i] = std::pair<size_t,size_t>(offset + pDist + readLen, chr);
 
             } else {
 
@@ -1337,7 +1341,7 @@ std::pair<std::vector<std::string>, std::vector<std::string> > SynthDS::genReads
                 offsets.second[i] = std::pair<size_t,size_t>(offset, chr);
 
                 readSet1[i] = std::move(read2);
-                offsets.first[i] = std::pair<size_t,size_t>(offset + pDist, chr);
+                offsets.first[i] = std::pair<size_t,size_t>(offset + pDist + readLen, chr);
             }
         }
         processedReads += chrReadNum;
@@ -1410,12 +1414,28 @@ void SynthDS::loadRefSeq(const char* genFile)
             {
 
                 ++chrIndex;
+				std::string chrID (line.begin() + 1, line.end());
+				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex - 1, chrID));
+                contFlag = true;
+                continue;
+
+            } else if (*(line.begin() + 1) == 'c')
+			{
+
+                ++chrIndex;
+				std::string chrID (line.begin() + 1, line.end());
+				if (!isPrimaryHG(chrID))
+				{
+					--chrIndex;
+					contFlag = false;
+					continue;
+				}
+				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex - 1, chrID));
                 contFlag = true;
                 continue;
 
             // throw out unlocalized contigs
-            } else {
-
+			} else {
                 contFlag = false;
                 continue;
             }
@@ -1526,4 +1546,21 @@ void SynthDS::initReference(const size_t refLen, const unsigned int seed)
         refFwd[i] = alphabet[r];
         refRev[refLen - 1 - i] = alphabet[3-r];
     }
+}
+
+bool isPrimaryHG(std::string chrID)
+{
+	for (unsigned int i = 1; i <= 22; ++i)
+	{
+		if (chrID == ("chr" + std::to_string(i)))
+		{
+			return true;
+		}
+	}
+	if (chrID == "chrX")
+		return true;
+	if (chrID == "chrY")
+		return true;
+
+	return false;
 }

@@ -13,15 +13,17 @@
 // --------------- PARAMS ---------------
 
 constexpr size_t refLen = 1000000000;
-constexpr double mthRate = 0.6;
+constexpr double mthRate = 0.01;
 constexpr size_t readLen = 100;
-constexpr size_t readNum = 250000000;
+constexpr size_t readNum = 25000000;
 constexpr size_t pairedMinDist = 100;
 constexpr size_t pairedMaxDist = 400;
 constexpr unsigned int errNum = 2;
 // TODO
 // make each distribution thread safe?
 #define CORENUM  1
+
+bool isPrimaryHG(std::string);
 
 // class representing a synthetic dataset
 class SynthDS
@@ -52,7 +54,7 @@ class SynthDS
         //          genFile     file containing reference in fasta format
         //          methRate    specified methylation rate [0, 1.0] that should be reflected in generated reads
         //          convRate    specified bisulfite conversion rate [0, 1.0]
-        SynthDS(const char* genFile, const double methRate, const double convRate = 1.0);
+        SynthDS(const char* genFile, const double methRate, const double convRate = 0.99);
 
         // ----------
 
@@ -76,7 +78,7 @@ class SynthDS
         std::vector<std::string> genReadsRevRef(const size_t readLen, const size_t readNum, const unsigned int maxErrNum, std::vector<std::pair<size_t, size_t> >& offsets, std::vector<std::array<int, errNum> >& errOffs);
 
         // generate set of PAIRED reads of given length drawn from LOADED reference
-        std::pair<std::vector<std::string>, std::vector<std::string> > genReadsPairedRef(const size_t readLen, const size_t readNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::list<int> >, std::vector<std::list<int> > >& errOffs);
+        std::pair<std::vector<std::string>, std::vector<std::string> > genReadsPairedRef(const size_t readLen, const size_t readNum, std::pair<std::vector<std::pair<size_t, size_t> >, std::vector<std::pair<size_t, size_t> > >& offsets, std::pair<std::vector<std::list<int> >, std::vector<std::list<int> > >& errOffs, std::vector<bool>& readsHaveCpG);
 
         inline std::string& getRef() { return refFwd;}
 
@@ -127,6 +129,8 @@ class SynthDS
         std::bernoulli_distribution convToss;
         const std::array<char, 4> alphabet;
 
+		// mapping of internal chromosome id to external fastq id
+		std::unordered_map<uint8_t, std::string> chrMap;
 };
 
 #endif /* SYNTHDS_H */

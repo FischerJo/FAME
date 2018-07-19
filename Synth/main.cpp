@@ -130,7 +130,8 @@ int main(int argc, char** argv)
         std::cout << "Generating paired end reads.\n\n";
         std::pair<std::vector<std::pair<size_t,size_t> >, std::vector<std::pair<size_t,size_t> > >  offsets;
         std::pair<std::vector<std::list<int> >, std::vector<std::list<int> > > errOffs;
-        std::pair<std::vector<std::string>, std::vector<std::string> > pairedReads = synthGen.genReadsPairedRef(readLen, readNum, offsets, errOffs);
+		std::vector<bool> readsHaveCpG;
+        std::pair<std::vector<std::string>, std::vector<std::string> > pairedReads = synthGen.genReadsPairedRef(readLen, readNum, offsets, errOffs, readsHaveCpG);
         std::ofstream ofsReads1(std::string(argv[2]) + "_p1.fastq");
         std::ofstream ofsReads2(std::string(argv[2]) + "_p2.fastq");
         for (size_t i = 0; i < pairedReads.first.size(); ++i)
@@ -139,7 +140,7 @@ int main(int argc, char** argv)
             ofsReads1 << '@' << i;
             for (int errPos : errOffs.first[i])
                 ofsReads1 << "_" << errPos;
-            ofsReads1 << "_CHR" << offsets.first[i].second << "_" << offsets.first[i].first << "\n";
+            ofsReads1 << "_" << synthGen.chrMap[offsets.first[i].second] << "_" << (readsHaveCpG[i] ? "T" : "F") << "_" << offsets.first[i].first << "\n";
             ofsReads1 << pairedReads.first[i] << "\n";
             ofsReads1 << '+' << i << "\n";
             // produce dummy quality scores
@@ -150,7 +151,7 @@ int main(int argc, char** argv)
             ofsReads2 << '@' << i;
             for (int errPos : errOffs.second[i])
                 ofsReads2 << "_" << errPos;
-            ofsReads2 << "_CHR" << offsets.second[i].second << "_" << offsets.second[i].first << "\n";
+            ofsReads2 << "_" << synthGen.chrMap[offsets.second[i].second] << "_" << (readsHaveCpG[i] ? "T" : "F") << "_" << offsets.second[i].first << "\n";
             ofsReads2 << pairedReads.second[i] << "\n";
             ofsReads2 << '+' << i << "\n";
             // produce dummy quality scores
@@ -196,7 +197,7 @@ int main(int argc, char** argv)
     for (auto& cpg : synthGen.cpgMethRateFwd)
     {
         const uint64_t offset = cpg.first & 0x00000000ffffffffULL;
-        ofsReads << (cpg.first >> 32) << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
+        ofsReads << synthGen.chrMap[(cpg.first >> 32)] << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
     }
     ofsReads.close();
     ofsReads.open(std::string(argv[2]) + "_cpginfo_rev.tsv");
@@ -204,7 +205,7 @@ int main(int argc, char** argv)
     for (auto& cpg : synthGen.cpgMethRateRev)
     {
         const uint64_t offset = cpg.first & 0x00000000ffffffffULL;
-        ofsReads << (cpg.first >> 32) << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
+        ofsReads << synthGen.chrMap[(cpg.first >> 32)] << "\t" << offset << "\t" << cpg.second.unmethCount << "\t" << cpg.second.methCount << "\t" << cpg.second.sampleRate << "\n";
     }
     ofsReads.close();
     return 0;
