@@ -87,21 +87,24 @@ Here is a list of the external parameters:
 
 | Parameter     | Definition       | Recommended value  | Location (line number) |
 | ------------- |-------------| -----:| :----: |
-| READLEN      | (Maximum) Length of reads queried to the index | 100 | 34 |
-| CORENUM      | Number of threads spawned by the program. Should be number of free cores on the system. | 16 | 37 |
-| MINPDIST | Minimum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 50 | 40 |
-| MAXPDIST | Maximum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 400 | 41 |
-| CHROMNUM | Number of chromosomes of reference organism. | 24 | 44 |
+| READLEN      | (Maximum) Length of reads queried to the index | 100 | 35 |
+| CORENUM      | Number of threads spawned by the program. Should be number of free cores on the system. | 16 | 38 |
+| MINPDIST | Minimum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 20 | 41 |
+| MAXPDIST | Maximum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 400 | 42 |
+| CHROMNUM | Number of chromosomes of reference organism. | 24 | 45 |
 
-Here is a list of important internal parameters, we strongly recommend not to change them:
+Here is a list of important internal parameters, we strongly recommend to NOT change them:
 
 | Parameter     | Definition       | Recommended value  | Location (line number) |
 | ------------- |-------------| -----:| :----: |
-| CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 64 |
-| KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. | 25 | 68 |
-| MISCOUNT | Number of errors considered for k-mer filters. | 2 | 88 |
-| ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 3 | 90 |
-| KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 93 |
+| SEED | The gapped q-gram (aka seed) to use as array of bits | \[see below\] | 57 |
+| SEEDBITS | The gapped q-gram as bitstring | 0b11110111011011110010111011101111 | 58 |
+| CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 68 |
+| KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. Must be the length of the seed. | 32 | 72 |
+| MISCOUNT | Number of errors considered for k-mer filters. | 2 | 89 |
+| ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 4 | 91 |
+| KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 94 |
+| WINLEN | Window length for the index data structure. | 2048 | 85 |
 
 
 ### B) FAME command line arguments
@@ -111,19 +114,21 @@ Examples on how to use FAME in the command line are given in 2.D.
 
 | Flag    | Argument       | Description  |
 | ------------- |-------------| :-----:|
-| -h      | None | Lists all available options with a description. |
-| --help | None | see -h |
+|--both_strands | None | Always try both, the read and its reverse complement for matching against the genome. This is required if reads are could potentially be C->T and G->A converted. |
 | --genome | Filepath | Forces the tool to build an index for the specified .fasta reference file |
-| --store_index | Filepath | Writes output of index construction to filepath (~32GB for human genome). NOTE: Directory must exist. |
-| --no_loss | None | Builds the index with lossless filter (NOT RECOMMENDED). |
+| --gzip_reads | None | Treats the read files passed to -r or -r1 and -r2 as gzipped files. |
+| -h      | None | Lists all available options with a description. |
+| --human_opt | None | Uses optimizations for human reference genomes to prune away unlocalized contigs etc |
+| --help | None | see -h |
 | --load_index | Filepath | Loads the index constructed before. NOTE: Parameters in `CONST.h` must be the same. |
+| --no_loss | None | Builds the index with lossless filter (NOT RECOMMENDED). |
+| -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
+| --out_basename | Filepath | see -o |
 | -r | Filepath | Forces the tool to query the specified single end read .fastq file to a loaded index. |
 | -r1 | Filepath | Path to file with first reads of a paired read set. Read format must be .fastq. |
 | -r2 | Filepath | Path to file with second reads of a paired read set. Read format must be .fastq. |
-|--both_strands | None | Always try both, the read and its reverse complement for matching against the genome. This is required if reads are could potentially be C->T and G->A converted. |
-| --gzip_reads | None | Treats the read files passed to -r or -r1 and -r2 as gzipped files. |
-| -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
-| --out_basename | Filepath | see -o |
+| --store_index | Filepath | Writes output of index construction to filepath (~32GB for human genome). NOTE: Directory must exist. |
+
 
 
 ### C) Output format
