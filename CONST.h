@@ -39,14 +39,10 @@ constexpr unsigned int READLEN = 101;
 
 // closed interval borders for distances allowed between paired reads
 constexpr uint32_t MINPDIST = 20;
-constexpr uint32_t MAXPDIST = 2000;
+constexpr uint32_t MAXPDIST = 450;
 
 // number of chromosomes in organism
 constexpr unsigned int CHROMNUM = 24;
-
-// seed used for spaced k-mer hashing
-const std::vector<bool> SEED = {1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,1,0,0,1,0,1,1,1,0,1,1,1,0,1,1,1,1};
-constexpr uint32_t SEEDBITS = 0b11110111011011110010111011101111;
 
 //  --------------------------------------
 
@@ -56,6 +52,10 @@ constexpr uint32_t SEEDBITS = 0b11110111011011110010111011101111;
 // --------------------
 // ------INTERNAL------
 // --------------------
+
+// seed used for spaced k-mer hashing
+const std::vector<bool> SEED = {1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,1,0,0,1,0,1,1,1,0,1,1,1,0,1,1,1,1};
+constexpr uint32_t SEEDBITS = 0b11110111011011110010111011101111;
 
 // (more than) size in bp of biggest chromosome in organism
 constexpr unsigned int CHROMMAX = 1000000000;
@@ -67,10 +67,8 @@ constexpr unsigned int CPGMAX = 100000000;
 // (note that very large values may increase the required amount of RAM drastically)
 // recommended is 300 000
 constexpr unsigned int CHUNKSIZE = 300000;
-//  constexpr unsigned int CHUNKSIZE = 20;
 
 // Length of a kmer in bp
-// recommended is 25
 constexpr unsigned int KMERLEN = 32;
 
 // Kmer bitmask
