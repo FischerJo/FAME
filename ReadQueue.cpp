@@ -404,7 +404,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         if (qThreshold > readSize)
             qThreshold = 0;
 
-		qThreshold = 6;
+		qThreshold = 14;
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
@@ -548,6 +548,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
             {
 
 				if (getStranded)
+#pragma omp atomic
 					++r1FwdMatches;
                 ++succMatchT;
                 r.mat = matchFwd;
@@ -563,6 +564,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 {
 
 					if (getStranded)
+#pragma omp atomic
 						++r1RevMatches;
                     ++succMatchT;
                     r.mat = matchRev;
@@ -601,6 +603,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                     {
                         ++succMatchT;
 						if (getStranded)
+#pragma omp atomic
 							++r1FwdMatches;
                         r.mat = matchFwd;
                         // startTime = std::chrono::high_resolution_clock::now();
@@ -627,6 +630,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                     // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
                     ++succMatchT;
 					if (getStranded)
+#pragma omp atomic
 						++r1FwdMatches;
                     r.mat = matchFwd;
                     // startTime = std::chrono::high_resolution_clock::now();
@@ -663,6 +667,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                     // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
                     ++succMatchT;
 					if (getStranded)
+#pragma omp atomic
 						++r1RevMatches;
                     r.mat = matchRev;
                     // startTime = std::chrono::high_resolution_clock::now();
@@ -680,6 +685,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 // of << "Match with REV automaton. Strand is " << MATCH::isFwd(matchRev) << "\n";
                 ++succMatchT;
 				if (getStranded)
+#pragma omp atomic
 					++r1RevMatches;
                 r.mat = matchRev;
                 // startTime = std::chrono::high_resolution_clock::now();
