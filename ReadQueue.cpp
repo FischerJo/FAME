@@ -648,6 +648,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
                 // of << "Match with FWD automaton. Strand is " << MATCH::isFwd(matchFwd) << "\n";
                 ++succMatchT;
 				if (getStranded)
+#pragma omp atomic
 					++r1FwdMatches;
                 r.mat = matchFwd;
                 // startTime = std::chrono::high_resolution_clock::now();
@@ -1373,8 +1374,10 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             if (mat1OriginalStrand)
             {
 				if (getStranded)
+				{
 #pragma omp atomic
 					++r1FwdMatches;
+				}
 // #pragma omp critical
 // 				{
 // 					std::cerr << "Match of read 1, ID " << r1.id << "\n" << (MATCH::isFwd(r1.mat) ? "Fwd" : "Rev") << "\t";
@@ -1391,8 +1394,10 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
             } else {
 
 				if (getStranded)
+				{
 #pragma omp atomic
 					++r1RevMatches;
+				}
                 computeMethLvl(r1.mat, revSeq1);
                 computeMethLvl(r2.mat, r2.seq);
 
@@ -3057,7 +3062,7 @@ inline int ReadQueue::extractPairedMatch(MATCH::match& mat1, MATCH::match& mat2)
 		matDist = mat2Pos - mat1Pos;
 	else
 		matDist = mat1Pos - mat2Pos;
-	if (matDist <= MyConst::MAXPDIST)
+	if (matDist <= MyConst::MAXPDIST + MyConst::READLEN)
 	{
 		return (MATCH::getErrNum(mat1) + MATCH::getErrNum(mat2));
 	}
