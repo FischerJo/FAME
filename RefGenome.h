@@ -170,7 +170,7 @@ class RefGenome
         //              k       k-mer
         //              sFlag   flag stating if kmer is of forward (true) or reverse (false) strand
         inline uint64_t reproduceKmerSeq(const KMER::kmer& k, const bool sFlag);
-		// reproduce T maksk of sequence given by kmer
+		// reproduce T masks of sequence given by kmer
 		//
 		// ARGUMENTS:
 		// 				k		k-mer
