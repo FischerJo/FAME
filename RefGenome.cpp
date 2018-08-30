@@ -1624,7 +1624,7 @@ void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 
     uint64_t sum = 0;
     // update to sums of previous entrys
-    for (unsigned int i = 0; i < MyConst::HTABSIZE; ++i)
+    for (uint64_t i = 0; i < MyConst::HTABSIZE; ++i)
     {
 
         sum += tabIndex[i];
