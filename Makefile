@@ -4,7 +4,7 @@ OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o main.o\
 PROGNAME=FAME
 CXX=clang++
 
-CXXFLAGS= -std=c++14 -ggdb -Wshadow -Wall -pedantic -pipe -O3 -fopenmp -march=native -I ./sparsehash/include/usr/local/include/ 
+CXXFLAGS= -std=c++14 -ggdb -Wshadow -Wall -pedantic -pipe -O3 -fopenmp -march=native -I ./sparsehash/include/usr/local/include/ -I ./hopscotch-map/include/tsl/
 GZFLAGS= -lz
 
 .PHONY: all clean profile
