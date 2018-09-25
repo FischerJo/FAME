@@ -30,6 +30,7 @@
 #endif
 
 #include <sparsehash/dense_hash_map>
+#include <hopscotch_map.h>
 
 #include "gzstream/gzstream.h"
 #include "CONST.h"
@@ -1130,11 +1131,13 @@ class ReadQueue
         // VALUE:
         //      1) K-mer count of first read
         //      2) K-mer count of second read
-		//      3) Boolena flag that is ture iff second read has enough kmers in this or adjacent MetaCpGs
+		//      3) Boolean flag that is ture iff second read has enough kmers in this or adjacent MetaCpGs
         //      4) Boolean flag that is true iff first read is matched to this or adjacent Meta CpGs
         //
-        std::array<google::dense_hash_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_fwdMetaIDs;
-        std::array<google::dense_hash_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_revMetaIDs;
+        // std::array<google::dense_hash_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_fwdMetaIDs;
+        // std::array<google::dense_hash_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_revMetaIDs;
+        std::array<tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_fwdMetaIDs;
+        std::array<tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_revMetaIDs;
 
         bool isPaired;
 
