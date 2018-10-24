@@ -404,11 +404,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 		//
 
         // set qgram threshold
-        uint16_t qThreshold = readSize - MyConst::KMERLEN - (MyConst::KMERLEN * MyConst::MISCOUNT) + 1;
-        if (qThreshold > readSize)
-            qThreshold = 0;
-
-		qThreshold = 14;
+		qThreshold = CONST::QTHRESH;
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
@@ -995,7 +991,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         //     qThreshold = 0;
         //
 		// TODO
-		const uint16_t qThreshold = 12;
+		const uint16_t qThreshold = CONST::QTHRESH;
 		// of << "\nq-gram: " << qThreshold << "\n";
 
 
@@ -1433,24 +1429,25 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 void ReadQueue::printMethylationLevels(std::string& filename)
 {
 
-    std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg_start.tsv\" and \"" << filename << "_cpg.tsv\"\n\n";
-    std::ofstream cpgFile(filename + "_cpg_start.tsv");
+    // std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg_start.tsv\" and \"" << filename << "_cpg.tsv\"\n\n";
+    // std::ofstream cpgFile(filename + "_cpg_start.tsv");
+    //
+    // // go over CpGs close to start of a chromosome
+    // for (size_t cpgID = 0; cpgID < ref.cpgStartTable.size(); ++cpgID)
+    // {
+    //
+    //     // print the position of the (C of the) CpG
+    //     cpgFile << ref.chrMap[ref.cpgStartTable[cpgID].chrom] << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
+    //
+    //     // print the counts
+    //     // fwd counts
+    //     cpgFile << methLevelsStart[cpgID].methFwd << "\t" << methLevelsStart[cpgID].unmethFwd << "\t";
+    //     // rev counts
+    //     cpgFile << methLevelsStart[cpgID].methRev << "\t" << methLevelsStart[cpgID].unmethRev << "\n";
+    // }
+    // cpgFile.close();
 
-    // go over CpGs close to start of a chromosome
-    for (size_t cpgID = 0; cpgID < ref.cpgStartTable.size(); ++cpgID)
-    {
-
-        // print the position of the (C of the) CpG
-        cpgFile << ref.chrMap[ref.cpgStartTable[cpgID].chrom] << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
-
-        // print the counts
-        // fwd counts
-        cpgFile << methLevelsStart[cpgID].methFwd << "\t" << methLevelsStart[cpgID].unmethFwd << "\t";
-        // rev counts
-        cpgFile << methLevelsStart[cpgID].methRev << "\t" << methLevelsStart[cpgID].unmethRev << "\n";
-    }
-    cpgFile.close();
-
+    std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg.tsv\"\n\n";
     cpgFile.open(filename + "_cpg.tsv");
 
     // go over remaining CpGs

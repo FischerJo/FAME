@@ -99,12 +99,13 @@ Here is a list of important internal parameters, we strongly recommend to NOT ch
 | ------------- |-------------| -----:| :----: |
 | SEED | The gapped q-gram (aka seed) to use as array of bits | \[see below\] | 57 |
 | SEEDBITS | The gapped q-gram as bitstring | 0b11110111011011110010111011101111 | 58 |
-| CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 68 |
-| KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. Must be the length of the seed. | 32 | 72 |
-| MISCOUNT | Number of errors considered for k-mer filters. | 2 | 89 |
-| ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 4 | 91 |
-| KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 94 |
-| WINLEN | Window length for the index data structure. | 2048 | 85 |
+| CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 69 |
+| KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. Must be the length of the seed. | 32 | 73 |
+| MISCOUNT | Number of errors considered for k-mer filters. | 2 | 94 |
+| ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 4 | 97 |
+| KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 100 |
+| WINLEN | Window length for the index data structure. | 2048 | 90 |
+| QTHRESH | Minimum number of k-mer matches required for match verification | 12 | 80 |
 
 
 ### B) FAME command line arguments
@@ -146,7 +147,20 @@ The forward strand is the strand provided in the reference file, the reverse com
 
 ### D) Extended examples
 
-TODO
+Suppose you want to match paired reads to a human genome and save it to the file with prefix pairedResults. The reads are in gzip format.
+
+First build the index:
+
+```
+./FAME --genome /Path/To/Genome/genome.fasta --store_index /Path/To/produced_index --human_opt
+```
+
+Align the reads:
+```
+./FAME --load_index /Path/To/produced_index -r1 /Path/To/r1.fastq.gz -r2 /Path/To/r2.fastq.gz --gzip_reads -o pairedResults
+```
+
+A file called pairedResults_cpg.tsv is generated containing the CpGs with corresponding methylation counts.
 
 
 

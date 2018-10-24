@@ -39,7 +39,7 @@ constexpr unsigned int READLEN = 101;
 
 // closed interval borders for distances allowed between paired reads
 constexpr uint32_t MINPDIST = 20;
-constexpr uint32_t MAXPDIST = 450;
+constexpr uint32_t MAXPDIST = 1500;
 
 // number of chromosomes in organism
 constexpr unsigned int CHROMNUM = 24;
@@ -69,10 +69,15 @@ constexpr unsigned int CPGMAX = 100000000;
 constexpr unsigned int CHUNKSIZE = 300000;
 
 // Length of a kmer in bp
+// WARNING: THIS PARAMETER MUST EQUAL SEED.size() !!!
 constexpr unsigned int KMERLEN = 32;
 
 // Kmer bitmask
 constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMERLEN) - 1);
+
+// minimum number of k-mers required to test for match
+// recommended is 12
+constexpr uint32_t QTHRESH = 12;
 
 
 // size of hash table
@@ -84,10 +89,11 @@ constexpr uint64_t HTABSIZE = 1ULL << 30;
 // recommended is 2048
 constexpr unsigned int WINLEN = 2048;
 
-// number of mismatches we allow initially (for q-gram lemma)
+// number of mismatches we allow initially (can be extended by ADDMIS constant)
 // recommended is 2
 constexpr uint8_t MISCOUNT = 2;
 // number of mismatches we allow additionally for shift-and and alignment
+// recommended is 4
 constexpr uint8_t ADDMIS = 4;
 
 // maximum number of times a k-mer is allowed to occur in the whole genome
