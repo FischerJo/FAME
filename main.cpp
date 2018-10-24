@@ -315,9 +315,6 @@ void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag)
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
-        // TODO
-        if (i > 3)
-            break;
         rQue.matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
         std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " reads\n";
     }
@@ -356,9 +353,6 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
 
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
-        // TODO
-        // if (i > 2)
-        //     break;
         ++i;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
         std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
@@ -419,10 +413,7 @@ void printHelp()
 
     std::cout << "\t--out_basename[.]\n";
     std::cout << "\t-o            [.]\t\tStore CpG methylation leves in specified filepath,\n";
-    std::cout << "\t                 \t\tgenerating two files, one with specified basename.tsv\n";
-    std::cout << "\t                 \t\tand one with \"_start\" tag. The latter contains info\n";
-    std::cout << "\t                 \t\tabout CpGs close to chromosome boundaries (i.e.\n";
-    std::cout << "\t                 \t\tless then readlen away from boundary).\n";
+    std::cout << "\t                 \t\tgenerating a file with name basename_cpg.tsv\n";
     std::cout << "\t                 \t\tFormat is specified as header in first line of file.\n\n";
 
     std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n\n";
