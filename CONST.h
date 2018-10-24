@@ -77,7 +77,7 @@ constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMER
 
 // minimum number of k-mers required to test for match
 // recommended is 12
-constexpr uint32_t QTHRESH = 12;
+constexpr uint16_t QTHRESH = 12;
 
 
 // size of hash table

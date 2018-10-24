@@ -404,7 +404,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 		//
 
         // set qgram threshold
-		qThreshold = CONST::QTHRESH;
+		uint16_t qThreshold = MyConst::QTHRESH;
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
@@ -991,7 +991,7 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         //     qThreshold = 0;
         //
 		// TODO
-		const uint16_t qThreshold = CONST::QTHRESH;
+		const uint16_t qThreshold = MyConst::QTHRESH;
 		// of << "\nq-gram: " << qThreshold << "\n";
 
 
@@ -1448,7 +1448,7 @@ void ReadQueue::printMethylationLevels(std::string& filename)
     // cpgFile.close();
 
     std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg.tsv\"\n\n";
-    cpgFile.open(filename + "_cpg.tsv");
+	std::ofstream cpgFile(filename + "_cpg.tsv");
 
     // go over remaining CpGs
     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
