@@ -1974,8 +1974,7 @@ void RefGenome::filterHashTable()
 
                 } else {
 
-                    // TODO
-                    // filteredKmers.emplace(kHash);
+                    filteredKmers.emplace(kHash);
                 }
             }
 
