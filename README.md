@@ -93,7 +93,7 @@ Here is a list of the external parameters:
 | MAXPDIST | Maximum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 400 | 42 |
 | CHROMNUM | Number of chromosomes of reference organism. | 24 | 45 |
 
-Here is a list of important internal parameters, we strongly recommend to NOT change them:
+Here is a list of important internal parameters, we strongly recommend *NOT* to change them:
 
 | Parameter     | Definition       | Recommended value  | Location (line number) |
 | ------------- |-------------| -----:| :----: |
@@ -101,11 +101,11 @@ Here is a list of important internal parameters, we strongly recommend to NOT ch
 | SEEDBITS | The gapped q-gram as bitstring | 0b11110111011011110010111011101111 | 58 |
 | CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 69 |
 | KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. Must be the length of the seed. | 32 | 73 |
+| QTHRESH | Minimum number of k-mer matches required for match verification | 10 | 80 |
+| WINLEN | Window length for the index data structure. | 2048 | 90 |
 | MISCOUNT | Number of errors considered for k-mer filters. | 2 | 94 |
 | ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 4 | 97 |
-| KMERCUTOFF | Controls hash collisions in index. Lowe value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 100 |
-| WINLEN | Window length for the index data structure. | 2048 | 90 |
-| QTHRESH | Minimum number of k-mer matches required for match verification | 12 | 80 |
+| KMERCUTOFF | Controls hash collisions in index. Low value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 100 |
 
 
 ### B) FAME command line arguments
@@ -128,7 +128,7 @@ Examples on how to use FAME in the command line are given in 2.D.
 | -r | Filepath | Forces the tool to query the specified single end read .fastq file to a loaded index. |
 | -r1 | Filepath | Path to file with first reads of a paired read set. Read format must be .fastq. |
 | -r2 | Filepath | Path to file with second reads of a paired read set. Read format must be .fastq. |
-| --store_index | Filepath | Writes output of index construction to filepath (~32GB for human genome). NOTE: Directory must exist. |
+| --store_index | Filepath | Writes output of index construction to filepath (~38GB for human genome). NOTE: Directory must exist. |
 
 
 
