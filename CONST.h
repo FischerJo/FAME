@@ -38,8 +38,8 @@ constexpr unsigned int READLEN = 101;
 #define CORENUM 32
 
 // closed interval borders for distances allowed between paired reads
-constexpr uint32_t MINPDIST = 20;
-constexpr uint32_t MAXPDIST = 1500;
+constexpr uint32_t MINPDIST = 50;
+constexpr uint32_t MAXPDIST = 450;
 
 // number of chromosomes in organism
 constexpr unsigned int CHROMNUM = 24;
@@ -76,8 +76,8 @@ constexpr unsigned int KMERLEN = 32;
 constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMERLEN) - 1);
 
 // minimum number of k-mers required to test for match
-// recommended is 12
-constexpr uint16_t QTHRESH = 12;
+// recommended is 10
+constexpr uint16_t QTHRESH = 10;
 
 
 // size of hash table
@@ -97,6 +97,7 @@ constexpr uint8_t MISCOUNT = 2;
 constexpr uint8_t ADDMIS = 4;
 
 // maximum number of times a k-mer is allowed to occur in the whole genome
+// recommended is 1500
 constexpr uint64_t KMERCUTOFF = 1500;
 
 // Checks the usefulness of the set parameters
