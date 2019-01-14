@@ -1008,8 +1008,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 			// startTime = std::chrono::high_resolution_clock::now();
 
 			const uint16_t qAdapt1 = getSeedRefsFirstRead(r1.seq, readSize1, qThreshold);
-			if (qAdapt1)
-			{
+			// if (qAdapt1)
+			// {
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
 
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -1021,8 +1021,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 				// startTime = std::chrono::high_resolution_clock::now();
 
 				const uint16_t qAdapt2 = getSeedRefsSecondRead(revSeq2, readSize1, qThreshold);
-				if (qAdapt2)
-				{
+				// if (qAdapt2)
+				// {
 				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
 
 				// endTime = std::chrono::high_resolution_clock::now();
@@ -1034,12 +1034,12 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 				saQuerySeedSetRefFirst(saFwd, matches1Fwd, qAdapt1);
 				if (!matches1Fwd.empty())
 					saQuerySeedSetRefSecond(saRev2, matches2Rev, qAdapt2);
-				}
+				// }
 
 				// endTime = std::chrono::high_resolution_clock::now();
 				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
 				// of << runtime << "\n\n";
-			}
+			// }
 			}
 		}
 
@@ -1052,8 +1052,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 			// startTime = std::chrono::high_resolution_clock::now();
 
 			const uint16_t qAdapt1 = getSeedRefsFirstRead(revSeq1, readSize1, qThreshold);
-			if (qAdapt1)
-			{
+			// if (qAdapt1)
+			// {
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
 
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -1066,8 +1066,8 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 
 				const uint16_t qAdapt2 = getSeedRefsSecondRead(r2.seq, readSize1, qThreshold);
-				if (qAdapt2)
-				{
+				// if (qAdapt2)
+				// {
 				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
 
 				// endTime = std::chrono::high_resolution_clock::now();
@@ -1080,12 +1080,12 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 				if (!matches1Rev.empty())
 					saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qAdapt2);
 
-				}
+				// }
 				// endTime = std::chrono::high_resolution_clock::now();
 				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
 				// of << runtime << "\n";
 			}
-			}
+			// }
 		}
 
     // TEST IF MATCHING WAS SUCCESSFULL
@@ -3400,16 +3400,16 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #endif
 						++methLevels[cpgId].methFwd;
 					// TODO
-					} else {
+					// } else {
 
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-						{
-						std::cerr << "WHAT fwd!?\n";
-						}
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 						{
+// 						std::cerr << "WHAT fwd!?\n";
+// 						}
 					}
-					// else std::cout << "This should not happen 1!\n";
+// 					// else std::cout << "This should not happen 1!\n";
 
 				} else {
 
@@ -3427,14 +3427,14 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #endif
 						++methLevels[cpgId].methRev;
 					// TODO
-					} else {
-
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-						{
-						std::cerr << "WHAT rev!?\n";
-						}
+// 					} else {
+//
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 						{
+// 						std::cerr << "WHAT rev!?\n";
+// 						}
 					}
 				}
 			}
@@ -3697,17 +3697,17 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #endif
 							++methLevels[cpgID].unmethFwd;
 						// TODO
-						} else {
-
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-							{
-							// hasShift = true;
-							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos + 1] << "\n";
-							std::cerr << "\tPos: " << readSeqPos << "\n";
-							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n";
-							}
+// 						} else {
+//
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 							{
+// 							// hasShift = true;
+// 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos] << "\n";
+// 							std::cerr << "\tPos: " << readSeqPos << "\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n";
+// 							}
 						}
 
 					// }
@@ -3783,18 +3783,18 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #endif
 							++methLevels[cpgID].unmethRev;
 						// TODO
-						} else {
-
-							break;
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-							{
-							// hasShift = true;
-							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos + 1] << "\n";
-							std::cerr << "\tPos: " << readSeqPos + 1 << "\n";
-							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
-							}
+// 						} else {
+//
+// 							break;
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 							{
+// 							// hasShift = true;
+// 							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos + 1] << "\n";
+// 							std::cerr << "\tPos: " << readSeqPos + 1 << "\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
+// 							}
 						}
 
 					// }
