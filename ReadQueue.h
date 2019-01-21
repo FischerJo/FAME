@@ -68,6 +68,11 @@ class ReadQueue
         // NOTE:
         //          provided files are ASSUMED to have equal number of reads in correct (paired) order!
         ReadQueue(const char* filePath, const char* filePath2, RefGenome& reference, const bool isGZ, const bool bsFlag);
+		// for single cell paired end
+		// ARGUMENTS:
+		// 			...
+		// 			scOutputPath	path to file which will contain single cell counts after processing
+		ReadQueue(const char* scOutputPath, RefGenome& reference, const bool bsFlag);
 
         // -----------
 
@@ -91,6 +96,9 @@ class ReadQueue
         // Align match using banded levenshtein alignment to update methylation counts
         bool matchReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, const bool getStranded);
         bool matchPairedReads(const unsigned int& procReads, uint64_t& succMatch, uint64_t& nonUniqueMatch, uint64_t& unSuccMatch, uint64_t& succPairedMatch, uint64_t& tooShortCountMatch, const bool getStranded);
+
+		// Match batch of single cell reads given by file
+		bool matchSCBatch(const char* scFile1, const char* scFile2, const std::string scId, const bool isGZ);
 
         // Print the CpG methylation levels to the given filename
         // Two files are generated, one called filename_cpg.tsv
@@ -117,6 +125,8 @@ class ReadQueue
         // ARGUMENT:
         //          filename    desired basename for the output files
         void printMethylationLevels(std::string& filename);
+
+		void printSCMethylationLevels(const std::string scID);
 
 
     private:
@@ -1121,7 +1131,6 @@ class ReadQueue
         // 'T' -> 3
         std::array<uint8_t, 16> lmap;
 
-        // TODO: paired end DS for this????
         std::array<std::vector<uint16_t>, CORENUM> countsFwdStart;
         std::array<std::vector<uint16_t>, CORENUM> countsRevStart;
         std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
@@ -1140,6 +1149,7 @@ class ReadQueue
         std::array<tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_revMetaIDs;
 
         bool isPaired;
+		bool isSC;
 
         // comparison for match
         struct CompiFwd {
@@ -1202,6 +1212,14 @@ class ReadQueue
         // indexed by the same indices as of the cpgTable vector in RefGenome class
         std::vector<struct methLvl> methLevels;
         std::vector<struct methLvl> methLevelsStart;
+
+		// Information for single cell data
+		// Holds for the most recent single cell the individual counts
+		std::vector<struct methLvl> methLevelsSc;
+		// Mapping of internal ids to external identifier tags
+		std::unordered_map<size_t, std::string> scIds;
+		// output file for sc data
+		std::ofstream scOutput;
 
         // holds matching info
         std::array<uint64_t, CORENUM> matchStats;

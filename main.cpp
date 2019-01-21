@@ -25,6 +25,7 @@
 
 void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
 void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
+void queryRoutineSCPaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag, const char* scMetaFile);
 void printHelp();
 
 // --------------- MAIN -----------------
@@ -39,6 +40,8 @@ int main(int argc, char** argv)
     std::string outputFile = "out";
     char* readFile = NULL;
     char* readFile2 = NULL;
+	char* scMetaFile = NULL;
+	char* scOutputFile = "sc_out.tsv";
 
     // true iff index should be loaded from file
     bool loadIndexFlag = false;
@@ -55,6 +58,10 @@ int main(int argc, char** argv)
 	bool bothStrandsFlag = false;
 	// true iff human reference genome optimization should be used to discard unlocalized contigs etc
 	bool humanOptFlag = false;
+	// true iff tool is called with single cell meta information file
+	bool scFlag = false;
+	// true iff output path for single cell analysis is given
+	bool scOutFlag = false;
 
     if (argc == 1)
     {
@@ -204,12 +211,44 @@ int main(int argc, char** argv)
 			continue;
 		}
 
+		if (std::string(argv[i]) == "--sc_input")
+		{
+			scFlag = true;
+			if (i + 1 < argc)
+			{
+				scMetaFile = argv[++i];
+			} else {
+
+                std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+                exit(1);
+			}
+			continue;
+		}
+		if (std::string(argv[i]) == "--sc_output")
+		{
+			scOutFlag = true;
+			if (i + 1 < argc)
+			{
+				scOutputFile = argv[++i];
+			} else {
+
+                std::cerr << "No filepath for option \"" << argv[i] << "\" provided! Terminating...\n\n";
+                exit(1);
+			}
+			continue;
+		}
+
 
         // no such option
         std::cerr << "Don\'t know the option \"" << argv[i] << "\". Terminating...\n\n";
         exit(1);
 
     }
+	if (scOutFlag && !scFlag)
+	{
+		std::cerr << "Output path for single cell analysis given but no single cell input provided (see \"--sc_input\"). Terminating...\n\n";
+		exit(1);
+	}
 
 
     // Start processing
@@ -239,11 +278,20 @@ int main(int argc, char** argv)
                 std::cerr << "Entered paired end mode (\"-r1\" or \"-r2\" flag), but one of the read files is missing. Terminating...\n\n";
                 exit(1);
             }
-            ReadQueue rQue(readFile, readFile2, ref, readsGZ, bothStrandsFlag);
 
-            queryRoutinePaired(rQue, readsGZ, bothStrandsFlag);
+			if (scFlag)
+			{
 
-            rQue.printMethylationLevels(outputFile);
+				ReadQueue rQue(scOutputFile, ref, bothStrandsFlag);
+				queryRoutineSCPaired(rQue, readsGZ, bothStrandsFlag, scMetaFile);
+				rQue.printMethylationLevels(outputFile);
+
+			} else {
+
+				ReadQueue rQue(readFile, readFile2, ref, readsGZ, bothStrandsFlag);
+				queryRoutinePaired(rQue, readsGZ, bothStrandsFlag);
+				rQue.printMethylationLevels(outputFile);
+			}
 
         } else {
 
@@ -354,6 +402,8 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
     while(isGZ ? rQue.parseChunkGZ(readCounter) : rQue.parseChunk(readCounter))
     {
         ++i;
+		// if (i>2)
+		// 	break;
         rQue.matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
         std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
     }
@@ -368,6 +418,42 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
 	std::cout << "\nOverall number of reads: (2*)" << MyConst::CHUNKSIZE * i + readCounter;
     std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
 
+}
+
+void queryRoutineSCPaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag, const char* scMetaFile)
+{
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+
+	std::ifstream scMeta (scMetaFile);
+	std::string line;
+	while (std::getline(scMeta, line))
+	{
+		size_t pos;
+		size_t oldPos = 0;
+
+		pos = line.find_first_of(' ');
+		std::string scId(line, oldPos, pos - oldPos);
+		oldPos = pos + 1;
+		pos = line.find_first_of(' ');
+		std::string scPath1(line, oldPos, pos - oldPos);
+		oldPos = pos + 1;
+		pos = line.find_first_of(' ');
+
+		if (pos != std::string::npos)
+		{
+			std::string scPath2(line, oldPos, pos - oldPos);
+			rQue.matchSCBatch(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
+
+		} else {
+			std::string scPath2(line, oldPos, pos);
+			rQue.matchSCBatch(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
+		}
+	}
+
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+
+    std::cout << "Done processing in " << runtime << "s\n";
 }
 
 void printHelp()
