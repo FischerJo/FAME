@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <algorithm> // max
+#include <list>
 
 #include "RefGenome.h"
 
@@ -45,10 +46,12 @@ RefGenome::RefGenome(std::vector<struct CpG>&& cpgTab, std::vector<struct CpG>&&
         gensize += chr.size();
     }
     // init meta table with upper bound on required windows
-    metaCpGs.reserve(gensize/MyConst::WINLEN);
-    metaStartCpGs.reserve(MyConst::CHROMNUM);
+    // metaCpGs.reserve(gensize/MyConst::WINLEN);
+    metaWindows.reserve(gensize/MyConst::WINLEN);
+    // metaStartCpGs.reserve(MyConst::CHROMNUM);
     // fill meta table
-    generateMetaCpGs();
+    // generateMetaCpGs();
+	generateWindows();
     // generate encoding of genome
     // generateBitStrings(fullSeq);
     // cout << "Done generating Genome bit representation" << endl;
@@ -165,7 +168,8 @@ void RefGenome::save(const std::string& filepath)
     // store meta CpGs
     size_t metaCpGNum = metaCpGs.size();
     of.write(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
-    of.write(reinterpret_cast<char*>(metaCpGs.data()), sizeof(metaCpGs[0]) * metaCpGNum);
+	if (metaCpGNum > 0)
+		of.write(reinterpret_cast<char*>(metaCpGs.data()), sizeof(metaCpGs[0]) * metaCpGNum);
     if (of.fail())
     {
         std::cout << "Error while writing metaCpGs " << metaCpGNum << "\n";
@@ -174,7 +178,17 @@ void RefGenome::save(const std::string& filepath)
     // store start meta CpGs
     metaCpGNum = metaStartCpGs.size();
     of.write(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
-    of.write(reinterpret_cast<char*>(metaStartCpGs.data()), sizeof(metaStartCpGs[0]) * metaCpGNum);
+	if (metaCpGNum > 0)
+		of.write(reinterpret_cast<char*>(metaStartCpGs.data()), sizeof(metaStartCpGs[0]) * metaCpGNum);
+    if (of.fail())
+    {
+        std::cout << "Error while writing start metaCpGs " << metaCpGNum << "\n";
+    }
+    // store meta Windows
+    size_t metaWinNum = metaWindows.size();
+    of.write(reinterpret_cast<char*>(&metaWinNum), sizeof(metaWinNum));
+	if (metaWinNum > 0)
+		of.write(reinterpret_cast<char*>(metaWindows.data()), sizeof(metaWindows[0]) * metaWinNum);
     if (of.fail())
     {
         std::cout << "Error while writing start metaCpGs " << metaCpGNum << "\n";
@@ -319,14 +333,28 @@ void RefGenome::load(const std::string& filepath)
     // load meta CpGs
     size_t metaCpGNum;
     ifs.read(reinterpret_cast<char*>(&metaCpGNum), sizeof(metaCpGNum));
-    metaCpGs.resize(metaCpGNum);
-    ifs.read(reinterpret_cast<char*>(metaCpGs.data()), sizeof(metaCpGs[0]) * metaCpGNum);
+	if (metaCpGNum > 0)
+	{
+		metaCpGs.resize(metaCpGNum);
+		ifs.read(reinterpret_cast<char*>(metaCpGs.data()), sizeof(metaCpGs[0]) * metaCpGNum);
+	}
 
     // load start meta CpGs
     size_t metaStartCpGNum;
     ifs.read(reinterpret_cast<char*>(&metaStartCpGNum), sizeof(metaStartCpGNum));
-    metaStartCpGs.resize(metaStartCpGNum);
-    ifs.read(reinterpret_cast<char*>(metaStartCpGs.data()), sizeof(metaStartCpGs[0]) * metaStartCpGNum);
+	if (metaStartCpGNum > 0)
+	{
+		metaStartCpGs.resize(metaStartCpGNum);
+		ifs.read(reinterpret_cast<char*>(metaStartCpGs.data()), sizeof(metaStartCpGs[0]) * metaStartCpGNum);
+	}
+
+    size_t metaWinNum;
+    ifs.read(reinterpret_cast<char*>(&metaWinNum), sizeof(metaWinNum));
+	if (metaWinNum > 0)
+	{
+		metaWindows.resize(metaWinNum);
+		ifs.read(reinterpret_cast<char*>(metaWindows.data()), sizeof(metaWindows[0]) * metaWinNum);
+	}
 
     // load filtered kmers
     read_filteredKmers(ifs);
@@ -463,7 +491,6 @@ void RefGenome::generateMetaCpGs()
     currChr = 0;
 
     // while there are CpGs left to look at
-    //
     while (cpgTabInd < cpgTable.size())
     {
 
@@ -499,6 +526,47 @@ void RefGenome::generateMetaCpGs()
 }
 
 
+
+
+
+void RefGenome::generateWindows()
+{
+
+    uint32_t cpgTabInd = 0;
+
+	for (uint8_t currChr = 0; currChr < fullSeq.size(); ++currChr)
+	{
+		for (uint32_t wStart = 0; wStart < fullSeq[currChr].size(); wStart = wStart + MyConst::WINLEN - MyConst::READLEN)
+		{
+
+			const uint32_t wEnd = wStart + MyConst::WINLEN;
+			uint32_t wIndStart = MyConst::CPGDUMMY;
+			uint32_t wIndEnd = MyConst::CPGDUMMY;
+			// while there are CpGs left to look at
+			while (cpgTabInd < cpgTable.size() && cpgTable[cpgTabInd].chrom == currChr && cpgTable[cpgTabInd].pos <= wEnd)
+			{
+				if (wIndStart == MyConst::CPGDUMMY)
+				{
+					wIndStart = cpgTabInd;
+				}
+				wIndEnd = cpgTabInd;
+				++cpgTabInd;
+			}
+			// reduce CpG index again for overlapping region
+			while (cpgTabInd > 0 && cpgTable[cpgTabInd].chrom == currChr && cpgTable[cpgTabInd].pos >= wEnd - MyConst::READLEN)
+			{
+				--cpgTabInd;
+			}
+			if (cpgTabInd > 0)
+				++cpgTabInd;
+			metaWindows.push_back({wStart, currChr, wIndStart, wIndEnd});
+		}
+	}
+
+    metaWindows.shrink_to_fit();
+}
+
+
 void RefGenome::generateHashes(std::vector<std::vector<char> >& genomeSeq)
 {
 
@@ -507,47 +575,187 @@ void RefGenome::generateHashes(std::vector<std::vector<char> >& genomeSeq)
 
     std::cout << "\nKmer table size: " << kmerTable.size() << std::endl;
     std::cout << "\nMeta CpGs: " << metaCpGs.size() << std::endl;
+	std::cout << "\nMeta Windows: " << metaWindows.size() << std::endl;
 
     // hash CpGs from the start
-    uint32_t cpgCount = 0;
-    for (std::vector<struct metaCpG>::const_iterator it = metaStartCpGs.begin(); it != metaStartCpGs.end(); ++it, ++cpgCount)
-    {
+    // uint32_t cpgCount = 0;
+    // for (std::vector<struct metaCpG>::const_iterator it = metaStartCpGs.begin(); it != metaStartCpGs.end(); ++it, ++cpgCount)
+    // {
+    //
+    //     unsigned int lastPos = 0;
+    //     for (uint32_t cpgInd = it->start; cpgInd <= it->end; ++cpgInd)
+    //     {
+    //
+    //         ntHashFirst(genomeSeq[cpgStartTable[it->start].chrom], lastPos, cpgStartTable[cpgInd].pos, cpgCount);
+    //     }
+    // }
+    //
+    // cpgCount = 0;
+    // // hash each CpG
+    // for (std::vector<struct metaCpG>::const_iterator it = metaCpGs.begin(); it != metaCpGs.end(); ++it, ++cpgCount)
+    // {
+    //
+    //     unsigned int lastPos = 0;
+    //
+    //     for (uint32_t cpgInd = it->start; cpgInd <= it->end; ++cpgInd)
+    //     {
+    //
+    //         // how long is the rest of the sequence after the end of last cpg in meta cpg
+    //         const unsigned int remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
+    //         // if we can read the full sequence length after the CpG
+    //         if (remainderBps >= (MyConst::READLEN - 2) )
+    //         {
+    //
+    //             ntHashChunk(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgTable[cpgInd].pos, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
+    //
+    //
+    //         } else {
+    //
+    //             ntHashLast(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgTable[cpgInd].pos, remainderBps, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
+    //             // if we have the case that we hit the end of the sequence, we can be sure to hash everything in this run and hence can skip the remaining CpGs
+    //             break;
+    //         }
+    //     }
+    // }
+	uint32_t mId = 0;
+	for (metaWindow& m : metaWindows)
+	{
 
-        unsigned int lastPos = 0;
-        for (uint32_t cpgInd = it->start; cpgInd <= it->end; ++cpgInd)
-        {
+		// construct corresponding sequence with reduced alphabet
+		std::vector<char> redSeq(MyConst::WINLEN);
+		std::vector<char> redSeqRev(MyConst::WINLEN);
 
-            ntHashFirst(genomeSeq[cpgStartTable[it->start].chrom], lastPos, cpgStartTable[cpgInd].pos, cpgCount);
-        }
-    }
+		const auto& seq = fullSeq[m.chrom];
+		bool lastN = true;
+		uint32_t nStart = 0;
+		std::list<std::pair<uint32_t, uint32_t> > intervals;
 
-    cpgCount = 0;
-    // hash each CpG
-    for (std::vector<struct metaCpG>::const_iterator it = metaCpGs.begin(); it != metaCpGs.end(); ++it, ++cpgCount)
-    {
+		uint32_t j = 0;
+		for (uint32_t i = m.startPos; i < std::min((size_t)(m.startPos + MyConst::WINLEN), fullSeq[m.chrom].size()); ++i, ++j)
+		{
+			const uint32_t revPos = MyConst::WINLEN - 1 - j;
+			switch (seq[i])
+			{
+				case 'N':
+					if (!lastN)
+					{
+						intervals.push_back({nStart, j - 1});
+					}
+					lastN = true;
+					redSeq[j] = 'N';
+					redSeq[revPos] = 'N';
+					break;
 
-        unsigned int lastPos = 0;
+				case 'C':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'G';
+					break;
 
-        for (uint32_t cpgInd = it->start; cpgInd <= it->end; ++cpgInd)
-        {
+				case 'G':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'G';
+					redSeqRev[revPos] = 'T';
+					break;
 
-            // how long is the rest of the sequence after the end of last cpg in meta cpg
-            const unsigned int remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
-            // if we can read the full sequence length after the CpG
-            if (remainderBps >= (MyConst::READLEN - 2) )
-            {
+				case 'T':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'A';
+					break;
 
-                ntHashChunk(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgTable[cpgInd].pos, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
+				case 'A':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'A';
+					redSeqRev[revPos] = 'T';
+					break;
+
+				default:
+					std::cerr << "Reference has unknown character \'" << seq[i] << "\' result will not be reliable.\n\n";
+
+			}
+		}
+		if (!lastN)
+		{
+			intervals.push_back({nStart, j - 1});
+		}
 
 
-            } else {
+		for (auto& p : intervals)
+		{
 
-                ntHashLast(genomeSeq[cpgTable[it->start].chrom], lastPos, cpgTable[cpgInd].pos, remainderBps, cpgCount, cpgTable[cpgInd].pos - cpgTable[it->start].pos);
-                // if we have the case that we hit the end of the sequence, we can be sure to hash everything in this run and hence can skip the remaining CpGs
-                break;
-            }
-        }
-    }
+			uint32_t intervalDist = p.second - p.first + 1;
+			if (intervalDist < MyConst::READLEN)
+			{
+				continue;
+			}
+			const char* seqStart = redSeq.data() + p.first;
+			const char* seqStartRev = redSeqRev.data() + (MyConst::WINLEN - p.second - 1);
+
+			// initial hash backward
+			uint64_t rhVal;
+			uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
+			// first kmer on reverse complement corresponds to last kmer in forward sequence
+			uint64_t kPosRev = MyConst::WINLEN - p.first - MyConst::KMERLEN;
+
+			// update kmer table
+			kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, mId, kPosRev));
+			strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+
+
+			// hash kmers of backward strand
+			for (unsigned int i = 0; i < intervalDist - MyConst::KMERLEN; ++i)
+			{
+				--kPosRev;
+				srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
+				// update kmer table
+				if (!(i%MyConst::SKIPMOD))
+				{
+					kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, mId, kPosRev));
+					strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+				}
+			}
+
+			// initial hash forward
+			uint64_t fhVal;
+			uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
+			uint64_t kPos = p.first;
+
+			// update kmer table
+			kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, mId, kPos));
+			strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+
+			// hash kmers of forward strand
+			for (unsigned int i = 0; i < intervalDist - MyConst::KMERLEN; ++i)
+			{
+				++kPos;
+				sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
+				// update kmer table
+				if (!(i%MyConst::SKIPMOD))
+				{
+					kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, mId, kPos));
+					strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+				}
+			}
+		}
+		++mId;
+	}
 }
 
 
@@ -697,8 +905,11 @@ inline void RefGenome::ntHashChunk(const std::vector<char>& seq, uint32_t& lastP
 		--kPosRev;
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
 		// update kmer table
-		kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev));
-		strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+		if (!(i%MyConst::SKIPMOD))
+		{
+			kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev));
+			strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+		}
 	}
 
 	// initial hash forward
@@ -716,8 +927,11 @@ inline void RefGenome::ntHashChunk(const std::vector<char>& seq, uint32_t& lastP
 		++kPos;
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
 		// update kmer table
-		kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos));
-		strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+		if (!(i%MyConst::SKIPMOD))
+		{
+			kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos));
+			strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+		}
 	}
 	lastPos = pos + off - MyConst::KMERLEN + 1;
 
@@ -871,8 +1085,11 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
         --kPosRev;
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update kmer table
-        kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
-        strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+		if (!(i%MyConst::SKIPMOD))
+		{
+			kmerTable[--tabIndex[srVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPosRev + metaOff));
+			strandTable[tabIndex[srVal % MyConst::HTABSIZE]] = false;
+		}
     }
 
     // initial hash forward
@@ -890,8 +1107,11 @@ void RefGenome::ntHashLast(const std::vector<char>& seq, uint32_t& lastPos, cons
         ++kPos;
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update kmer table
-        kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
-        strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+		if (!(i%MyConst::SKIPMOD))
+		{
+			kmerTable[--tabIndex[sfVal % MyConst::HTABSIZE]] = std::move(KMER::constructKmer(0, metacpg, kPos + metaOff));
+			strandTable[tabIndex[sfVal % MyConst::HTABSIZE]] = true;
+		}
     }
 }
 
@@ -1208,7 +1428,8 @@ inline void RefGenome::ntCountChunk(const std::vector<char>& seq, uint32_t& last
 	{
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
 		// update indices
-		++tabIndex[srVal % MyConst::HTABSIZE];
+		if (!(i%MyConst::SKIPMOD))
+			++tabIndex[srVal % MyConst::HTABSIZE];
 
 	}
 
@@ -1225,7 +1446,8 @@ inline void RefGenome::ntCountChunk(const std::vector<char>& seq, uint32_t& last
 
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
 		// update indices
-		++tabIndex[sfVal % MyConst::HTABSIZE];
+		if (!(i%MyConst::SKIPMOD))
+			++tabIndex[sfVal % MyConst::HTABSIZE];
 	}
 	// update position of last hashed kmer (+ 1)
 	lastPos = pos + off - MyConst::KMERLEN + 1;
@@ -1540,7 +1762,8 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
     {
 		srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
         // update indices
-        ++tabIndex[srVal % MyConst::HTABSIZE];
+		if (!(i%MyConst::SKIPMOD))
+			++tabIndex[srVal % MyConst::HTABSIZE];
     }
 
     // initial hash forward
@@ -1555,7 +1778,8 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
     {
 		sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
         // update indices
-        ++tabIndex[sfVal % MyConst::HTABSIZE];
+		if (!(i%MyConst::SKIPMOD))
+			++tabIndex[sfVal % MyConst::HTABSIZE];
     }
 }
 
@@ -1563,64 +1787,189 @@ void RefGenome::ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const uns
 void RefGenome::estimateTablesizes(std::vector<std::vector<char> >& genomeSeq)
 {
 
-    // count start CpG kmers
-    for (metaCpG& m : metaStartCpGs)
-    {
+    // // count start CpG kmers
+    // for (metaCpG& m : metaStartCpGs)
+    // {
+    //
+    //     // we know that all of the CpGs at start will overlap
+    //     const uint8_t chr = cpgStartTable[m.start].chrom;
+    //
+    //     uint32_t lastPos = 0;
+    //
+    //     for (uint32_t cpgInd = m.start; cpgInd <= m.end; ++cpgInd)
+    //     {
+    //         ntCountFirst(genomeSeq[chr], lastPos, cpgStartTable[cpgInd].pos);
+    //
+    //     }
+    // }
+    // // count normal CpG kmers
+    // for (metaCpG& m : metaCpGs)
+    // {
+    //
+    //     const uint8_t chr = cpgTable[m.start].chrom;
+    //
+    //     uint32_t lastPos = 0;
+    //
+    //     // how long is the rest of the sequence after the end of last cpg in meta cpg
+    //     unsigned int remainderBps = genomeSeq[cpgTable[m.start].chrom].size() - (cpgTable[m.start].pos + MyConst::READLEN);
+    //
+    //     // kmers of first CpG
+    //     if (remainderBps >= (MyConst::READLEN - 2) )
+    //     {
+    //         ntCountChunk(genomeSeq[chr], lastPos, cpgTable[m.start].pos);
+    //
+    //     } else {
+    //
+    //         ntCountLast(genomeSeq[chr], lastPos, cpgTable[m.start].pos, remainderBps);
+    //     }
+    //
+    //     // consecutive CpG kmers
+    //     for (uint32_t cpgInd = m.start + 1; cpgInd <= m.end; ++cpgInd)
+    //     {
+    //
+    //         remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
+    //         // if we can read the full sequence breadth after the CpG
+    //         if (remainderBps >= (MyConst::READLEN - 2) )
+    //         {
+    //
+    //             // count the collisions
+    //             ntCountChunk(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos);
+    //
+    //         } else {
+    //
+    //             // count the collisions and break
+    //             ntCountLast(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos, remainderBps);
+    //             break;
+    //         }
+    //     }
+    //
+    //
+    // }
+	for (metaWindow& m : metaWindows)
+	{
 
-        // we know that all of the CpGs at start will overlap
-        const uint8_t chr = cpgStartTable[m.start].chrom;
+		// construct corresponding sequence with reduced alphabet
+		std::vector<char> redSeq(MyConst::WINLEN);
+		std::vector<char> redSeqRev(MyConst::WINLEN);
 
-        uint32_t lastPos = 0;
+		const auto& seq = fullSeq[m.chrom];
 
-        for (uint32_t cpgInd = m.start; cpgInd <= m.end; ++cpgInd)
-        {
-            ntCountFirst(genomeSeq[chr], lastPos, cpgStartTable[cpgInd].pos);
+		bool lastN = true;
+		uint32_t nStart = 0;
+		std::list<std::pair<uint32_t, uint32_t> > intervals;
 
-        }
-    }
-    // count normal CpG kmers
-    for (metaCpG& m : metaCpGs)
-    {
+		uint32_t j = 0;
+		for (uint32_t i = m.startPos; i < std::min((size_t)(m.startPos + MyConst::WINLEN), fullSeq[m.chrom].size()); ++i, ++j)
+		{
+			const uint32_t revPos = MyConst::WINLEN - 1 - j;
+			switch (seq[i])
+			{
+				case 'N':
+					if (!lastN)
+					{
+						intervals.push_back({nStart, j - 1});
+					}
+					lastN = true;
+					redSeq[j] = 'N';
+					redSeq[revPos] = 'N';
+					break;
 
-        const uint8_t chr = cpgTable[m.start].chrom;
+				case 'C':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'G';
+					break;
 
-        uint32_t lastPos = 0;
+				case 'G':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'G';
+					redSeqRev[revPos] = 'T';
+					break;
 
-        // how long is the rest of the sequence after the end of last cpg in meta cpg
-        unsigned int remainderBps = genomeSeq[cpgTable[m.start].chrom].size() - (cpgTable[m.start].pos + MyConst::READLEN);
+				case 'T':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'T';
+					redSeqRev[revPos] = 'A';
+					break;
 
-        // kmers of first CpG
-        if (remainderBps >= (MyConst::READLEN - 2) )
-        {
-            ntCountChunk(genomeSeq[chr], lastPos, cpgTable[m.start].pos);
+				case 'A':
+					if (lastN)
+					{
+						nStart = j;
+						lastN = false;
+					}
+					redSeq[j] = 'A';
+					redSeqRev[revPos] = 'T';
+					break;
 
-        } else {
+				default:
+					std::cerr << "Read has unknown character \'" << seq[i] << "\' result will not be reliable.\n\n";
 
-            ntCountLast(genomeSeq[chr], lastPos, cpgTable[m.start].pos, remainderBps);
-        }
+			}
+		}
+		if (!lastN)
+		{
+			intervals.push_back({nStart, j - 1});
+		}
 
-        // consecutive CpG kmers
-        for (uint32_t cpgInd = m.start + 1; cpgInd <= m.end; ++cpgInd)
-        {
+		for (auto& p : intervals)
+		{
 
-            remainderBps = genomeSeq[cpgTable[cpgInd].chrom].size() - (cpgTable[cpgInd].pos + MyConst::READLEN);
-            // if we can read the full sequence breadth after the CpG
-            if (remainderBps >= (MyConst::READLEN - 2) )
-            {
+			uint32_t intervalDist = p.second - p.first + 1;
+			if (intervalDist < MyConst::READLEN)
+			{
+				continue;
+			}
+			const char* seqStart = redSeq.data() + p.first;
+			const char* seqStartRev = redSeqRev.data() + (MyConst::WINLEN - 1 - p.second);
 
-                // count the collisions
-                ntCountChunk(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos);
+			// initial hash backward
+			uint64_t rhVal;
+			uint64_t srVal = ntHash::NTPS64(seqStartRev, MyConst::SEED, MyConst::KMERLEN, rhVal);
 
-            } else {
+			// update indices
+			++tabIndex[srVal % MyConst::HTABSIZE];
 
-                // count the collisions and break
-                ntCountLast(genomeSeq[chr], lastPos, cpgTable[cpgInd].pos, remainderBps);
-                break;
-            }
-        }
+			// hash kmers of backward strand
+			for (unsigned int i = 0; i < intervalDist - MyConst::KMERLEN; ++i)
+			{
+				srVal = ntHash::NTPS64(seqStartRev+i+1, MyConst::SEED, seqStartRev[i], seqStartRev[i + MyConst::KMERLEN], MyConst::KMERLEN, rhVal);
+				// update indices
+				if (!(i%MyConst::SKIPMOD))
+					++tabIndex[srVal % MyConst::HTABSIZE];
 
+			}
 
-    }
+			// initial hash forward
+			uint64_t fhVal;
+			uint64_t sfVal = ntHash::NTPS64(seqStart, MyConst::SEED, MyConst::KMERLEN, fhVal);
+
+			// update indices
+			++tabIndex[sfVal % MyConst::HTABSIZE];
+
+			// hash kmers of forward strand
+			for (unsigned int i = 0; i < intervalDist - MyConst::KMERLEN; ++i)
+			{
+
+				sfVal = ntHash::NTPS64(seqStart+i+1, MyConst::SEED, seqStart[i], seqStart[i + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
+				// update indices
+				if (!(i%MyConst::SKIPMOD))
+					++tabIndex[sfVal % MyConst::HTABSIZE];
+			}
+		}
+	}
 
     uint64_t sum = 0;
     // update to sums of previous entrys
@@ -1679,24 +2028,26 @@ inline void RefGenome::blacklist(const unsigned int& KSliceStart, const unsigned
 inline uint64_t RefGenome::reproduceKmerSeq(const KMER::kmer& k, const bool sFlag)
 {
 
-	uint32_t pos = 0;
-	uint8_t chrom;
-	// reproduce kmer sequence
-	if (KMER::isStartCpG(k))
-	{
-
-		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
-		const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
-		chrom = startCpG.chrom;
-
-	} else {
-
-		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
-		const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
-		pos = startCpG.pos;
-		chrom = startCpG.chrom;
-
-	}
+	// uint32_t pos = 0;
+	// uint8_t chrom;
+	// // reproduce kmer sequence
+	// if (KMER::isStartCpG(k))
+	// {
+    //
+	// 	// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+	// 	const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
+	// 	chrom = startCpG.chrom;
+    //
+	// } else {
+    //
+	// 	// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+	// 	const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+	// 	pos = startCpG.pos;
+	// 	chrom = startCpG.chrom;
+    //
+	// }
+	uint32_t pos = metaWindows[KMER::getMetaCpG(k)].startPos;
+	uint8_t chrom = metaWindows[KMER::getMetaCpG(k)].chrom;
 
 	// retrieve sequence
 	//
@@ -1784,24 +2135,26 @@ inline uint64_t RefGenome::reproduceKmerSeq(const KMER::kmer& k, const bool sFla
 inline uint32_t RefGenome::reproduceTMask(const KMER::kmer& k, const bool sFlag)
 {
 	uint32_t tMask = 0;
-	uint32_t pos = 0;
-	uint8_t chrom;
-	// reproduce kmer sequence
-	if (KMER::isStartCpG(k))
-	{
-
-		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
-		const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
-		chrom = startCpG.chrom;
-
-	} else {
-
-		// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
-		const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
-		pos = startCpG.pos;
-		chrom = startCpG.chrom;
-
-	}
+	// uint32_t pos = 0;
+	// uint8_t chrom;
+	// // reproduce kmer sequence
+	// if (KMER::isStartCpG(k))
+	// {
+    //
+	// 	// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+	// 	const struct CpG& startCpG = cpgStartTable[metaStartCpGs[KMER::getMetaCpG(k)].start];
+	// 	chrom = startCpG.chrom;
+    //
+	// } else {
+    //
+	// 	// get the start position and chromosome of surrounding meta cpg wrapped into a CpG
+	// 	const struct CpG& startCpG = cpgTable[metaCpGs[KMER::getMetaCpG(k)].start];
+	// 	pos = startCpG.pos;
+	// 	chrom = startCpG.chrom;
+    //
+	// }
+	uint32_t pos = metaWindows[KMER::getMetaCpG(k)].startPos;
+	uint8_t chrom = metaWindows[KMER::getMetaCpG(k)].chrom;
 
 	// retrieve sequence
 	//

@@ -175,8 +175,8 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
 
             } else {
 
-                matches.emplace_back(it - start);
-                errors.emplace_back(errNum);
+                matches.push_back(it - start);
+                errors.push_back(errNum);
                 wasMatch = true;
                 prevErrs = errNum;
             }
@@ -201,20 +201,19 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
     for (auto it = start; it != end; --it)
     {
 
-        char c;
         switch (*it)
         {
             case 'A':
-                c = 'T';
+				queryLetter('T');
                 break;
             case 'C':
-                c = 'G';
+				queryLetter('G');
                 break;
             case 'G':
-                c = 'C';
+				queryLetter('C');
                 break;
             case 'T':
-                c = 'A';
+				queryLetter('A');
                 break;
             // we do not consider Ns for matches - restart whole automaton for next letter
             case 'N':
@@ -224,7 +223,6 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
                 std::cerr << "[ShiftAnd] Could not parse letter " << *it << " at offset " << it - end + 1 << "\nStopping program...\n\n";
                 exit(1);
         }
-        queryLetter(c);
 
         ++numCompLets;
 
@@ -250,8 +248,8 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
             } else {
 
 				// TODO make this safe for insertions!!
-                matches.emplace_back(it - end + pLen - 2);
-                errors.emplace_back(errNum);
+                matches.push_back(it - end + pLen - 2);
+                errors.push_back(errNum);
                 wasMatch = true;
                 prevErrs = errNum;
             }
@@ -473,6 +471,260 @@ inline void ShiftAnd<2>::queryLetter(const char& c)
     active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
     active[2].B_0 |= active[1].B_0 << 1;
 }
+template<>
+inline void ShiftAnd<3>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c%16]];
+
+    // Bottom up update part for old values of previous iteration for bottom layer
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    //
+    // Top down update for values of this iteration
+    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
+    active[1].B_0 |= active[0].B_0 << 1;
+    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
+    active[2].B_0 |= active[1].B_0 << 1;
+    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
+    active[3].B_0 |= active[2].B_0 << 1;
+}
+template<>
+inline void ShiftAnd<4>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c%16]];
+
+    // Bottom up update part for old values of previous iteration for bottom layer
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[4].B_1 = ((active[4].B_1 << 1 | active[4].B_0 >> 63) & mask.B_1) | (active[3].B_1) | (active[3].B_1 << 1 | active[3].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[4].B_0 = ((active[4].B_0 << 1 | 1) & mask.B_0) | (active[3].B_0) | (active[3].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    //
+    // Top down update for values of this iteration
+    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
+    active[1].B_0 |= active[0].B_0 << 1;
+    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
+    active[2].B_0 |= active[1].B_0 << 1;
+    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
+    active[3].B_0 |= active[2].B_0 << 1;
+    active[4].B_1 |= active[3].B_1 << 1 | active[3].B_0 >> 63;
+    active[4].B_0 |= active[3].B_0 << 1;
+}
+template<>
+inline void ShiftAnd<5>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c%16]];
+
+    // Bottom up update part for old values of previous iteration for bottom layer
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[5].B_1 = ((active[5].B_1 << 1 | active[5].B_0 >> 63) & mask.B_1) | (active[4].B_1) | (active[4].B_1 << 1 | active[4].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[5].B_0 = ((active[5].B_0 << 1 | 1) & mask.B_0) | (active[4].B_0) | (active[4].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[4].B_1 = ((active[4].B_1 << 1 | active[4].B_0 >> 63) & mask.B_1) | (active[3].B_1) | (active[3].B_1 << 1 | active[3].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[4].B_0 = ((active[4].B_0 << 1 | 1) & mask.B_0) | (active[3].B_0) | (active[3].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    //
+    // Top down update for values of this iteration
+    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
+    active[1].B_0 |= active[0].B_0 << 1;
+    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
+    active[2].B_0 |= active[1].B_0 << 1;
+    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
+    active[3].B_0 |= active[2].B_0 << 1;
+    active[4].B_1 |= active[3].B_1 << 1 | active[3].B_0 >> 63;
+    active[4].B_0 |= active[3].B_0 << 1;
+    active[5].B_1 |= active[4].B_1 << 1 | active[4].B_0 >> 63;
+    active[5].B_0 |= active[4].B_0 << 1;
+}
+template<>
+inline void ShiftAnd<6>::queryLetter(const char& c)
+{
+
+    const bitMasks& mask = masks[lmap[c%16]];
+
+    // Bottom up update part for old values of previous iteration for bottom layer
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[6].B_1 = ((active[6].B_1 << 1 | active[6].B_0 >> 63) & mask.B_1) | (active[5].B_1) | (active[5].B_1 << 1 | active[5].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[6].B_0 = ((active[6].B_0 << 1 | 1) & mask.B_0) | (active[5].B_0) | (active[5].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[5].B_1 = ((active[5].B_1 << 1 | active[5].B_0 >> 63) & mask.B_1) | (active[4].B_1) | (active[4].B_1 << 1 | active[4].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[5].B_0 = ((active[5].B_0 << 1 | 1) & mask.B_0) | (active[4].B_0) | (active[4].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[4].B_1 = ((active[4].B_1 << 1 | active[4].B_0 >> 63) & mask.B_1) | (active[3].B_1) | (active[3].B_1 << 1 | active[3].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[4].B_0 = ((active[4].B_0 << 1 | 1) & mask.B_0) | (active[3].B_0) | (active[3].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
+    // Update second part of pattern states
+    //
+    //                                  Match                                       Insertion                       Substitution
+    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
+
+    // Update first part of pattern states
+    //
+    //                          Match                           Insertion               Substitution
+    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
+
+    // update zero error layer (at the top)
+    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
+    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
+    //
+    // Top down update for values of this iteration
+    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
+    active[1].B_0 |= active[0].B_0 << 1;
+    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
+    active[2].B_0 |= active[1].B_0 << 1;
+    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
+    active[3].B_0 |= active[2].B_0 << 1;
+    active[4].B_1 |= active[3].B_1 << 1 | active[3].B_0 >> 63;
+    active[4].B_0 |= active[3].B_0 << 1;
+    active[5].B_1 |= active[4].B_1 << 1 | active[4].B_0 >> 63;
+    active[5].B_0 |= active[4].B_0 << 1;
+    active[6].B_1 |= active[5].B_1 << 1 | active[5].B_0 >> 63;
+    active[6].B_0 |= active[5].B_0 << 1;
+}
 
 
 
@@ -532,14 +784,148 @@ inline bool ShiftAnd<2>::isMatch(uint8_t& errNum)
         errNum = 0;
         return true;
     }
-    if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
     {
         errNum = 1;
         return true;
     }
-    if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
+	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
     {
         errNum = 2;
+        return true;
+    }
+    return false;
+}
+template<>
+inline bool ShiftAnd<3>::isMatch(uint8_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
+    {
+        errNum = 0;
+        return true;
+    }
+	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+    {
+        errNum = 1;
+        return true;
+    }
+	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
+    {
+        errNum = 2;
+        return true;
+    }
+	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
+    {
+        errNum = 3;
+        return true;
+    }
+    return false;
+}
+template<>
+inline bool ShiftAnd<4>::isMatch(uint8_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
+    {
+        errNum = 0;
+        return true;
+    }
+	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+    {
+        errNum = 1;
+        return true;
+    }
+	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
+    {
+        errNum = 2;
+        return true;
+    }
+	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
+    {
+        errNum = 3;
+        return true;
+    }
+	else if ((active[4].B_1 & accepted.B_1) || (active[4].B_0 & accepted.B_0) )
+    {
+        errNum = 4;
+        return true;
+    }
+    return false;
+}
+template<>
+inline bool ShiftAnd<5>::isMatch(uint8_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
+    {
+        errNum = 0;
+        return true;
+    }
+	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+    {
+        errNum = 1;
+        return true;
+    }
+	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
+    {
+        errNum = 2;
+        return true;
+    }
+	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
+    {
+        errNum = 3;
+        return true;
+    }
+	else if ((active[4].B_1 & accepted.B_1) || (active[4].B_0 & accepted.B_0) )
+    {
+        errNum = 4;
+        return true;
+    }
+	else if ((active[5].B_1 & accepted.B_1) || (active[5].B_0 & accepted.B_0) )
+    {
+        errNum = 5;
+        return true;
+    }
+    return false;
+}
+template<>
+inline bool ShiftAnd<6>::isMatch(uint8_t& errNum)
+{
+
+    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
+    {
+        errNum = 0;
+        return true;
+    }
+	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
+    {
+        errNum = 1;
+        return true;
+    }
+	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
+    {
+        errNum = 2;
+        return true;
+    }
+	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
+    {
+        errNum = 3;
+        return true;
+    }
+    else if ((active[4].B_1 & accepted.B_1) || (active[4].B_0 & accepted.B_0) )
+    {
+        errNum = 4;
+        return true;
+    }
+	else if ((active[5].B_1 & accepted.B_1) || (active[5].B_0 & accepted.B_0) )
+    {
+        errNum = 5;
+        return true;
+    }
+	else if ((active[6].B_1 & accepted.B_1) || (active[6].B_0 & accepted.B_0) )
+    {
+        errNum = 6;
         return true;
     }
     return false;

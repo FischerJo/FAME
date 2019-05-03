@@ -29,6 +29,11 @@ void MyConst::sanityChecks()
         std::cerr << "The chosen length for kmers is too large. Maximum value allowed is 32. Please redefine KMERLEN.\n\n";
         exit(1);
     }
+	if (MyConst::KMERLEN != SEED.size())
+	{
+		std::cerr << "Specified k-mer length KMERLEN and length of the seed SEED differ!\n\n";
+		exit(1);
+	}
 
 	if (MyConst::KMERLEN != MyConst::SEED.size())
 	{

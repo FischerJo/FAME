@@ -1140,7 +1140,7 @@ class ReadQueue
         // VALUE:
         //      1) K-mer count of first read
         //      2) K-mer count of second read
-		//      3) Boolean flag that is ture iff second read has enough kmers in this or adjacent MetaCpGs
+		//      3) Boolean flag that is true iff second read has enough kmers in this or adjacent MetaCpGs
         //      4) Boolean flag that is true iff first read is matched to this or adjacent Meta CpGs
         //
         // std::array<google::dense_hash_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>, CORENUM> paired_fwdMetaIDs;
@@ -1243,10 +1243,10 @@ class ReadQueue
 
         // TODO
         std::ofstream of;
-        inline void printMatch(std::ofstream& o, MATCH::match& mat)
+        inline void printMatch(std::ostream& o, MATCH::match& mat)
         {
-            o << "Match at offset " << MATCH::getOffset(mat) + ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos << \
-                " on chromosome " << static_cast<uint64_t>(ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].chrom) << \
+            o << "Match at offset " << MATCH::getOffset(mat) + ref.metaWindows[MATCH::getMetaID(mat)].startPos << \
+                " on chromosome " << static_cast<uint64_t>(ref.metaWindows[MATCH::getMetaID(mat)].chrom) << \
                 " on strand " << (MATCH::isFwd(mat) ? "fwd" : "rev") << " with " << MATCH::getErrNum(mat) << " many errors. Meta CpG " << MATCH::getMetaID(mat);
         }
 

@@ -63,8 +63,10 @@ class RefGenome
 		{
 			if (!KMER::isStartCpG(k))
 			{
-				const char* seq = fullSeq[cpgTable[metaCpGs[KMER::getMetaCpG(k)].start].chrom].data() +
-							cpgTable[metaCpGs[KMER::getMetaCpG(k)].start].pos + KMER::getOffset(k);
+				// const char* seq = fullSeq[cpgTable[metaCpGs[KMER::getMetaCpG(k)].start].chrom].data() +
+				// 			cpgTable[metaCpGs[KMER::getMetaCpG(k)].start].pos + KMER::getOffset(k);
+				const char* seq = fullSeq[metaWindows[KMER::getMetaCpG(k)].chrom].data() +
+							metaWindows[KMER::getMetaCpG(k)].startPos + KMER::getOffset(k);
 				uint32_t mask = 0;
 				if (strandTable[KMER::getMetaCpG(k)])
 				{
@@ -112,6 +114,8 @@ class RefGenome
         // produces all struct Meta CpGs
         void generateMetaCpGs();
 
+		void generateWindows();
+
 
         // hash all kmers in all CpGs to _kmerTable using ntHash
         // the kmers are represented in REDUCED alphabet {A,T,G}
@@ -143,7 +147,7 @@ class RefGenome
         //          pos         position of CpG in sequence (look at CpG struct for details)
 		//          bpsAfterpG	how many base pairs are left after CpG before sequence ends
 		//          cpgOffset	how many base pairs until CpG occurs
-        inline void ntCountChunk(const std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos);
+        inline void ntCountChunk(const std::vector<char>& seq, unsigned int& lastPos, const unsigned int& pos);
         void ntCountLast(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& pos, const unsigned int& bpsAfterCpG);
         void ntCountFirst(std::vector<char>& seq, uint32_t& lastPos, const unsigned int& cpgOffset);
 
@@ -205,6 +209,8 @@ class RefGenome
         // meta CpG table
         std::vector<struct metaCpG> metaCpGs;
         std::vector<struct metaCpG> metaStartCpGs;
+
+		std::vector<metaWindow> metaWindows;
 
         struct KmerHash
         {

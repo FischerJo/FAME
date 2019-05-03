@@ -59,6 +59,17 @@ struct metaCpG {
     // index of last CpG in this meta CpG
     uint32_t end;
 };
+struct metaWindow {
+
+	uint32_t startPos;
+	uint8_t chrom;
+
+    // index of first CpG of this meta CpG
+	// MyConst::CPGDUMMY if no CpG insige MetaCpG
+    uint32_t startInd;
+    // index of last CpG in this meta CpG
+    uint32_t endInd;
+};
 
 
 // test for POD types of structs

@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <vector>
 #include <array>
+#include <limits>
 
 namespace MyConst {
 
@@ -54,8 +55,10 @@ constexpr unsigned int CHROMNUM = 24;
 // --------------------
 
 // seed used for spaced k-mer hashing
-const std::vector<bool> SEED = {1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,1,0,0,1,0,1,1,1,0,1,1,1,0,1,1,1,1};
-constexpr uint32_t SEEDBITS = 0b11110111011011110010111011101111;
+// const std::vector<bool> SEED = {1,1,1,1,0,1,1,1,0,1,1,0,1,1,1,1,0,0,1,0,1,1,1,0,1,1,1,0,1,1,1,1};
+// constexpr uint32_t SEEDBITS = 0b11110111011011110010111011101111;
+const std::vector<bool> SEED = {1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1};
+constexpr uint32_t SEEDBITS = 0b11111101111110111111111111;
 
 // (more than) size in bp of biggest chromosome in organism
 constexpr unsigned int CHROMMAX = 1000000000;
@@ -67,17 +70,18 @@ constexpr unsigned int CPGMAX = 100000000;
 // (note that very large values may increase the required amount of RAM drastically)
 // recommended is 300 000
 constexpr unsigned int CHUNKSIZE = 300000;
+// constexpr unsigned int CHUNKSIZE = 1000;
 
 // Length of a kmer in bp
 // WARNING: THIS PARAMETER MUST EQUAL SEED.size() !!!
-constexpr unsigned int KMERLEN = 32;
+constexpr unsigned int KMERLEN = 26;
 
 // Kmer bitmask
 constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMERLEN) - 1);
 
 // minimum number of k-mers required to test for match
 // recommended is 10
-constexpr uint16_t QTHRESH = 10;
+constexpr uint16_t QTHRESH = 5;
 
 
 // size of hash table
@@ -99,6 +103,12 @@ constexpr uint8_t ADDMIS = 4;
 // maximum number of times a k-mer is allowed to occur in the whole genome
 // recommended is 1500
 constexpr uint64_t KMERCUTOFF = 1500;
+
+// Only hash every SKIPMODth reference k-mer
+constexpr unsigned int SKIPMOD = 2;
+
+// dummy index for CpGs
+constexpr uint32_t CPGDUMMY = std::numeric_limits<uint32_t>::max();
 
 // Checks the usefulness of the set parameters
 void sanityChecks();
