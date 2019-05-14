@@ -27,9 +27,10 @@ So no additional work is necessary here.
 
 * [ntHash](https://github.com/bcgsc/ntHash) - a fast library for genomic rolling hash functions.
 * [sparsehash](https://github.com/sparsehash/sparsehash) - an efficient hash map implementation from Google.
-* [gzstream](https://www.cs.unc.edu/Research/compgeom/gzstream/) - a C++ stream interface for working with gzip files
+* [hopscotch-map](https://github.com/Tessil/hopscotch-map) - an efficient hash map implementation by Tessil.
+* [gzstream](https://www.cs.unc.edu/Research/compgeom/gzstream/) - a C++ stream interface for working with gzip files.
 
-To compile the program, a recent version of the GNU Compiler Collection (gcc) is needed.
+To compile the program, a recent version of the GNU Compiler Collection (gcc) or LLVM Clang (clang) is required.
 The gzstream library is dependent on [zlib](https://zlib.net/), which is usually installed on Linux systems.
 
 
@@ -93,19 +94,21 @@ Here is a list of the external parameters:
 | MAXPDIST | Maximum distance between a read pair in paired end mode. Measured from end to first read to beginning of second read.| 400 | 42 |
 | CHROMNUM | Number of chromosomes of reference organism. | 24 | 45 |
 
-Here is a list of important internal parameters, we strongly recommend *NOT* to change them:
+Here is a list of some important internal parameters, we strongly recommend *NOT* to change them:
 
 | Parameter     | Definition       | Recommended value  | Location (line number) |
 | ------------- |-------------| -----:| :----: |
 | SEED | The gapped q-gram (aka seed) to use as array of bits | \[see below\] | 57 |
-| SEEDBITS | The gapped q-gram as bitstring | 0b11110111011011110010111011101111 | 58 |
+| SEEDBITS | The gapped q-gram as bitstring | 0b11011110111111011111111111111101 | 58 |
 | CHUNKSIZE      | Number of reads (or read pairs) read to buffer. | 300000 | 69 |
 | KMERLEN     | k, the length of a k-mer for the index. This is a very sensitive parameter. Must be the length of the seed. | 32 | 73 |
-| QTHRESH | Minimum number of k-mer matches required for match verification | 10 | 80 |
+| QTHRESH | Minimum number of k-mer matches required for match verification | 5 | 80 |
 | WINLEN | Window length for the index data structure. | 2048 | 90 |
 | MISCOUNT | Number of errors considered for k-mer filters. | 2 | 94 |
 | ADDMIS | Number of errors additionally (to MISCOUNT) allowed in alignment | 4 | 97 |
-| KMERCUTOFF | Controls hash collisions in index. Low value means more lossy but faster filter. Not considered if `--no_loss` flag is set. | 1500 | 100 |
+| KMERCUTOFF | Controls hash collisions in index. Low value means more lossy but faster filter. Not considered if `--no_loss` flag is set during index construction. | 1500 | 100 |
+| KMERDIST | Controls pruning after matching a read to a Window. Minimum distance of count of window to prune and count of matched window. | 10 | 104 |
+| SKIPMOD | Hash only every SKIPMODth k-mer of reference. | 2 | 107 |
 
 
 ### B) FAME command line arguments

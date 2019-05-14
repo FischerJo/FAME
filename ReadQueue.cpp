@@ -895,8 +895,11 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 		tooShortCounts[i] = 0;
     }
 
+	// TODO
+	// std::ofstream of2 ("errOut2.txt");
+
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,5)
+#pragma omp parallel for num_threads(CORENUM) schedule(dynamic,50)
 #endif
     for (unsigned int i = 0; i < procReads; ++i)
     {
@@ -1098,45 +1101,81 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 			{
 				// startTime = std::chrono::high_resolution_clock::now();
 
-				const uint16_t qAdapt2 = getSeedRefsSecondRead(revSeq2, readSize2, qThreshold);
+				const bool hasCpG = getSeedRefsSecondRead(revSeq2, readSize2, qThreshold);
 // #pragma omp critical
 // 				{
 // 					of << "Found metas after second seeding: " << paired_fwdMetaIDs[threadnum].size() << "\t" << paired_revMetaIDs[threadnum].size() << "\n";
 // 					of << "Meta IDs fwd:\t";
+// 					uint32_t wCount = 0;
+// 					uint32_t wMax = 0;
 // 					for (const auto& m : paired_fwdMetaIDs[threadnum])
 // 					{
-// 						of << m.first << "/" << ref.metaWindows[m.first].startPos << "\t";
-// 						of << (uint32_t)std::get<0>(m.second) << "\t" << (uint32_t)std::get<1>(m.second) << "\t" << std::get<2>(m.second) << "\t" << std::get<3>(m.second) << "\n";
+// 						if (std::get<0>(m.second) > wMax)
+// 						{
+// 							wMax = std::get<0>(m.second);
+//
+// 						}
+// 						if (std::get<2>(m.second))
+// 							++wCount;
+//
+// 						// of << m.first << "/" << ref.metaWindows[m.first].startPos << "\t";
+// 						// of << (uint32_t)std::get<0>(m.second) << "\t" << (uint32_t)std::get<1>(m.second) << "\t" << std::get<2>(m.second) << "\t" << std::get<3>(m.second) << "\n";
 // 					}
-// 					of << "\n";
-// 					of << "Meta IDs rev:\t";
+// 					// of << "\n";
+// // 					of << "Meta IDs rev:\t";
 // 					for (const auto& m : paired_revMetaIDs[threadnum])
 // 					{
-// 						of << m.first << "/" << ref.metaWindows[m.first].startPos << "\t";
-// 						of << (uint32_t)std::get<0>(m.second) << "\t" << (uint32_t)std::get<1>(m.second) << "\t" << std::get<2>(m.second) << "\t" << std::get<3>(m.second) << "\n";
+// 						if (std::get<0>(m.second) > wMax)
+// 						{
+// 							wMax = std::get<0>(m.second);
+//
+// 						}
+// 						if (std::get<2>(m.second))
+// 							++wCount;
+//
+// 						// of << m.first << "/" << ref.metaWindows[m.first].startPos << "\t";
+// 						// of << (uint32_t)std::get<0>(m.second) << "\t" << (uint32_t)std::get<1>(m.second) << "\t" << std::get<2>(m.second) << "\t" << std::get<3>(m.second) << "\n";
 // 					}
-// 					of << "\n";
+// 					for (const auto& m : paired_fwdMetaIDs[threadnum])
+// 					{
+// 						if (std::get<2>(m.second))
+// 						{
+// 							of2 << wMax - std::get<0>(m.second) << "\n";
+// 						}
+// 					}
+// 					for (const auto& m : paired_revMetaIDs[threadnum])
+// 					{
+// 						if (std::get<2>(m.second))
+// 						{
+// 							of2 << wMax - std::get<0>(m.second) << "\n";
+// 						}
+// 					}
+// 					// of << "\n";
+// 					of << wCount << "\n";
 // 				}
 				// if (qAdapt2)
 				// {
-				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
-				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
+				if (hasCpG)
+				{
+					ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r1.seq, lmap);
+					ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev2(revSeq2, lmap);
 
-				// endTime = std::chrono::high_resolution_clock::now();
-				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-				// of << "\nHashtable sizes after second read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\t\tRuntime: "  << runtime << "\t\tCandidates2: " << candCount << "\n";
-				// startTime = std::chrono::high_resolution_clock::now();
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << "\nHashtable sizes after second read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\t\tRuntime: "  << runtime << "\t\tCandidates2: " << candCount << "\n";
+					// startTime = std::chrono::high_resolution_clock::now();
 
 
-				saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
-				if (!matches1Fwd.empty())
-					saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
+					saQuerySeedSetRefFirst(saFwd, matches1Fwd, qThreshold);
+					if (!matches1Fwd.empty())
+						saQuerySeedSetRefSecond(saRev2, matches2Rev, qThreshold);
+					// }
+
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << runtime << "\n\n";
+				}
 				// }
-
-				// endTime = std::chrono::high_resolution_clock::now();
-				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-				// of << runtime << "\n\n";
-			// }
 			}
 		}
 
@@ -1161,26 +1200,29 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 				// startTime = std::chrono::high_resolution_clock::now();
 
 
-				const uint16_t qAdapt2 = getSeedRefsSecondRead(r2.seq, readSize2, qThreshold);
+				const bool hasCpG = getSeedRefsSecondRead(r2.seq, readSize2, qThreshold);
 				// if (qAdapt2)
 				// {
-				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
-				ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
+				if (hasCpG)
+				{
+					ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq1, lmap);
+					ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd2(r2.seq, lmap);
 
-				// endTime = std::chrono::high_resolution_clock::now();
-				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-				// of << "\nHashtable sizes after second read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\tRuntime: "  << runtime << "\n";
-				// startTime = std::chrono::high_resolution_clock::now();
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << "\nHashtable sizes after second read: " << paired_fwdMetaIDs[threadnum].size() << "/"<< paired_fwdMetaIDs[threadnum].size()<< "\tRuntime: "  << runtime << "\n";
+					// startTime = std::chrono::high_resolution_clock::now();
 
 
-				saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
-				if (!matches1Rev.empty())
-					saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
+					saQuerySeedSetRefFirst(saRev, matches1Rev, qThreshold);
+					if (!matches1Rev.empty())
+						saQuerySeedSetRefSecond(saFwd2, matches2Fwd, qThreshold);
 
-				// }
-				// endTime = std::chrono::high_resolution_clock::now();
-				// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-				// of << runtime << "\n";
+					// }
+					// endTime = std::chrono::high_resolution_clock::now();
+					// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+					// of << runtime << "\n";
+				}
 			}
 			// }
 		}
@@ -1673,6 +1715,16 @@ void ReadQueue::printMethylationLevels(std::string& filename)
     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
     {
 
+		// if (methLevels[cpgID].methFwd + methLevels[cpgID].unmethFwd == 0)
+		// {
+		// 	of << "Unmapped CpG fwd: " << ref.chrMap[ref.cpgTable[cpgID].chrom] << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\n";
+		// 	of << std::string(ref.fullSeq[ref.cpgTable[cpgID].chrom].begin() + ref.cpgTable[cpgID].pos, std::min(ref.fullSeq[ref.cpgTable[cpgID].chrom].begin() + ref.cpgTable[cpgID].pos + 2*MyConst::READLEN, ref.fullSeq[ref.cpgTable[cpgID].chrom].end())) << "\n\n";
+		// }
+		// if (methLevels[cpgID].methRev + methLevels[cpgID].unmethRev == 0)
+		// {
+		// 	of << "Unmapped CpG rev: " << ref.chrMap[ref.cpgTable[cpgID].chrom] << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\n";
+		// 	of << std::string(ref.fullSeq[ref.cpgTable[cpgID].chrom].begin() + ref.cpgTable[cpgID].pos, std::min(ref.fullSeq[ref.cpgTable[cpgID].chrom].begin() + ref.cpgTable[cpgID].pos + 2*MyConst::READLEN, ref.fullSeq[ref.cpgTable[cpgID].chrom].end())) << "\n\n";
+		// }
         // print the position of the (C of the) CpG
         cpgFile << ref.chrMap[ref.cpgTable[cpgID].chrom] << "\t" << ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 << "\t";
 
@@ -2113,263 +2165,71 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 	uint8_t prevChr = 0;
 	uint64_t prevOff = 0xffffffffffffffffULL;
 
-	// check all fwd meta CpGs
-	for (auto mIt = fwdMetaIDs_t.begin(); mIt != fwdMetaIDs_t.end(); ++mIt)
+	std::vector<std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> > > fwdMetas(fwdMetaIDs_t.begin(), fwdMetaIDs_t.end());
+	std::sort(fwdMetas.begin(), fwdMetas.end(), cmpMetaFirst);
+	std::vector<std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> > > revMetas(revMetaIDs_t.begin(), revMetaIDs_t.end());
+	std::sort(revMetas.begin(), revMetas.end(), cmpMetaFirst);
+	// current best k-mer count of true match
+	int32_t bmCount = 0;
+	if (fwdMetas.size() > 0)
 	{
-		// check for this read the counts
-		if (!std::get<2>(mIt->second) || std::get<0>(mIt->second) < qThreshold)
-			continue;
-
-		// const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[mIt->first].start];
-		// const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[mIt->first].end];
-		// auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-		// auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
-
-		auto startIt = ref.fullSeq[ref.metaWindows[mIt->first].chrom].begin() + ref.metaWindows[mIt->first].startPos;
-		auto endIt = ref.fullSeq[ref.metaWindows[mIt->first].chrom].begin() + ref.metaWindows[mIt->first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-		if (endIt > ref.fullSeq[ref.metaWindows[mIt->first].chrom].end())
+		if (revMetas.size() > 0)
 		{
-			endIt = ref.fullSeq[ref.metaWindows[mIt->first].chrom].end();
-		}
-
-		// check if CpG was too near to the end
-		// if (endIt > ref.fullSeq[startCpg.chrom].end())
-		// {
-		// 	// if so move end iterator appropriately
-		// 	endIt = ref.fullSeq[startCpg.chrom].end();
-		// }
-
-		// use shift and to find all matchings
-		std::vector<uint64_t> matchings;
-		std::vector<uint8_t> errors;
-
-		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-		sa.querySeq(startIt, endIt, matchings, errors);
-		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-		// of << "SA: " << runtime << "\n";
-
-		size_t i = 0;
-		// compare first found match with last found match of previous meta CpG
-		if (matchings.size() > 0)
-		{
-			// compare chromosome and offset
-			// if (matchings[0] + ref.cpgTable[ref.metaCpGs[mIt->first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[mIt->first].start].chrom == prevChr)
-			if (matchings[0] + ref.metaWindows[mIt->first].startPos == prevOff && ref.metaWindows[mIt->first].chrom == prevChr)
+			// match fwd first
+			if (std::get<0>(fwdMetas[0].second) > std::get<0>(revMetas[0].second))
 			{
-				++i;
+				// check all fwd meta CpGs
+				for (auto& meta : fwdMetas)
+				{
+					if (!matchFwdFirst(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+				prevChr = 0;
+				prevOff = 0xffffffffffffffffULL;
+				// check all rev meta CpGs
+				for (auto& meta : revMetas)
+				{
+					if (!matchRevFirst(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+
+			// match rev first
+			} else {
+				// check all rev meta CpGs
+				for (auto& meta : revMetas)
+				{
+					if (!matchRevFirst(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+				prevChr = 0;
+				prevOff = 0xffffffffffffffffULL;
+				// check all fwd meta CpGs
+				for (auto& meta : fwdMetas)
+				{
+					if (!matchFwdFirst(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
 			}
-		}
-		// translate found matchings
-		for (; i < matchings.size(); ++i)
-		{
-
-			mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 1, 0, mIt->first));
-		}
-		if (matchings.size() > 0)
-		{
-
-			// update boolean for this and adjacent windows
-			std::get<3>(mIt.value()) = true;
-			for (int cOff = 1; cOff <= contextWLen; ++cOff)
-			{
-				auto it = fwdMetaIDs_t.find(mIt->first + cOff);
-				if (it != fwdMetaIDs_t.end())
-					std::get<3>(it.value()) = true;
-				it = fwdMetaIDs_t.find(mIt->first - cOff);
-				if (it != fwdMetaIDs_t.end())
-					std::get<3>(it.value()) = true;
-			}
-			// prevChr = ref.cpgTable[ref.metaCpGs[mIt->first].start].chrom;
-			// prevOff = ref.cpgTable[ref.metaCpGs[mIt->first].start].pos + matchings[matchings.size() - 1];
-			prevChr = ref.metaWindows[mIt->first].chrom;
-			prevOff = ref.metaWindows[mIt->first].startPos + matchings[matchings.size() - 1];
-
+		// Just match fwd
 		} else {
+			for (auto& meta : fwdMetas)
+			{
+				if (!matchFwdFirst(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+					break;
+			}
+		}
 
-			prevChr = 0;
-			prevOff = 0xffffffffffffffffULL;
+	} else {
+		// Just match rev
+		if (revMetas.size() > 0)
+		{
+			for (auto& meta : revMetas)
+			{
+				if (!matchRevFirst(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+					break;
+			}
 		}
 	}
-	prevChr = 0;
-	prevOff = 0xffffffffffffffffULL;
-	// go through reverse sequences
-	// for (const auto& m : revMetaIDs_t)
-	for (auto mIt = revMetaIDs_t.begin(); mIt != revMetaIDs_t.end(); ++mIt)
-	{
-
-		// apply qgram lemma
-		// check for this read the counts
-		if (!std::get<2>(mIt->second) || std::get<0>(mIt->second) < qThreshold)
-			continue;
-
-		// retrieve sequence
-		// const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[mIt->first].start];
-		// const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[mIt->first].end];
-		// auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-		// auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS- 1;
-        //
-		// // check if CpG was too near to the end
-		// if (startIt >= ref.fullSeq[startCpg.chrom].end())
-		// {
-		// 	// if so move end iterator appropriately
-		// 	startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-		// }
-		auto endIt = ref.fullSeq[ref.metaWindows[mIt->first].chrom].begin();
-
-		if (ref.metaWindows[mIt->first].startPos > 0)
-		{
-			endIt += ref.metaWindows[mIt->first].startPos - 1;
-		}
-
-		auto startIt = ref.fullSeq[ref.metaWindows[mIt->first].chrom].begin() + ref.metaWindows[mIt->first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-		if (startIt >= ref.fullSeq[ref.metaWindows[mIt->first].chrom].end())
-		{
-			startIt = ref.fullSeq[ref.metaWindows[mIt->first].chrom].end() - 1;
-		}
-
-		// use shift and to find all matchings
-		std::vector<uint64_t> matchings;
-		std::vector<uint8_t> errors;
-
-		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-		sa.queryRevSeq(startIt, endIt, matchings, errors);
-		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-		// of << "SA: " << runtime << "\n";
-
-		size_t i = 0;
-		// compare first found match with last found match of previous meta CpG
-		if (matchings.size() > 0)
-		{
-			// compare chromosome and offset
-			// if (matchings[0] + ref.cpgTable[ref.metaCpGs[mIt->first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[mIt->first].start].chrom == prevChr)
-			if (matchings[0] + ref.metaWindows[mIt->first].startPos == prevOff && ref.metaWindows[mIt->first].chrom == prevChr)
-			{
-				++i;
-			}
-		}
-		// translate found matchings
-		for (; i < matchings.size(); ++i)
-		{
-			mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 0, 0, mIt->first));
-		}
-		if (matchings.size() > 0)
-		{
-
-			std::get<3>(mIt.value()) = true;
-			for (int cOff = 1; cOff <= contextWLen; ++cOff)
-			{
-				auto it = revMetaIDs_t.find(mIt->first + cOff);
-				if (it != revMetaIDs_t.end())
-					std::get<3>(it.value()) = true;
-				it = revMetaIDs_t.find(mIt->first - cOff);
-				if (it != revMetaIDs_t.end())
-					std::get<3>(it.value()) = true;
-			}
-			// prevChr = ref.cpgTable[ref.metaCpGs[mIt->first].start].chrom;
-			// prevOff = ref.cpgTable[ref.metaCpGs[mIt->first].start].pos + matchings[matchings.size() - 1];
-			prevChr = ref.metaWindows[mIt->first].chrom;
-			prevOff = ref.metaWindows[mIt->first].startPos + matchings[matchings.size() - 1];
-
-		} else {
-
-			prevChr = 0;
-			prevOff = 0xffffffffffffffffULL;
-		}
-	}
-
-	// for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
-	// {
-    //
-	// 	// check if we fulfill the qgram lemma
-	// 	// if not - continue with next meta CpG
-	// 	if (threadCountFwdStart[i] < qThreshold)
-	// 	{
-	// 		continue;
-	// 	}
-	// 	// retrieve sequence
-	// 	const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
-	// 	const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
-	// 	auto startIt = ref.fullSeq[startCpg.chrom].begin();
-	// 	auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
-    //
-	// 	// check if CpG was too near to the end
-	// 	if (endIt > ref.fullSeq[startCpg.chrom].end())
-	// 	{
-	// 		// if so move end iterator appropriately
-	// 		endIt = ref.fullSeq[startCpg.chrom].end();
-	// 	}
-    //
-	// 	// use shift and to find all matchings
-	// 	std::vector<uint64_t> matchings;
-	// 	std::vector<uint8_t> errors;
-	// 	sa.querySeq(startIt, endIt, matchings, errors);
-    //
-	// 	// go through matching and see if we had such a match (with that many errors) before - if so,
-	// 	// return to caller reporting no match
-	// 	for (size_t j = 0; j < matchings.size(); ++j)
-	// 	{
-	// 		mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 1, 1, i)));
-	// 	}
-	// }
-	// // go through reverse sequences of start meta CpGs
-	// for (size_t i = 0; i < threadCountRevStart.size(); ++i)
-	// {
-    //
-	// 	// check if we fulfill the qgram lemma
-	// 	// if not - continue with next meta CpG
-	// 	if (threadCountRevStart[i] < qThreshold)
-	// 	{
-	// 		continue;
-	// 	}
-	// 	// retrieve sequence
-	// 	const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
-	// 	const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
-	// 	auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-	// 	auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-    //
-	// 	// check if CpG was too near to the end
-	// 	if (startIt >= ref.fullSeq[startCpg.chrom].end())
-	// 	{
-	// 		// if so move end iterator appropriately
-	// 		startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-	// 	}
-    //
-	// 	// use shift and to find all matchings
-	// 	std::vector<uint64_t> matchings;
-	// 	std::vector<uint8_t> errors;
-	// 	sa.queryRevSeq(startIt, endIt, matchings, errors);
-    //
-	// 	// go through matching and see if we had such a match (with that many errors) before - if so,
-	// 	// return to caller reporting no match
-	// 	for (size_t j = 0; j < matchings.size(); ++j)
-	// 	{
-	// 		mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 0, 1, i)));
-	// 	}
-	// }
-	// TODO
-	// std::cout << "\n\n\nHashmap after matching first read:\n\n";
-	// for (auto hIt = fwdMetaIDs_t.begin(); hIt != fwdMetaIDs_t.end(); ++hIt)
-	// {
-	// 	std::cout << ref.chrMap[ref.cpgTable[ref.metaCpGs[hIt->first].start].chrom] << "\t";
-	// 	std::cout << ref.cpgTable[ref.metaCpGs[hIt->first].start].pos << "\t";
-	// 	std::cout << hIt->first << "\t";
-	// 	std::cout << (uint64_t)std::get<0>(hIt->second) << "\t";
-	// 	std::cout << (uint64_t)std::get<1>(hIt->second) << "\t";
-	// 	std::cout << std::get<2>(hIt->second) << "\n";
-	// 	std::cout << std::get<3>(hIt->second) << "\n";
-	// }
-	// for (auto hIt = revMetaIDs_t.begin(); hIt != revMetaIDs_t.end(); ++hIt)
-	// {
-	// 	std::cout << ref.chrMap[ref.cpgTable[ref.metaCpGs[hIt->first].start].chrom] << "\t";
-	// 	std::cout << ref.cpgTable[ref.metaCpGs[hIt->first].start].pos << "\t";
-	// 	std::cout << hIt->first << "\t";
-	// 	std::cout << (uint64_t)std::get<0>(hIt->second) << "\t";
-	// 	std::cout << (uint64_t)std::get<1>(hIt->second) << "\t";
-	// 	std::cout << std::get<2>(hIt->second) << "\n";
-	// 	std::cout << std::get<3>(hIt->second) << "\n";
-	// }
 }
 
 
@@ -2378,10 +2238,6 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 
 inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa, std::vector<MATCH::match>& mats, const uint16_t& qThreshold)
 {
-
-	// use counters to flag what has been processed so far
-	// std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
-	// std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
 	auto& fwdMetaIDs_t = paired_fwdMetaIDs[omp_get_thread_num()];
 	auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
 
@@ -2389,211 +2245,71 @@ inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyCo
 	uint8_t prevChr = 0;
 	uint64_t prevOff = 0xffffffffffffffffULL;
 
-	// check all fwd meta CpGs
-	for (const auto& m : fwdMetaIDs_t)
+	std::vector<std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> > > fwdMetas(fwdMetaIDs_t.begin(), fwdMetaIDs_t.end());
+	std::sort(fwdMetas.begin(), fwdMetas.end(), cmpMetaSecond);
+	std::vector<std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> > > revMetas(revMetaIDs_t.begin(), revMetaIDs_t.end());
+	std::sort(revMetas.begin(), revMetas.end(), cmpMetaSecond);
+	// current best k-mer count of true match
+	int32_t bmCount = 0;
+	if (fwdMetas.size() > 0)
 	{
-		// apply qgram lemma
-		// check for this read the counts
-		if (std::get<1>(m.second) < qThreshold || !std::get<3>(m.second))
-			continue;
-
-
-		// const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
-		// const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
-		// auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-		// auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
-		auto startIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos;
-		auto endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-		if (endIt > ref.fullSeq[ref.metaWindows[m.first].chrom].end())
+		if (revMetas.size() > 0)
 		{
-			endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].end();
-		}
-
-		// check if CpG was too near to the end
-		// if (endIt > ref.fullSeq[startCpg.chrom].end())
-		// {
-		// 	// if so move end iterator appropriately
-		// 	endIt = ref.fullSeq[startCpg.chrom].end();
-		// }
-
-		// use shift and to find all matchings
-		std::vector<uint64_t> matchings;
-		std::vector<uint8_t> errors;
-		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-		sa.querySeq(startIt, endIt, matchings, errors);
-		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-		// of << "SA: " << runtime << "\n";
-
-		size_t i = 0;
-		// compare first found match with last found match of previous meta CpG
-		if (matchings.size() > 0)
-		{
-			// compare chromosome and offset
-			// if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
-			if (matchings[0] + ref.metaWindows[m.first].startPos == prevOff && ref.metaWindows[m.first].chrom == prevChr)
+			// match fwd first
+			if (std::get<0>(fwdMetas[0].second) > std::get<0>(revMetas[0].second))
 			{
-				++i;
+				// check all fwd meta CpGs
+				for (auto& meta : fwdMetas)
+				{
+					if (!matchFwdSecond(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+				prevChr = 0;
+				prevOff = 0xffffffffffffffffULL;
+				// check all rev meta CpGs
+				for (auto& meta : revMetas)
+				{
+					if (!matchRevSecond(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+
+			// match rev first
+			} else {
+				// check all rev meta CpGs
+				for (auto& meta : revMetas)
+				{
+					if (!matchRevSecond(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+				prevChr = 0;
+				prevOff = 0xffffffffffffffffULL;
+				// check all fwd meta CpGs
+				for (auto& meta : fwdMetas)
+				{
+					if (!matchFwdSecond(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+						break;
+				}
+			}
+		// Just match fwd
+		} else {
+			for (auto& meta : fwdMetas)
+			{
+				if (!matchFwdSecond(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+					break;
 			}
 		}
-		// translate found matchings
-		for (; i < matchings.size(); ++i)
+
+	} else {
+		// Just match rev
+		if (revMetas.size() > 0)
 		{
-			mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 1, 0, m.first));
-		}
-		if (matchings.size() > 0)
-		{
-
-			// prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
-			// prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
-			prevChr = ref.metaWindows[m.first].chrom;
-			prevOff = ref.metaWindows[m.first].startPos + matchings[matchings.size() - 1];
-
-		} else {
-
-			prevChr = 0;
-			prevOff = 0xffffffffffffffffULL;
-		}
-	}
-	prevChr = 0;
-	prevOff = 0xffffffffffffffffULL;
-	// go through reverse sequences
-	for (const auto& m : revMetaIDs_t)
-	{
-
-		// apply qgram lemma
-		// check for this read the counts
-		if (std::get<1>(m.second) < qThreshold || !std::get<3>(m.second))
-			continue;
-
-		// retrieve sequence
-		// const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
-		// const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
-		// auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-		// auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-		auto endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos - 1;
-		auto startIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-		if (startIt >= ref.fullSeq[ref.metaWindows[m.first].chrom].end())
-		{
-			startIt = ref.fullSeq[ref.metaWindows[m.first].chrom].end() - 1;
-		}
-
-		// check if CpG was too near to the end
-		// if (startIt >= ref.fullSeq[startCpg.chrom].end())
-		// {
-		// 	// if so move end iterator appropriately
-		// 	startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-		// }
-
-		// use shift and to find all matchings
-		std::vector<uint64_t> matchings;
-		std::vector<uint8_t> errors;
-		// std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-		sa.queryRevSeq(startIt, endIt, matchings, errors);
-		// std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-		// auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
-		// of << "SA: " << runtime << "\n";
-
-		size_t i = 0;
-		// compare first found match with last found match of previous meta CpG
-		if (matchings.size() > 0)
-		{
-			// compare chromosome and offset
-			// if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
-			if (matchings[0] + ref.metaWindows[m.first].startPos == prevOff && ref.metaWindows[m.first].chrom == prevChr)
+			for (auto& meta : revMetas)
 			{
-				++i;
+				if (!matchRevSecond(meta, prevChr, prevOff, mats, bmCount, qThreshold, sa))
+					break;
 			}
 		}
-		// translate found matchings
-		for (; i < matchings.size(); ++i)
-		{
-			mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 0, 0, m.first));
-		}
-		if (matchings.size() > 0)
-		{
-
-			// prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
-			// prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
-			prevChr = ref.metaWindows[m.first].chrom;
-			prevOff = ref.metaWindows[m.first].startPos + matchings[matchings.size() - 1];
-
-		} else {
-
-			prevChr = 0;
-			prevOff = 0xffffffffffffffffULL;
-		}
 	}
-	// // check all fwd meta CpGs that are at start
-	// for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
-	// {
-    //
-	// 	// check if we fulfill the qgram lemma
-	// 	// if not - continue with next meta CpG
-	// 	if (threadCountFwdStart[i] < qThreshold)
-	// 	{
-	// 		continue;
-	// 	}
-	// 	// retrieve sequence
-	// 	const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
-	// 	const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
-	// 	auto startIt = ref.fullSeq[startCpg.chrom].begin();
-	// 	auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
-    //
-	// 	// check if CpG was too near to the end
-	// 	if (endIt > ref.fullSeq[startCpg.chrom].end())
-	// 	{
-	// 		// if so move end iterator appropriately
-	// 		endIt = ref.fullSeq[startCpg.chrom].end();
-	// 	}
-    //
-	// 	// use shift and to find all matchings
-	// 	std::vector<uint64_t> matchings;
-	// 	std::vector<uint8_t> errors;
-	// 	sa.querySeq(startIt, endIt, matchings, errors);
-    //
-	// 	// go through matching and see if we had such a match (with that many errors) before - if so,
-	// 	// return to caller reporting no match
-	// 	for (size_t j = 0; j < matchings.size(); ++j)
-	// 	{
-	// 		mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 1, 1, i)));
-	// 	}
-	// }
-	// // go through reverse sequences of start meta CpGs
-	// for (size_t i = 0; i < threadCountRevStart.size(); ++i)
-	// {
-    //
-	// 	// check if we fulfill the qgram lemma
-	// 	// if not - continue with next meta CpG
-	// 	if (threadCountRevStart[i] < qThreshold)
-	// 	{
-	// 		continue;
-	// 	}
-	// 	// retrieve sequence
-	// 	const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
-	// 	const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
-	// 	auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-	// 	auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-    //
-	// 	// check if CpG was too near to the end
-	// 	if (startIt >= ref.fullSeq[startCpg.chrom].end())
-	// 	{
-	// 		// if so move end iterator appropriately
-	// 		startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-	// 	}
-    //
-	// 	// use shift and to find all matchings
-	// 	std::vector<uint64_t> matchings;
-	// 	std::vector<uint8_t> errors;
-	// 	sa.queryRevSeq(startIt, endIt, matchings, errors);
-    //
-	// 	// go through matching and see if we had such a match (with that many errors) before - if so,
-	// 	// return to caller reporting no match
-	// 	for (size_t j = 0; j < matchings.size(); ++j)
-	// 	{
-	// 		mats.push_back(std::move(MATCH::constructMatch(matchings[j], errors[j], 0, 1, i)));
-	// 	}
-	// }
 }
 
 
@@ -2791,6 +2507,10 @@ inline uint16_t ReadQueue::getSeedRefsFirstRead(const std::string& seq, const si
 			++kmerNum;
 		}
 	}
+// #pragma omp critical
+// 	{
+// 	of << bucketCount << "\n";
+// 	}
 	bucketCount = bucketCount / 5;
 	auto newmap = tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>(bucketCount);
 	fwdMetaIDs_t.swap(newmap);
@@ -3075,6 +2795,7 @@ inline uint16_t ReadQueue::getSeedRefsFirstRead(const std::string& seq, const si
 	fwdMetaIDs_t.swap(newFwdMetas);
 	revMetaIDs_t.swap(newRevMetas);
 	// return qAdapt;
+	//
 	return 0;
 }
 
@@ -3083,7 +2804,7 @@ inline uint16_t ReadQueue::getSeedRefsFirstRead(const std::string& seq, const si
 
 
 
-inline uint16_t ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
+inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
 	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
@@ -3456,6 +3177,16 @@ inline uint16_t ReadQueue::getSeedRefsSecondRead(const std::string& seq, const s
 			}
 		}
 	}
+	for (auto& m : fwdMetaIDs_t)
+	{
+		if (std::get<2>(m.second) && ref.metaWindows[m.first].startInd != MyConst::CPGDUMMY)
+			return true;
+	}
+	for (auto& m : revMetaIDs_t)
+	{
+		if (std::get<2>(m.second) && ref.metaWindows[m.first].startInd != MyConst::CPGDUMMY)
+			return true;
+	}
 		// std::cout << "\n\n\nSecond read candidates:\n\n";
 	// for (auto hIt = fwdMetaIDs_t.begin(); hIt != fwdMetaIDs_t.end(); ++hIt)
 	// {
@@ -3476,7 +3207,7 @@ inline uint16_t ReadQueue::getSeedRefsSecondRead(const std::string& seq, const s
 	// 	std::cout << std::get<2>(hIt->second) << "\n";
 	// }
 	// return candCount;
-	return 0;
+	return false;
 }
 
 
@@ -4176,3 +3907,243 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 	}
 }
 
+
+inline bool ReadQueue::matchFwdFirst(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa)
+{
+	constexpr int contextWLen = (int)(((double)MyConst::MAXPDIST / MyConst::WINLEN)) + 1;
+	auto& fwdMetaIDs_t = paired_fwdMetaIDs[omp_get_thread_num()];
+	if (std::get<0>(meta.second) < std::max(bmCount - (int32_t)MyConst::KMERDIST, (int32_t)qThreshold))
+		return false;
+	if (!std::get<2>(meta.second))
+		return true;
+	auto& mIt = fwdMetaIDs_t[meta.first];
+
+	auto startIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos;
+	auto endIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
+	if (endIt > ref.fullSeq[ref.metaWindows[meta.first].chrom].end())
+	{
+		endIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].end();
+	}
+
+	// use shift and to find all matchings
+	std::vector<uint64_t> matchings;
+	std::vector<uint8_t> errors;
+
+	sa.querySeq(startIt, endIt, matchings, errors);
+
+	size_t i = 0;
+	// compare first found match with last found match of previous meta CpG
+	if (matchings.size() > 0)
+	{
+		// compare chromosome and offset
+		if (matchings[0] + ref.metaWindows[meta.first].startPos == prevOff && ref.metaWindows[meta.first].chrom == prevChr)
+		{
+			++i;
+		}
+	}
+	// translate found matchings
+	for (; i < matchings.size(); ++i)
+	{
+		mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 1, 0, meta.first));
+	}
+	if (matchings.size() > 0)
+	{
+		bmCount = std::max(bmCount, (int32_t)std::get<0>(meta.second));
+
+		// update boolean for this and adjacent windows
+		std::get<3>(mIt) = true;
+		for (int cOff = 1; cOff <= contextWLen; ++cOff)
+		{
+			auto it = fwdMetaIDs_t.find(meta.first + cOff);
+			if (it != fwdMetaIDs_t.end())
+				std::get<3>(it.value()) = true;
+			it = fwdMetaIDs_t.find(meta.first - cOff);
+			if (it != fwdMetaIDs_t.end())
+				std::get<3>(it.value()) = true;
+		}
+		prevChr = ref.metaWindows[meta.first].chrom;
+		prevOff = ref.metaWindows[meta.first].startPos + matchings[matchings.size() - 1];
+
+	} else {
+
+		prevChr = 0;
+		prevOff = 0xffffffffffffffffULL;
+	}
+	return true;
+}
+
+
+
+
+inline bool ReadQueue::matchRevFirst(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa)
+{
+	constexpr int contextWLen = (int)(((double)MyConst::MAXPDIST / MyConst::WINLEN)) + 1;
+	auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
+
+	if (std::get<0>(meta.second) < std::max(bmCount - (int32_t)MyConst::KMERDIST, (int32_t)qThreshold))
+		return false;
+	if (!std::get<2>(meta.second))
+		return true;
+
+	auto& mIt = revMetaIDs_t[meta.first];
+
+	// retrieve sequence
+	auto endIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin();
+
+	if (ref.metaWindows[meta.first].startPos > 0)
+	{
+		endIt += ref.metaWindows[meta.first].startPos - 1;
+	}
+
+	auto startIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
+	if (startIt >= ref.fullSeq[ref.metaWindows[meta.first].chrom].end())
+	{
+		startIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].end() - 1;
+	}
+
+	// use shift and to find all matchings
+	std::vector<uint64_t> matchings;
+	std::vector<uint8_t> errors;
+
+	sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+	size_t i = 0;
+	// compare first found match with last found match of previous meta CpG
+	if (matchings.size() > 0)
+	{
+		// compare chromosome and offset
+		if (matchings[0] + ref.metaWindows[meta.first].startPos == prevOff && ref.metaWindows[meta.first].chrom == prevChr)
+		{
+			++i;
+		}
+	}
+	// translate found matchings
+	for (; i < matchings.size(); ++i)
+	{
+		mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 0, 0, meta.first));
+	}
+	if (matchings.size() > 0)
+	{
+
+		bmCount = std::max(bmCount, (int32_t)std::get<0>(meta.second));
+		std::get<3>(mIt) = true;
+		for (int cOff = 1; cOff <= contextWLen; ++cOff)
+		{
+			auto it = revMetaIDs_t.find(meta.first + cOff);
+			if (it != revMetaIDs_t.end())
+				std::get<3>(it.value()) = true;
+			it = revMetaIDs_t.find(meta.first - cOff);
+			if (it != revMetaIDs_t.end())
+				std::get<3>(it.value()) = true;
+		}
+		prevChr = ref.metaWindows[meta.first].chrom;
+		prevOff = ref.metaWindows[meta.first].startPos + matchings[matchings.size() - 1];
+
+	} else {
+
+		prevChr = 0;
+		prevOff = 0xffffffffffffffffULL;
+	}
+	return true;
+}
+
+
+inline bool ReadQueue::matchFwdSecond(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa)
+{
+	if (std::get<1>(meta.second) < std::max(bmCount - (int32_t)MyConst::KMERDIST, (int32_t)qThreshold))
+		return false;
+	if (!std::get<3>(meta.second))
+		return true;
+
+	auto startIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos;
+	auto endIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
+	if (endIt > ref.fullSeq[ref.metaWindows[meta.first].chrom].end())
+	{
+		endIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].end();
+	}
+
+	// use shift and to find all matchings
+	std::vector<uint64_t> matchings;
+	std::vector<uint8_t> errors;
+	sa.querySeq(startIt, endIt, matchings, errors);
+
+	size_t i = 0;
+	// compare first found match with last found match of previous meta CpG
+	if (matchings.size() > 0)
+	{
+		// compare chromosome and offset
+		if (matchings[0] + ref.metaWindows[meta.first].startPos == prevOff && ref.metaWindows[meta.first].chrom == prevChr)
+		{
+			++i;
+		}
+	}
+	// translate found matchings
+	for (; i < matchings.size(); ++i)
+	{
+		mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 1, 0, meta.first));
+	}
+	if (matchings.size() > 0)
+	{
+
+		bmCount = std::max(bmCount, (int32_t)std::get<1>(meta.second));
+		prevChr = ref.metaWindows[meta.first].chrom;
+		prevOff = ref.metaWindows[meta.first].startPos + matchings[matchings.size() - 1];
+
+	} else {
+
+		prevChr = 0;
+		prevOff = 0xffffffffffffffffULL;
+	}
+	return true;
+}
+
+
+inline bool ReadQueue::matchRevSecond(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa)
+{
+	if (std::get<1>(meta.second) < std::max(bmCount - (int32_t)MyConst::KMERDIST, (int32_t)qThreshold))
+		return false;
+	if (!std::get<3>(meta.second))
+		return true;
+
+	// retrieve sequence
+	auto endIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos - 1;
+	auto startIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].begin() + ref.metaWindows[meta.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
+	if (startIt >= ref.fullSeq[ref.metaWindows[meta.first].chrom].end())
+	{
+		startIt = ref.fullSeq[ref.metaWindows[meta.first].chrom].end() - 1;
+	}
+
+	// use shift and to find all matchings
+	std::vector<uint64_t> matchings;
+	std::vector<uint8_t> errors;
+	sa.queryRevSeq(startIt, endIt, matchings, errors);
+
+	size_t i = 0;
+	// compare first found match with last found match of previous meta CpG
+	if (matchings.size() > 0)
+	{
+		// compare chromosome and offset
+		if (matchings[0] + ref.metaWindows[meta.first].startPos == prevOff && ref.metaWindows[meta.first].chrom == prevChr)
+		{
+			++i;
+		}
+	}
+	// translate found matchings
+	for (; i < matchings.size(); ++i)
+	{
+		mats.push_back(MATCH::constructMatch(matchings[i], errors[i], 0, 0, meta.first));
+	}
+	if (matchings.size() > 0)
+	{
+
+		bmCount = std::max(bmCount, (int32_t)std::get<1>(meta.second));
+		prevChr = ref.metaWindows[meta.first].chrom;
+		prevOff = ref.metaWindows[meta.first].startPos + matchings[matchings.size() - 1];
+
+	} else {
+
+		prevChr = 0;
+		prevOff = 0xffffffffffffffffULL;
+	}
+	return true;
+}

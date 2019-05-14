@@ -164,11 +164,13 @@ class ReadQueue
         //          The threadCount* fields are modified such that they have the count of metaCpGs after
         //          a call to this function
 		inline void getSeedRefs(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
-        // TODO start Metas
 		inline uint16_t getSeedRefsFirstRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
-        // TODO start Metas
-		inline uint16_t getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
+		inline bool getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold);
 
+		inline bool matchFwdFirst(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa);
+		inline bool matchRevFirst(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa);
+		inline bool matchFwdSecond(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa);
+		inline bool matchRevSecond(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa);
 
 		inline void sort_by_n(std::vector<unsigned int>::iterator it_start, std::vector<unsigned int>::iterator it_n, std::vector<unsigned int>::iterator it_end, std::vector<uint64_t>& sliceOff, std::vector<bool>& sliceIsDone)
 		{
@@ -1196,6 +1198,19 @@ class ReadQueue
             }
 
         } cmpRev;
+
+		struct CompiMetaFirst {
+			bool operator()(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>>& a, std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>>& b) const
+			{
+				return std::get<0>(a.second) > std::get<0>(b.second);
+			}
+		} cmpMetaFirst;
+		struct CompiMetaSecond {
+			bool operator()(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>>& a, std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>>& b) const
+			{
+				return std::get<1>(a.second) > std::get<1>(b.second);
+			}
+		} cmpMetaSecond;
 
         // holding the counts for a single CpG
         struct methLvl
