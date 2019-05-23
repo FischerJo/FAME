@@ -118,7 +118,6 @@ Examples on how to use FAME in the command line are given in 2.D.
 
 | Flag    | Argument       | Description  |
 | ------------- |-------------| :-----:|
-|--both_strands | None | Always try both, the read and its reverse complement for matching against the genome. This is required if reads are could potentially be C->T and G->A converted. |
 | --genome | Filepath | Forces the tool to build an index for the specified .fasta reference file |
 | --gzip_reads | None | Treats the read files passed to -r or -r1 and -r2 as gzipped files. |
 | -h      | None | Lists all available options with a description. |
@@ -132,6 +131,7 @@ Examples on how to use FAME in the command line are given in 2.D.
 | -r1 | Filepath | Path to file with first reads of a paired read set. Read format must be .fastq. |
 | -r2 | Filepath | Path to file with second reads of a paired read set. Read format must be .fastq. |
 | --store_index | Filepath | Writes output of index construction to filepath (~38GB for human genome). NOTE: Directory must exist. |
+|--unord_reads | None | Disable optimization to find stranding of reads. |
 
 
 

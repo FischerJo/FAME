@@ -199,7 +199,7 @@ int main(int argc, char** argv)
             continue;
         }
 
-		if (std::string(argv[i]) == "--both_strands")
+		if (std::string(argv[i]) == "--unord_reads")
 		{
 			bothStrandsFlag = true;
 			continue;
@@ -504,11 +504,10 @@ void printHelp()
 
     std::cout << "\t--no_loss        \t\tIndex is constructed losless (NOT RECOMMENDED)\n\n";
 
-	std::cout << "\t--both_strands	\t\tThe original read and its reverse complement\n";
-	std::cout << "\t                \t\tare tested for a match..\n\n";
+	std::cout << "\t--unord_reads	\t\tDisable optimization to find stranding of reads.\n\n";
 
 	std::cout << "\t--human_opt     \t\tThe reference genome is treated as GRCH or HG version\n";
-	std::cout << "\t                \t\tof the human genome. Unlocalized contigs etc are pruned.\n";
+	std::cout << "\t                \t\tof the human genome. Unlocalized contigs etc are pruned.\n\n";
 
     std::cout << "\nEXAMPLES\n\n";
 
