@@ -25,6 +25,7 @@
 
 void queryRoutine(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
 void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag);
+void queryRoutineSC(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag, const char* scMetaFile);
 void queryRoutineSCPaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag, const char* scMetaFile);
 void printHelp();
 
@@ -263,31 +264,23 @@ int main(int argc, char** argv)
 
         RefGenome ref(indexFile);
 
-        if (readFile == NULL)
-        {
-
-            std::cerr << "No read file provided! Use \"-r\" option to specify read file path. Terminating...\n\n";
-            exit(1);
-
-        }
         if (pairedReadFlag)
         {
-
-            if (readFile == NULL || readFile2 == NULL)
-            {
-                std::cerr << "Entered paired end mode (\"-r1\" or \"-r2\" flag), but one of the read files is missing. Terminating...\n\n";
-                exit(1);
-            }
 
 			if (scFlag)
 			{
 
-				ReadQueue rQue(scOutputFile, ref, bothStrandsFlag);
+				ReadQueue rQue(scOutputFile, ref, readsGZ, bothStrandsFlag, true);
 				queryRoutineSCPaired(rQue, readsGZ, bothStrandsFlag, scMetaFile);
 				rQue.printMethylationLevels(outputFile);
 
 			} else {
 
+				if (readFile == NULL || readFile2 == NULL)
+				{
+					std::cerr << "Entered paired end mode (\"-r1\" or \"-r2\" flag), but one of the read files is missing. Terminating...\n\n";
+					exit(1);
+				}
 				ReadQueue rQue(readFile, readFile2, ref, readsGZ, bothStrandsFlag);
 				queryRoutinePaired(rQue, readsGZ, bothStrandsFlag);
 				rQue.printMethylationLevels(outputFile);
@@ -295,11 +288,26 @@ int main(int argc, char** argv)
 
         } else {
 
-            ReadQueue rQue(readFile, ref, readsGZ, bothStrandsFlag);
+			if (scFlag)
+			{
 
-            queryRoutine(rQue, readsGZ, bothStrandsFlag);
+				ReadQueue rQue(scOutputFile, ref, readsGZ, bothStrandsFlag, false);
+				queryRoutineSC(rQue, readsGZ, bothStrandsFlag, scMetaFile);
+				rQue.printMethylationLevels(outputFile);
 
-            rQue.printMethylationLevels(outputFile);
+			} else {
+
+				if (readFile == NULL)
+				{
+
+					std::cerr << "No read file provided! Use \"-r\" option to specify read file path. Terminating...\n\n";
+					exit(1);
+
+				}
+				ReadQueue rQue(readFile, ref, readsGZ, bothStrandsFlag);
+				queryRoutine(rQue, readsGZ, bothStrandsFlag);
+				rQue.printMethylationLevels(outputFile);
+			}
         }
 
     } else {
@@ -420,6 +428,32 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
 
 }
 
+void queryRoutineSC(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag, const char* scMetaFile)
+{
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+
+	std::ifstream scMeta (scMetaFile);
+	std::string line;
+	while (std::getline(scMeta, line))
+	{
+		size_t pos;
+		size_t oldPos = 0;
+
+		pos = line.find_first_of(' ');
+		std::string scId(line, oldPos, pos - oldPos);
+		oldPos = pos + 1;
+		pos = line.find_first_of(' ');
+		std::string scPath(line, oldPos, pos - oldPos);
+
+		rQue.matchSCBatch(scPath.c_str(), scId, isGZ);
+
+	}
+
+    std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
+
+    std::cout << "Done processing in " << runtime << "s\n";
+}
 void queryRoutineSCPaired(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag, const char* scMetaFile)
 {
     std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
@@ -442,11 +476,11 @@ void queryRoutineSCPaired(ReadQueue& rQue, const bool isGZ, const bool bothStran
 		if (pos != std::string::npos)
 		{
 			std::string scPath2(line, oldPos, pos - oldPos);
-			rQue.matchSCBatch(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
+			rQue.matchSCBatchPaired(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
 
 		} else {
 			std::string scPath2(line, oldPos, pos);
-			rQue.matchSCBatch(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
+			rQue.matchSCBatchPaired(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
 		}
 	}
 

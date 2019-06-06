@@ -55,15 +55,8 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, const bool isGZ
         revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
         fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
         revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
-        fwdMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
-        revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
-        countsFwdStart[i] = std::vector<uint16_t>();
-        countsRevStart[i] = std::vector<uint16_t>();
-
-		sliceOffThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceEndThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceSortedIdsThreads[i] = std::vector<unsigned int>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceIsDoneThreads[i] = std::vector<bool>(MyConst::READLEN - MyConst::KMERLEN + 1);
+        fwdMetaIDs[i].set_empty_key(ref.metaWindows.size() + 11);
+        revMetaIDs[i].set_empty_key(ref.metaWindows.size() + 11);
     }
     // fill array mapping - locale specific filling
     lmap['A'%16] = 0;
@@ -113,13 +106,6 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
         // paired_revMetaIDs[i].set_empty_key(ref.metaCpGs.size() + 11);
 		paired_fwdMetaIDs[i] = tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>();
 		paired_revMetaIDs[i] = tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>();
-        countsFwdStart[i] = std::vector<uint16_t>();
-        countsRevStart[i] = std::vector<uint16_t>();
-
-		sliceOffThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceEndThreads[i] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceSortedIdsThreads[i] = std::vector<unsigned int>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceIsDoneThreads[i] = std::vector<bool>(MyConst::READLEN - MyConst::KMERLEN + 1);
     }
     // fill array mapping - locale specific filling
     lmap['A'%16] = 0;
@@ -127,11 +113,11 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     lmap['G'%16] = 2;
     lmap['T'%16] = 3;
 }
-ReadQueue::ReadQueue(const char* scOutputPath, RefGenome& reference, const bool bsFlag) :
+ReadQueue::ReadQueue(const char* scOutputPath, RefGenome& reference, const bool isGZ, const bool bsFlag, const bool isP) :
         ref(reference)
     ,   readBuffer(MyConst::CHUNKSIZE)
     ,   readBuffer2(MyConst::CHUNKSIZE)
-	,	isPaired(true)
+	,	isPaired(isP)
 	,	isSC(true)
     ,   methLevels(ref.cpgTable.size())
     ,   methLevelsStart(ref.cpgStartTable.size())
@@ -323,8 +309,8 @@ bool ReadQueue::parseChunkGZ(unsigned int& procReads)
 
 void ReadQueue::decideStrand()
 {
-	std::cout << "\nFwd matches: " << r1FwdMatches << "\t" << (double)(r1FwdMatches + 1);
-	std::cout << "\nRev matches: " << r1RevMatches << "\t" << (double)(r1RevMatches + 1);
+	std::cout << "\nFwd matches: " << r1FwdMatches;
+	std::cout << "\nRev matches: " << r1RevMatches;
 	const double odds = (double)(r1FwdMatches + 1)/(double)(r1RevMatches + 1);
 	std::cout << "\nOdds of matching to fwd/rev strand: " << odds << "\n\n";
 	if (odds > 0.005 && odds < 200)
@@ -374,7 +360,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         Read& r = readBuffer[i];
 
         const size_t readSize = r.seq.size();
-
 
         if (readSize < MyConst::READLEN - 10)
         {
@@ -476,7 +461,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // }
         // startTime = std::chrono::high_resolution_clock::now();
 		int succQueryFwd = 0;
-		if (bothStrandsFlag || matchR1Fwd || getStranded)
+		if (bothStrandsFlag || getStranded || matchR1Fwd)
 		{
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -538,7 +523,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // startTime = std::chrono::high_resolution_clock::now();
         // std::cout << revSeq << "\n";
 		int succQueryRev = 0;
-		if (bothStrandsFlag || !matchR1Fwd || getStranded)
+		if (bothStrandsFlag || getStranded || !matchR1Fwd)
 		{
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq, lmap);
 			// endTime = std::chrono::high_resolution_clock::now();
@@ -636,8 +621,8 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 
                     } else {
 
-                        m1_pos = ref.cpgTable[ref.metaCpGs[metaFwd].start].pos + offFwd;
-                        m2_pos = ref.cpgTable[ref.metaCpGs[metaRev].start].pos + offRev;
+                        m1_pos = ref.metaWindows[metaFwd].startPos + offFwd;
+                        m2_pos = ref.metaWindows[metaRev].startPos + offRev;
                     }
                     // test if same match in same region
                     if ((m1_isStart == m2_isStart) && (m1_isFwd == m2_isFwd) && (m1_pos == m2_pos))
@@ -1607,7 +1592,80 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
 
 
 
-bool ReadQueue::matchSCBatch(const char* scFile1, const char* scFile2, const std::string scId, const bool isGZ)
+bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const bool isGZ)
+{
+    unsigned int readCounter = 0;
+    unsigned int i = 0;
+    // counter
+    uint64_t succPairedMatch = 0;
+    uint64_t succMatch = 0;
+    uint64_t nonUniqueMatch = 0;
+    uint64_t unSuccMatch = 0;
+	uint64_t tooShortCount = 0;
+
+    if (isGZ)
+    {
+
+        igz.open(scFile);
+
+    } else {
+
+        file.open(scFile);
+    }
+	r1FwdMatches = 0;
+	r1RevMatches = 0;
+
+
+    // fill counting structure for parallelization
+    for (unsigned int j = 0; j < CORENUM; ++j)
+    {
+
+        fwdMetaIDs[j] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        revMetaIDs[j] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        fwdMetaIDs[j].set_deleted_key(ref.metaWindows.size() + 10);
+        revMetaIDs[j].set_deleted_key(ref.metaWindows.size() + 10);
+        fwdMetaIDs[j].set_empty_key(ref.metaWindows.size() + 11);
+        revMetaIDs[j].set_empty_key(ref.metaWindows.size() + 11);
+
+    }
+	if (!bothStrandsFlag)
+	{
+		++i;
+		isGZ ? parseChunkGZ(readCounter) : parseChunk(readCounter);
+		matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, true);
+		decideStrand();
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
+	}
+
+    while(isGZ ? parseChunkGZ(readCounter) : parseChunk(readCounter))
+    {
+        ++i;
+		// if (i>2)
+		// 	break;
+        matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
+        std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
+    }
+    // match remaining reads
+    matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
+	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " paired reads\n";
+
+	std::cout << "Finished " << std::string(scFile) << "\n\n";
+	std::cout << "\nOverall number of reads for cell " << scId << ": (2*)" << MyConst::CHUNKSIZE * i + readCounter;
+    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
+
+    if (isGZ)
+    {
+
+        igz.close();
+
+    } else {
+
+        file.close();
+    }
+	printSCMethylationLevels(scId);
+	return true;
+}
+bool ReadQueue::matchSCBatchPaired(const char* scFile1, const char* scFile2, const std::string scId, const bool isGZ)
 {
     unsigned int readCounter = 0;
     unsigned int i = 0;
@@ -1636,13 +1694,6 @@ bool ReadQueue::matchSCBatch(const char* scFile1, const char* scFile2, const std
 
 		paired_fwdMetaIDs[j] = tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>();
 		paired_revMetaIDs[j] = tsl::hopscotch_map<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool>, MetaHash>();
-        countsFwdStart[j] = std::vector<uint16_t>();
-        countsRevStart[j] = std::vector<uint16_t>();
-
-		sliceOffThreads[j] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceEndThreads[j] = std::vector<uint64_t>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceSortedIdsThreads[j] = std::vector<unsigned int>(MyConst::READLEN - MyConst::KMERLEN + 1);
-		sliceIsDoneThreads[j] = std::vector<bool>(MyConst::READLEN - MyConst::KMERLEN + 1);
     }
 	if (!bothStrandsFlag)
 	{
@@ -1665,6 +1716,7 @@ bool ReadQueue::matchSCBatch(const char* scFile1, const char* scFile2, const std
     matchPairedReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, succPairedMatch, tooShortCount, false);
 	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " paired reads\n";
 
+	std::cout << "Finished " << std::string(scFile1) << " + " << std::string(scFile2) << "\n\n";
 	std::cout << "\nOverall number of reads for cell " << scId << ": (2*)" << MyConst::CHUNKSIZE * i + readCounter;
     std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
 
@@ -1771,8 +1823,6 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 {
 
 	// use counters to flag what has been processed so far
-	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
-	std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
 	auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
 	auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 
@@ -1794,17 +1844,13 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 		if (m.second < qThreshold)
 			continue;
 
-		const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
-		const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
-		auto startIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos;
-		auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
+		auto startIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos;
+		auto endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
 
-		// std::cout << std::string(startIt + 220, endIt) << "\n";
 		// check if CpG was too near to the end
-		if (endIt > ref.fullSeq[startCpg.chrom].end())
+		if (endIt > ref.fullSeq[ref.metaWindows[m.first].chrom].end())
 		{
-			// if so move end iterator appropriately
-			endIt = ref.fullSeq[startCpg.chrom].end();
+			endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].end();
 		}
 
 		// use shift and to find all matchings
@@ -1817,7 +1863,7 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 		if (matchings.size() > 0)
 		{
 			// compare chromosome and offset
-			if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+			if (matchings[0] + ref.metaWindows[m.first].startPos == prevOff && ref.metaWindows[m.first].chrom == prevChr)
 			{
 				++i;
 			}
@@ -1835,7 +1881,7 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 				const bool isStart = MATCH::isStart(match_2);
 				const bool isFwd = MATCH::isFwd(match_2);
 				// check if same k-mer (borders of meta CpGs)
-				if (isFwd && !isStart && ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(match_2)].start].pos + MATCH::getOffset(match_2) == startCpg.pos + matchings[i])
+				if (isFwd && !isStart && ref.metaWindows[MATCH::getMetaID(match_2)].startPos + MATCH::getOffset(match_2) == ref.metaWindows[m.first].startPos + matchings[i])
 				{
 					continue;
 
@@ -1858,10 +1904,10 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 			} else {
 
 				// update qgram lemma
-				uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
+				// uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
 				// check for overflow and if we improved old q
-				if (newQ < sa.size() && newQ > qThreshold)
-					qThreshold = newQ;
+				// if (newQ < sa.size() && newQ > qThreshold)
+				// 	qThreshold = newQ;
 
 
 				// we don't have such a match yet,
@@ -1873,8 +1919,8 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 		if (matchings.size() > 0)
 		{
 
-			prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
-			prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+			prevChr = ref.metaWindows[m.first].chrom;
+			prevOff = ref.metaWindows[m.first].startPos + matchings[matchings.size() - 1];
 
 		} else {
 
@@ -1893,16 +1939,18 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 			continue;
 
 		// retrieve sequence
-		const struct CpG& startCpg = ref.cpgTable[ref.metaCpGs[m.first].start];
-		const struct CpG& endCpg = ref.cpgTable[ref.metaCpGs[m.first].end];
-		auto endIt = ref.fullSeq[startCpg.chrom].begin() + startCpg.pos - 1;
-		auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
+		// retrieve sequence
+		auto endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin();
 
-		// check if CpG was too near to the end
-		if (startIt >= ref.fullSeq[startCpg.chrom].end())
+		if (ref.metaWindows[m.first].startPos > 0)
 		{
-			// if so move end iterator appropriately
-			startIt = ref.fullSeq[startCpg.chrom].end() - 1;
+			endIt += ref.metaWindows[m.first].startPos - 1;
+		}
+
+		auto startIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin() + ref.metaWindows[m.first].startPos + MyConst::WINLEN + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
+		if (startIt >= ref.fullSeq[ref.metaWindows[m.first].chrom].end())
+		{
+			startIt = ref.fullSeq[ref.metaWindows[m.first].chrom].end() - 1;
 		}
 
 		// use shift and to find all matchings
@@ -1915,7 +1963,7 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 		if (matchings.size() > 0)
 		{
 			// compare chromosome and offset
-			if (matchings[0] + ref.cpgTable[ref.metaCpGs[m.first].start].pos == prevOff && ref.cpgTable[ref.metaCpGs[m.first].start].chrom == prevChr)
+			if (matchings[0] + ref.metaWindows[m.first].startPos == prevOff && ref.metaWindows[m.first].chrom == prevChr)
 			{
 				++i;
 			}
@@ -1933,7 +1981,7 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 				const bool isStart = MATCH::isStart(match_2);
 				const bool isFwd = MATCH::isFwd(match_2);
 				// check if same k-mer (borders of meta CpGs)
-				if (!isFwd && !isStart && ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(match_2)].start].pos + MATCH::getOffset(match_2) == startCpg.pos + matchings[i])
+				if (!isFwd && !isStart && ref.metaWindows[MATCH::getMetaID(match_2)].startPos + MATCH::getOffset(match_2) == ref.metaWindows[m.first].startPos + matchings[i])
 				{
 					continue;
 
@@ -1956,10 +2004,10 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 			} else {
 
 				// update qgram lemma
-				uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
+				// uint16_t newQ = sa.size() - MyConst::KMERLEN - (MyConst::KMERLEN * errors[i]);
 				// check for overflow and if we improved old q
-				if (newQ < sa.size() && newQ > qThreshold)
-					qThreshold = newQ;
+				// if (newQ < sa.size() && newQ > qThreshold)
+				// 	qThreshold = newQ;
 
 				// we don't have such a match yet,
 				// so save this match at the correct position
@@ -1970,8 +2018,8 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 		if (matchings.size() > 0)
 		{
 
-			prevChr = ref.cpgTable[ref.metaCpGs[m.first].start].chrom;
-			prevOff = ref.cpgTable[ref.metaCpGs[m.first].start].pos + matchings[matchings.size() - 1];
+			prevChr = ref.metaWindows[m.first].chrom;
+			prevOff = ref.metaWindows[m.first].startPos + matchings[matchings.size() - 1];
 
 		} else {
 
@@ -1979,146 +2027,6 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 			prevOff = 0xffffffffffffffffULL;
 		}
 	}
-	// check all fwd meta CpGs that are at start
-	for (size_t i = 0; i < threadCountFwdStart.size(); ++i)
-	{
-
-		// check if we fulfill the qgram lemma
-		// if not - continue with next meta CpG
-		if (threadCountFwdStart[i] < qThreshold)
-		{
-			continue;
-		}
-		// retrieve sequence
-		const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
-		const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
-		auto startIt = ref.fullSeq[startCpg.chrom].begin();
-		auto endIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS;
-
-		// check if CpG was too near to the end
-		if (endIt > ref.fullSeq[startCpg.chrom].end())
-		{
-			// if so move end iterator appropriately
-			endIt = ref.fullSeq[startCpg.chrom].end();
-		}
-
-		// use shift and to find all matchings
-		std::vector<uint64_t> matchings;
-		std::vector<uint8_t> errors;
-		sa.querySeq(startIt, endIt, matchings, errors);
-
-		// go through matching and see if we had such a match (with that many errors) before - if so,
-		// return to caller reporting no match
-		for (size_t j = 0; j < matchings.size(); ++j)
-		{
-
-			// check if we had a match with that many errors before
-			if (multiMatch[errors[j]])
-			{
-
-				MATCH::match& match_2 = uniqueMatches[errors[j]];
-				const bool isStart = MATCH::isStart(match_2);
-				// check if same k-mer (borders of meta CpGs)
-				if (isStart && MATCH::getOffset(match_2) == matchings[i])
-				{
-					continue;
-
-				} else {
-
-					// check if this is a match without errors
-					if (!errors[j])
-					{
-
-						// if so, return without a match
-						return -1;
-
-					}
-					// set the number of matches with that many errors to 2
-					// indicating that we do not have a unique match with that many errors
-					multiMatch[errors[j]] = 2;
-				}
-
-
-			} else {
-
-				// we don't have such a match yet,
-				// so save this match at the correct position
-				uniqueMatches[errors[j]] = MATCH::constructMatch(matchings[j], errors[j], 1, 1, i);
-				multiMatch[errors[j]] = 1;
-			}
-		}
-	}
-	// go through reverse sequences of start meta CpGs
-	for (size_t i = 0; i < threadCountRevStart.size(); ++i)
-	{
-
-		// check if we fulfill the qgram lemma
-		// if not - continue with next meta CpG
-		if (threadCountRevStart[i] < qThreshold)
-		{
-			continue;
-		}
-		// retrieve sequence
-		const struct CpG& startCpg = ref.cpgStartTable[ref.metaStartCpGs[i].start];
-		const struct CpG& endCpg = ref.cpgStartTable[ref.metaStartCpGs[i].end];
-		auto endIt = ref.fullSeq[startCpg.chrom].begin() - 1;
-		auto startIt = ref.fullSeq[startCpg.chrom].begin() + endCpg.pos + (2*MyConst::READLEN - 2) + MyConst::MISCOUNT + MyConst::ADDMIS - 1;
-
-		// check if CpG was too near to the end
-		if (startIt >= ref.fullSeq[startCpg.chrom].end())
-		{
-			// if so move end iterator appropriately
-			startIt = ref.fullSeq[startCpg.chrom].end() - 1;
-		}
-
-		// use shift and to find all matchings
-		std::vector<uint64_t> matchings;
-		std::vector<uint8_t> errors;
-		sa.queryRevSeq(startIt, endIt, matchings, errors);
-
-		// go through matching and see if we had such a match (with that many errors) before - if so,
-		// return to caller reporting no match
-		for (size_t j = 0; j < matchings.size(); ++j)
-		{
-
-			// check if we had a match with that many errors before
-			if (multiMatch[errors[j]])
-			{
-
-				MATCH::match& match_2 = uniqueMatches[errors[j]];
-				const bool isStart = MATCH::isStart(match_2);
-				// check if same k-mer (borders of meta CpGs)
-				if (isStart && MATCH::getOffset(match_2) == matchings[i])
-				{
-					continue;
-
-				} else {
-
-					// check if this is a match without errors
-					if (!errors[j])
-					{
-
-						// if so, return without a match
-						return -1;
-
-					}
-					// set the number of matches with that many errors to 2
-					// indicating that we do not have a unique match with that many errors
-					multiMatch[errors[j]] = 2;
-				}
-
-
-			} else {
-
-				// we don't have such a match yet,
-				// so save this match at the correct position
-				uniqueMatches[errors[j]] = MATCH::constructMatch(matchings[j], errors[j], 0, 1, i);
-				multiMatch[errors[j]] = 1;
-			}
-		}
-	}
-
-
 
 	// go through found matches for each [0,maxErrorNumber] and see if it is unique
 	for (size_t i = 0; i < multiMatch.size(); ++i)
@@ -2155,12 +2063,9 @@ inline void ReadQueue::saQuerySeedSetRefFirst(ShiftAnd<MyConst::MISCOUNT + MyCon
 {
 
 	// use counters to flag what has been processed so far
-	// std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
-	// std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
 	auto& fwdMetaIDs_t = paired_fwdMetaIDs[omp_get_thread_num()];
 	auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
 
-	constexpr int contextWLen = (int)(((double)MyConst::MAXPDIST / MyConst::WINLEN)) + 1;
 	// store the last match found in current MetaCpG
 	uint8_t prevChr = 0;
 	uint64_t prevOff = 0xffffffffffffffffULL;
@@ -2319,11 +2224,6 @@ inline void ReadQueue::saQuerySeedSetRefSecond(ShiftAnd<MyConst::MISCOUNT + MyCo
 inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
-	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
-	std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
-	threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
-	threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
-
 	auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
 	auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
 	fwdMetaIDs_t.clear();
@@ -2337,7 +2237,6 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 	uint64_t lastId = 0xffffffffffffffffULL;
 	bool wasFwd = false;
-	bool wasStart = false;
 
 	// maximum position until we can insert completely new meta cpgs
 	uint32_t maxQPos = seq.size() - MyConst::KMERLEN + 1 - qThreshold;
@@ -2348,9 +2247,8 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 		const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
 		const bool isFwd = ref.strandTable[i];
-		const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
 		// check if we visited meta CpG before
-		if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+		if (metaId == lastId && isFwd == wasFwd)
 		{
 			continue;
 		}
@@ -2358,30 +2256,15 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 		// update vars for last checked metaCpG
 		lastId = metaId;
 		wasFwd = isFwd;
-		wasStart = isStart;
-		if (isStart)
+
+		if (isFwd)
 		{
-			if (isFwd)
-			{
-				++threadCountFwdStart[metaId];
-
-			} else {
-
-				++threadCountRevStart[metaId];
-
-			}
+			++fwdMetaIDs_t[metaId];
 
 		} else {
 
-			if (isFwd)
-			{
-				++fwdMetaIDs_t[metaId];
+			++revMetaIDs_t[metaId];
 
-			} else {
-
-				++revMetaIDs_t[metaId];
-
-			}
 		}
 	}
 
@@ -2395,7 +2278,6 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 		lastId = 0xffffffffffffffffULL;
 		wasFwd = false;
-		wasStart = false;
 
 		endIdx = ref.tabIndex[key+1];
 		for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
@@ -2403,9 +2285,8 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 			const uint32_t metaId = KMER_S::getMetaCpG(ref.kmerTableSmall[i]);
 			const bool isFwd = ref.strandTable[i];
-			const bool isStart = KMER_S::isStartCpG(ref.kmerTableSmall[i]);
 			// check if we visited meta CpG before
-			if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+			if (metaId == lastId && isFwd == wasFwd)
 			{
 				continue;
 			}
@@ -2413,54 +2294,38 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 			// update vars for last checked metaCpG
 			lastId = metaId;
 			wasFwd = isFwd;
-			wasStart = isStart;
-			if (isStart)
-			{
 
-				if (isFwd)
+			if (isFwd)
+			{
+				// check if it is at all possible to have newly inserted element passing q
+				if (cIdx < maxQPos)
 				{
-					++threadCountFwdStart[metaId];
+					++fwdMetaIDs_t[metaId];
 
 				} else {
 
-					++threadCountRevStart[metaId];
-
+					auto it = fwdMetaIDs_t.find(metaId);
+					if (it != fwdMetaIDs_t.end())
+					{
+						++it->second;
+					}
 				}
 
 			} else {
 
-				if (isFwd)
+				if (cIdx < maxQPos)
 				{
-					// check if it is at all possible to have newly inserted element passing q
-					if (cIdx < maxQPos)
-					{
-						++fwdMetaIDs_t[metaId];
-
-					} else {
-
-						auto it = fwdMetaIDs_t.find(metaId);
-						if (it != fwdMetaIDs_t.end())
-						{
-							++it->second;
-						}
-					}
+					++revMetaIDs_t[metaId];
 
 				} else {
 
-					if (cIdx < maxQPos)
+					auto it = revMetaIDs_t.find(metaId);
+					if (it != revMetaIDs_t.end())
 					{
-						++revMetaIDs_t[metaId];
-
-					} else {
-
-						auto it = revMetaIDs_t.find(metaId);
-						if (it != revMetaIDs_t.end())
-						{
-							++it->second;
-						}
+						++it->second;
 					}
-
 				}
+
 			}
 		}
 	}
@@ -2807,12 +2672,6 @@ inline uint16_t ReadQueue::getSeedRefsFirstRead(const std::string& seq, const si
 inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_t& readSize, const uint16_t qThreshold)
 {
 
-	std::vector<uint16_t>& threadCountFwdStart = countsFwdStart[omp_get_thread_num()];
-	std::vector<uint16_t>& threadCountRevStart = countsRevStart[omp_get_thread_num()];
-	// fill with zeroes
-	threadCountFwdStart.assign(ref.metaStartCpGs.size(), 0);
-	threadCountRevStart.assign(ref.metaStartCpGs.size(), 0);
-
 	auto& fwdMetaIDs_t = paired_fwdMetaIDs[omp_get_thread_num()];
 	auto& revMetaIDs_t = paired_revMetaIDs[omp_get_thread_num()];
 
@@ -2824,7 +2683,6 @@ inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 
 	uint64_t lastId = 0xffffffffffffffffULL;
 	bool wasFwd = false;
-	bool wasStart = false;
 
 	// compute bitmask for all positions where C occurrs
 	uint32_t cMask = 0;
@@ -2880,9 +2738,8 @@ inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 			continue;
 		}
 		const bool isFwd = ref.strandTable[i];
-		const bool isStart = KMER_S::isStartCpG(currentKmer);
 		// check if we visited meta CpG before
-		if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+		if (metaId == lastId && isFwd == wasFwd)
 		{
 			continue;
 		}
@@ -2890,84 +2747,69 @@ inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 		// update vars for last checked metaCpG
 		lastId = metaId;
 		wasFwd = isFwd;
-		wasStart = isStart;
-		// if (isStart)
-		// {
-		// 	if (isFwd)
-		// 	{
-		// 		++threadCountFwdStart[metaId];
-        //
-		// 	} else {
-        //
-		// 		++threadCountRevStart[metaId];
-        //
-		// 	}
-        //
-		// } else {
 
-			// test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
-			auto foundMeta = fwdMetaIDs_t.end();
-			// update counts for second read
-			if (isFwd)
+		// test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
+		auto foundMeta = fwdMetaIDs_t.end();
+		// update counts for second read
+		if (isFwd)
+		{
+			for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
 			{
-				for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
+				if ((foundMeta = fwdMetaIDs_t.find(metaId + cOff)) != fwdMetaIDs_t.end())
 				{
-					if ((foundMeta = fwdMetaIDs_t.find(metaId + cOff)) != fwdMetaIDs_t.end())
-					{
-						// if (std::get<0>(foundMeta->second) >= qThreshold)
+					// if (std::get<0>(foundMeta->second) >= qThreshold)
+					// {
+						++std::get<1>(fwdMetaIDs_t[metaId]);
+						break;
+						// propagate information to adjacent meta CpGs if enough kmers are matched
+						// if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
 						// {
-							++std::get<1>(fwdMetaIDs_t[metaId]);
-							break;
-							// propagate information to adjacent meta CpGs if enough kmers are matched
-							// if (std::get<1>(fwdMetaIDs_t[metaId]) == qThreshold)
-							// {
-							// 	// ++candCount;
-							// 	std::get<2>(fwdMetaIDs_t[metaId]) = true;
-							// 	for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
-							// 	{
-							// 		auto it = fwdMetaIDs_t.find(metaId + cOffUp);
-							// 		if (it != fwdMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 		it = fwdMetaIDs_t.find(metaId - cOffUp);
-							// 		if (it != fwdMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 	}
-							// }
-							// break;
+						// 	// ++candCount;
+						// 	std::get<2>(fwdMetaIDs_t[metaId]) = true;
+						// 	for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
+						// 	{
+						// 		auto it = fwdMetaIDs_t.find(metaId + cOffUp);
+						// 		if (it != fwdMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 		it = fwdMetaIDs_t.find(metaId - cOffUp);
+						// 		if (it != fwdMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 	}
 						// }
-					}
-				}
-			} else {
-
-				for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
-				{
-					if ((foundMeta = revMetaIDs_t.find(metaId + cOff)) != revMetaIDs_t.end())
-					{
-						// if (std::get<0>(foundMeta->second) >= qThreshold)
-						// {
-							++std::get<1>(revMetaIDs_t[metaId]);
-							break;
-							// propagate information to adjacent meta CpGs if enough kmers are matched
-							// if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
-							// {
-							// 	// ++candCount;
-							// 	std::get<2>(revMetaIDs_t[metaId]) = true;
-							// 	for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
-							// 	{
-							// 		auto it = revMetaIDs_t.find(metaId + cOffUp);
-							// 		if (it != revMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 		it = revMetaIDs_t.find(metaId - cOffUp);
-							// 		if (it != revMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 	}
-							// }
-							// break;
-						// }
-					}
+						// break;
+					// }
 				}
 			}
-		// }
+		} else {
+
+			for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
+			{
+				if ((foundMeta = revMetaIDs_t.find(metaId + cOff)) != revMetaIDs_t.end())
+				{
+					// if (std::get<0>(foundMeta->second) >= qThreshold)
+					// {
+						++std::get<1>(revMetaIDs_t[metaId]);
+						break;
+						// propagate information to adjacent meta CpGs if enough kmers are matched
+						// if (std::get<1>(revMetaIDs_t[metaId]) == qThreshold)
+						// {
+						// 	// ++candCount;
+						// 	std::get<2>(revMetaIDs_t[metaId]) = true;
+						// 	for (int cOffUp = 1; cOffUp <= contextWLen; ++cOffUp)
+						// 	{
+						// 		auto it = revMetaIDs_t.find(metaId + cOffUp);
+						// 		if (it != revMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 		it = revMetaIDs_t.find(metaId - cOffUp);
+						// 		if (it != revMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 	}
+						// }
+						// break;
+					// }
+				}
+			}
+		}
 	}
 
 	for (unsigned int cIdx = 0; cIdx < (seq.size() - MyConst::KMERLEN); ++cIdx)
@@ -3012,7 +2854,6 @@ inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 		}
 		lastId = 0xffffffffffffffffULL;
 		wasFwd = false;
-		wasStart = false;
 
 		endIdx = ref.tabIndex[key+1];
 		for (uint64_t i = ref.tabIndex[key]; i < endIdx; ++i)
@@ -3025,9 +2866,8 @@ inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 				continue;
 			}
 			const bool isFwd = ref.strandTable[i];
-			const bool isStart = KMER_S::isStartCpG(currentKmer);
 			// check if we visited meta CpG before
-			if (metaId == lastId && isFwd == wasFwd && isStart == wasStart)
+			if (metaId == lastId && isFwd == wasFwd)
 			{
 				continue;
 			}
@@ -3035,102 +2875,86 @@ inline bool ReadQueue::getSeedRefsSecondRead(const std::string& seq, const size_
 			// update vars for last checked metaCpG
 			lastId = metaId;
 			wasFwd = isFwd;
-			wasStart = isStart;
-			if (isStart)
-			{
 
+			// check if it is at all possible to have newly inserted element passing q
+			if (cIdx < maxQPos)
+			{
+				// test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
+				auto foundMeta = fwdMetaIDs_t.end();
+				// update counts for second read
 				if (isFwd)
 				{
-					++threadCountFwdStart[metaId];
-
+					for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
+					{
+						if ((foundMeta = fwdMetaIDs_t.find(metaId + cOff)) != fwdMetaIDs_t.end())
+						{
+							// if (std::get<0>(foundMeta->second) >= qThreshold)
+							// {
+								++std::get<1>(fwdMetaIDs_t[metaId]);
+								break;
+							// }
+						}
+					}
 				} else {
 
-					++threadCountRevStart[metaId];
-
+					for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
+					{
+						if ((foundMeta = revMetaIDs_t.find(metaId + cOff)) != revMetaIDs_t.end())
+						{
+							// if (std::get<0>(foundMeta->second) >= qThreshold)
+							// {
+								++std::get<1>(revMetaIDs_t[metaId]);
+								break;
+							// }
+						}
+					}
 				}
 
 			} else {
 
-				// check if it is at all possible to have newly inserted element passing q
-				if (cIdx < maxQPos)
+				if (isFwd)
 				{
-					// test if the current or its adjacent Meta CpGs fulfill qgram lemma for the first read
-					auto foundMeta = fwdMetaIDs_t.end();
-					// update counts for second read
-					if (isFwd)
+					auto it = fwdMetaIDs_t.find(metaId);
+					if (it != fwdMetaIDs_t.end())
 					{
-						for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
-						{
-							if ((foundMeta = fwdMetaIDs_t.find(metaId + cOff)) != fwdMetaIDs_t.end())
-							{
-								// if (std::get<0>(foundMeta->second) >= qThreshold)
-								// {
-									++std::get<1>(fwdMetaIDs_t[metaId]);
-									break;
-								// }
-							}
-						}
-					} else {
-
-						for (int cOff = -contextWLen; cOff <= contextWLen; ++cOff)
-						{
-							if ((foundMeta = revMetaIDs_t.find(metaId + cOff)) != revMetaIDs_t.end())
-							{
-								// if (std::get<0>(foundMeta->second) >= qThreshold)
-								// {
-									++std::get<1>(revMetaIDs_t[metaId]);
-									break;
-								// }
-							}
-						}
+						++std::get<1>(it.value());
+						// propagate information to adjacent meta CpGs if enough kmers are matched
+						// if (std::get<1>(it->second) == qThreshold)
+						// {
+						// 	// ++candCount;
+						// 	std::get<2>(it.value()) = true;
+						// 	for (int cOff = 1; cOff <= contextWLen; ++cOff)
+						// 	{
+						// 		it = fwdMetaIDs_t.find(metaId + cOff);
+						// 		if (it != fwdMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 		it = fwdMetaIDs_t.find(metaId - cOff);
+						// 		if (it != fwdMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 	}
+						// }
 					}
-
 				} else {
 
-					if (isFwd)
+					auto it = revMetaIDs_t.find(metaId);
+					if (it != revMetaIDs_t.end())
 					{
-						auto it = fwdMetaIDs_t.find(metaId);
-						if (it != fwdMetaIDs_t.end())
-						{
-							++std::get<1>(it.value());
-							// propagate information to adjacent meta CpGs if enough kmers are matched
-							// if (std::get<1>(it->second) == qThreshold)
-							// {
-							// 	// ++candCount;
-							// 	std::get<2>(it.value()) = true;
-							// 	for (int cOff = 1; cOff <= contextWLen; ++cOff)
-							// 	{
-							// 		it = fwdMetaIDs_t.find(metaId + cOff);
-							// 		if (it != fwdMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 		it = fwdMetaIDs_t.find(metaId - cOff);
-							// 		if (it != fwdMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 	}
-							// }
-						}
-					} else {
-
-						auto it = revMetaIDs_t.find(metaId);
-						if (it != revMetaIDs_t.end())
-						{
-							++std::get<1>(it.value());
-							// propagate information to adjacent meta CpGs if enough kmers are matched
-							// if (std::get<1>(it->second) == qThreshold)
-							// {
-							// 	// ++candCount;
-							// 	std::get<2>(it.value()) = true;
-							// 	for (int cOff = 1; cOff <= contextWLen; ++cOff)
-							// 	{
-							// 		it = revMetaIDs_t.find(metaId + cOff);
-							// 		if (it != revMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 		it = revMetaIDs_t.find(metaId - cOff);
-							// 		if (it != revMetaIDs_t.end())
-							// 			std::get<2>(it.value()) = true;
-							// 	}
-							// }
-						}
+						++std::get<1>(it.value());
+						// propagate information to adjacent meta CpGs if enough kmers are matched
+						// if (std::get<1>(it->second) == qThreshold)
+						// {
+						// 	// ++candCount;
+						// 	std::get<2>(it.value()) = true;
+						// 	for (int cOff = 1; cOff <= contextWLen; ++cOff)
+						// 	{
+						// 		it = revMetaIDs_t.find(metaId + cOff);
+						// 		if (it != revMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 		it = revMetaIDs_t.find(metaId - cOff);
+						// 		if (it != revMetaIDs_t.end())
+						// 			std::get<2>(it.value()) = true;
+						// 	}
+						// }
 					}
 				}
 			}
@@ -3231,8 +3055,8 @@ inline bool ReadQueue::extractSingleMatch(std::vector<MATCH::match>& fwdMatches,
 		if (MATCH::getErrNum(mat) == MATCH::getErrNum(bestMat))
 		{
 			// Check if same match
-			uint32_t matPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos + MATCH::getOffset(mat);
-			uint32_t bestMatPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(bestMat)].start].pos + MATCH::getOffset(bestMat);
+			uint32_t matPos = ref.metaWindows[MATCH::getMetaID(mat)].startPos + MATCH::getOffset(mat);
+			uint32_t bestMatPos = ref.metaWindows[MATCH::getMetaID(bestMat)].startPos + MATCH::getOffset(bestMat);
 
 			// Dealing with large offsets, we need unsigned. Hence check both directions.
 			// check within offset of one for security reasons (insertions deletions etc)
@@ -3254,8 +3078,8 @@ inline bool ReadQueue::extractSingleMatch(std::vector<MATCH::match>& fwdMatches,
 		if (MATCH::getErrNum(mat) == MATCH::getErrNum(bestMat))
 		{
 			// Check if same match
-			uint32_t matPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(mat)].start].pos + MATCH::getOffset(mat);
-			uint32_t bestMatPos = ref.cpgTable[ref.metaCpGs[MATCH::getMetaID(bestMat)].start].pos + MATCH::getOffset(bestMat);
+			uint32_t matPos = ref.metaWindows[MATCH::getMetaID(mat)].startPos + MATCH::getOffset(mat);
+			uint32_t bestMatPos = ref.metaWindows[MATCH::getMetaID(bestMat)].startPos + MATCH::getOffset(bestMat);
 
 			// Dealing with large offsets, we need unsigned. Hence check both directions.
 			// check within offset of one for security reasons (insertions deletions etc)
@@ -3332,7 +3156,6 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 
 	// retrieve matched metaId
 	bool isFwd = MATCH::isFwd(mat);
-	bool isStart = MATCH::isStart(mat);
 	uint32_t metaID = MATCH::getMetaID(mat);
 	uint16_t offset = MATCH::getOffset(mat);
 	uint8_t errNum = MATCH::getErrNum(mat);
