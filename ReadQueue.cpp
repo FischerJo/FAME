@@ -434,7 +434,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         // TODO
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchFwd = 0;
-        getSeedRefs(r.seq, readSize, qThreshold);
         // endTime = std::chrono::high_resolution_clock::now();
         // runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
         // of << runtime << "\n";
@@ -463,6 +462,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 		int succQueryFwd = 0;
 		if (bothStrandsFlag || getStranded || matchR1Fwd)
 		{
+			getSeedRefs(r.seq, readSize, qThreshold);
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saFwd(r.seq, lmap);
 			// endTime = std::chrono::high_resolution_clock::now();
 			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
@@ -481,7 +481,6 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
         //
         // startTime = std::chrono::high_resolution_clock::now();
         MATCH::match matchRev = 0;
-        getSeedRefs(revSeq, readSize, qThreshold);
         // if (!succFlag)
         // {
         //     ++readCount;
@@ -525,6 +524,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 		int succQueryRev = 0;
 		if (bothStrandsFlag || getStranded || !matchR1Fwd)
 		{
+			getSeedRefs(revSeq, readSize, qThreshold);
 			ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS> saRev(revSeq, lmap);
 			// endTime = std::chrono::high_resolution_clock::now();
 			// runtime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
