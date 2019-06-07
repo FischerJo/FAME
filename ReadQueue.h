@@ -29,7 +29,7 @@
 #include <omp.h>
 #endif
 
-#include <sparsehash/dense_hash_map>
+// #include <sparsehash/dense_hash_map>
 #include <hopscotch_map.h>
 
 #include "gzstream/gzstream.h"
@@ -273,8 +273,8 @@ class ReadQueue
         // 'T' -> 3
         std::array<uint8_t, 16> lmap;
 
-        std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
-        std::array<google::dense_hash_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
+        std::array<tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>, CORENUM> fwdMetaIDs;
+        std::array<tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>, CORENUM> revMetaIDs;
         // Holds counts for each thread for counting heuristic
         // KEY: Meta CpG ID
         // VALUE:

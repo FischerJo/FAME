@@ -238,6 +238,11 @@ int main(int argc, char** argv)
 			}
 			continue;
 		}
+		if (std::string(argv[i]) == "--paired")
+		{
+			pairedReadFlag = true;
+			continue;
+		}
 
 
         // no such option
@@ -442,7 +447,7 @@ void queryRoutineSC(ReadQueue& rQue, const bool isGZ, const bool bothStrandsFlag
 		pos = line.find_first_of(' ');
 		std::string scId(line, oldPos, pos - oldPos);
 		oldPos = pos + 1;
-		pos = line.find_first_of(' ');
+		pos = line.find_first_of(' ', oldPos);
 		std::string scPath(line, oldPos, pos - oldPos);
 
 		rQue.matchSCBatch(scPath.c_str(), scId, isGZ);
@@ -467,21 +472,17 @@ void queryRoutineSCPaired(ReadQueue& rQue, const bool isGZ, const bool bothStran
 
 		pos = line.find_first_of(' ');
 		std::string scId(line, oldPos, pos - oldPos);
+		std::cout << "Processing:\n\t" << scId << "\t";
 		oldPos = pos + 1;
-		pos = line.find_first_of(' ');
+		pos = line.find_first_of(' ', oldPos);
 		std::string scPath1(line, oldPos, pos - oldPos);
+		std::cout << scPath1 << "\t";
 		oldPos = pos + 1;
-		pos = line.find_first_of(' ');
+		pos = line.find_first_of(' ', oldPos);
+		std::string scPath2(line, oldPos, pos - oldPos);
+		std::cout << scPath2 << "\n\n";
 
-		if (pos != std::string::npos)
-		{
-			std::string scPath2(line, oldPos, pos - oldPos);
-			rQue.matchSCBatchPaired(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
-
-		} else {
-			std::string scPath2(line, oldPos, pos);
-			rQue.matchSCBatchPaired(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
-		}
+		rQue.matchSCBatchPaired(scPath1.c_str(), scPath2.c_str(), scId, isGZ);
 	}
 
     std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();

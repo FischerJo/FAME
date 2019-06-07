@@ -36,7 +36,6 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, const bool isGZ
     //TODO
     ,   of("errOut.txt")
 {
-    isPaired = false;
     if (isGZ)
     {
 
@@ -51,12 +50,14 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, const bool isGZ
     for (unsigned int i = 0; i < CORENUM; ++i)
     {
 
-        fwdMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
-        revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
-        fwdMetaIDs[i].set_empty_key(ref.metaWindows.size() + 11);
-        revMetaIDs[i].set_empty_key(ref.metaWindows.size() + 11);
+        // fwdMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        // revMetaIDs[i] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        // fwdMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
+        // revMetaIDs[i].set_deleted_key(ref.metaCpGs.size() + 10);
+        // fwdMetaIDs[i].set_empty_key(ref.metaWindows.size() + 11);
+        // revMetaIDs[i].set_empty_key(ref.metaWindows.size() + 11);
+		fwdMetaIDs[i] = tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>();
+		revMetaIDs[i] = tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>();
     }
     // fill array mapping - locale specific filling
     lmap['A'%16] = 0;
@@ -81,7 +82,6 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     ,   of("errOut.txt")
 {
 
-    isPaired = true;
     if (isGZ)
     {
 
@@ -1597,16 +1597,19 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
     unsigned int readCounter = 0;
     unsigned int i = 0;
     // counter
-    uint64_t succPairedMatch = 0;
     uint64_t succMatch = 0;
     uint64_t nonUniqueMatch = 0;
     uint64_t unSuccMatch = 0;
-	uint64_t tooShortCount = 0;
 
     if (isGZ)
     {
 
         igz.open(scFile);
+		if (!igz.good())
+		{
+			std::cerr << "ERROR: Opening file `" << std::string(scFile) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
 
     } else {
 
@@ -1620,12 +1623,14 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
     for (unsigned int j = 0; j < CORENUM; ++j)
     {
 
-        fwdMetaIDs[j] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        revMetaIDs[j] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
-        fwdMetaIDs[j].set_deleted_key(ref.metaWindows.size() + 10);
-        revMetaIDs[j].set_deleted_key(ref.metaWindows.size() + 10);
-        fwdMetaIDs[j].set_empty_key(ref.metaWindows.size() + 11);
-        revMetaIDs[j].set_empty_key(ref.metaWindows.size() + 11);
+        // fwdMetaIDs[j] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        // revMetaIDs[j] = google::dense_hash_map<uint32_t, uint16_t, MetaHash>();
+        // fwdMetaIDs[j].set_deleted_key(ref.metaWindows.size() + 10);
+        // revMetaIDs[j].set_deleted_key(ref.metaWindows.size() + 10);
+        // fwdMetaIDs[j].set_empty_key(ref.metaWindows.size() + 11);
+        // revMetaIDs[j].set_empty_key(ref.metaWindows.size() + 11);
+		fwdMetaIDs[i] = tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>();
+		revMetaIDs[i] = tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>();
 
     }
 	if (!bothStrandsFlag)
@@ -1640,8 +1645,6 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
     while(isGZ ? parseChunkGZ(readCounter) : parseChunk(readCounter))
     {
         ++i;
-		// if (i>2)
-		// 	break;
         matchReads(readCounter, succMatch, nonUniqueMatch, unSuccMatch, false);
         std::cout << "Processed " << MyConst::CHUNKSIZE * (i) << " paired reads\n";
     }
@@ -1651,12 +1654,22 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
 
 	std::cout << "Finished " << std::string(scFile) << "\n\n";
 	std::cout << "\nOverall number of reads for cell " << scId << ": (2*)" << MyConst::CHUNKSIZE * i + readCounter;
-    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
+    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n";
 
     if (isGZ)
     {
 
+		if (igz.eof())
+		{
+			std::cerr << "ERROR: Reading file `" << std::string(scFile) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
         igz.close();
+		if (igz.good())
+		{
+			std::cerr << "ERROR: Closing file `" << std::string(scFile) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
 
     } else {
 
@@ -1681,12 +1694,24 @@ bool ReadQueue::matchSCBatchPaired(const char* scFile1, const char* scFile2, con
 
         igz.open(scFile1);
         igz2.open(scFile2);
+		if (!igz.good())
+		{
+			std::cerr << "ERROR: Opening file `" << std::string(scFile1) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
+		if (!igz2.good())
+		{
+			std::cerr << "ERROR: Opening file `" << std::string(scFile2) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
 
     } else {
 
         file.open(scFile1);
         file2.open(scFile2);
     }
+	r1FwdMatches = 0;
+	r1RevMatches = 0;
 
     // fill counting structure for parallelization
     for (unsigned int j = 0; j < CORENUM; ++j)
@@ -1723,8 +1748,28 @@ bool ReadQueue::matchSCBatchPaired(const char* scFile1, const char* scFile2, con
     if (isGZ)
     {
 
+		if (igz.eof())
+		{
+			std::cerr << "ERROR: Reading file `" << std::string(scFile1) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
+		if (igz2.eof())
+		{
+			std::cerr << "ERROR: Reading file `" << std::string(scFile2) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
         igz.close();
         igz2.close();
+		if (igz.good())
+		{
+			std::cerr << "ERROR: Closing file `" << std::string(scFile1) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
+		if (igz2.good())
+		{
+			std::cerr << "ERROR: Closing file `" << std::string(scFile2) << "' failed.\n";
+			return EXIT_FAILURE;
+		}
 
     } else {
 
@@ -1796,21 +1841,25 @@ void ReadQueue::printSCMethylationLevels(const std::string scID)
     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
     {
         scOutput << methLevels[cpgID].methFwd << "\t";
+		methLevels[cpgID].methFwd = 0;
     }
 	scOutput << "\n" << scID << "\tunmethFwd\t";
     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
     {
         scOutput << methLevels[cpgID].unmethFwd << "\t";
+		methLevels[cpgID].unmethFwd = 0;
     }
 	scOutput << "\n" << scID << "\tmethRev\t";
     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
     {
         scOutput << methLevels[cpgID].methRev << "\t";
+		methLevels[cpgID].methRev = 0;
     }
 	scOutput << "\n" << scID << "\tunmethFwd\t";
     for (size_t cpgID = 0; cpgID < ref.cpgTable.size(); ++cpgID)
     {
         scOutput << methLevels[cpgID].unmethRev << "\t";
+		methLevels[cpgID].unmethRev = 0;
     }
 }
 
@@ -1938,7 +1987,6 @@ inline int ReadQueue::saQuerySeedSetRef(ShiftAnd<MyConst::MISCOUNT + MyConst::AD
 		if (m.second < qThreshold)
 			continue;
 
-		// retrieve sequence
 		// retrieve sequence
 		auto endIt = ref.fullSeq[ref.metaWindows[m.first].chrom].begin();
 
@@ -2226,8 +2274,32 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 
 	auto& fwdMetaIDs_t = fwdMetaIDs[omp_get_thread_num()];
 	auto& revMetaIDs_t = revMetaIDs[omp_get_thread_num()];
-	fwdMetaIDs_t.clear();
-	revMetaIDs_t.clear();
+	uint32_t kmerNum = 1;
+	uint32_t bucketCount = 0;
+	{
+		// retrieve kmers for first hash
+		uint64_t fhVal;
+		uint64_t sfVal = ntHash::NTPS64(seq.data(), MyConst::SEED, MyConst::KMERLEN, fhVal);
+
+		uint64_t key = sfVal % MyConst::HTABSIZE;
+		bucketCount += ref.tabIndex[key+1] - ref.tabIndex[key];
+
+		for (unsigned int cIdx = 0; cIdx < (seq.size() - MyConst::KMERLEN); ++cIdx)
+		{
+
+			// use rolling hash
+			sfVal = ntHash::NTPS64(seq.data()+cIdx+1, MyConst::SEED, seq[cIdx], seq[cIdx + MyConst::KMERLEN], MyConst::KMERLEN, fhVal);
+
+			key = sfVal % MyConst::HTABSIZE;
+			bucketCount += ref.tabIndex[key+1] - ref.tabIndex[key];
+			++kmerNum;
+		}
+	}
+	bucketCount = bucketCount / 5;
+	auto newmap = tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>(bucketCount);
+	fwdMetaIDs_t.swap(newmap);
+	newmap = tsl::hopscotch_map<uint32_t, uint16_t, MetaHash>(bucketCount);
+	revMetaIDs_t.swap(newmap);
 
 	// retrieve kmers for first hash
 	uint64_t fhVal;
@@ -2307,7 +2379,7 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 					auto it = fwdMetaIDs_t.find(metaId);
 					if (it != fwdMetaIDs_t.end())
 					{
-						++it->second;
+						++(it.value());
 					}
 				}
 
@@ -2322,7 +2394,7 @@ inline void ReadQueue::getSeedRefs(const std::string& seq, const size_t& readSiz
 					auto it = revMetaIDs_t.find(metaId);
 					if (it != revMetaIDs_t.end())
 					{
-						++it->second;
+						++(it.value());
 					}
 				}
 
