@@ -428,8 +428,8 @@ void queryRoutinePaired(ReadQueue& rQue, const bool isGZ, const bool bothStrands
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
 
     std::cout << "Done processing in " << runtime << "s\n";
-	std::cout << "\nOverall number of reads: (2*)" << MyConst::CHUNKSIZE * i + readCounter;
-    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
+	std::cout << "\nOverall number of reads: (2*)" << MyConst::CHUNKSIZE * i + readCounter << "\n";
+    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: (2*)" << succPairedMatch << "\n";
 
 }
 

@@ -902,7 +902,6 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         const size_t readSize1 = r1.seq.size();
         const size_t readSize2 = r2.seq.size();
 
-
         if (readSize1 < MyConst::READLEN - 20)
         {
 
@@ -1659,21 +1658,23 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
     if (isGZ)
     {
 
-		if (igz.eof())
-		{
-			std::cerr << "ERROR: Reading file `" << std::string(scFile) << "' failed.\n";
-			return EXIT_FAILURE;
-		}
+		// if (igz.eof())
+		// {
+		// 	std::cerr << "ERROR: Reading file `" << std::string(scFile) << "' failed.\n";
+		// 	return EXIT_FAILURE;
+		// }
         igz.close();
-		if (igz.good())
-		{
-			std::cerr << "ERROR: Closing file `" << std::string(scFile) << "' failed.\n";
-			return EXIT_FAILURE;
-		}
+		igz.clear();
+		// if (igz.good())
+		// {
+		// 	std::cerr << "ERROR: Closing file `" << std::string(scFile) << "' failed.\n";
+		// 	return EXIT_FAILURE;
+		// }
 
     } else {
 
         file.close();
+		file.clear();
     }
 	printSCMethylationLevels(scId);
 	return true;
@@ -1748,33 +1749,37 @@ bool ReadQueue::matchSCBatchPaired(const char* scFile1, const char* scFile2, con
     if (isGZ)
     {
 
-		if (igz.eof())
-		{
-			std::cerr << "ERROR: Reading file `" << std::string(scFile1) << "' failed.\n";
-			return EXIT_FAILURE;
-		}
-		if (igz2.eof())
-		{
-			std::cerr << "ERROR: Reading file `" << std::string(scFile2) << "' failed.\n";
-			return EXIT_FAILURE;
-		}
+		// if (igz.eof())
+		// {
+		// 	std::cerr << "ERROR: Reading file `" << std::string(scFile1) << "' failed.\n";
+		// 	return EXIT_FAILURE;
+		// }
+		// if (igz2.eof())
+		// {
+		// 	std::cerr << "ERROR: Reading file `" << std::string(scFile2) << "' failed.\n";
+		// 	return EXIT_FAILURE;
+		// }
         igz.close();
         igz2.close();
-		if (igz.good())
-		{
-			std::cerr << "ERROR: Closing file `" << std::string(scFile1) << "' failed.\n";
-			return EXIT_FAILURE;
-		}
-		if (igz2.good())
-		{
-			std::cerr << "ERROR: Closing file `" << std::string(scFile2) << "' failed.\n";
-			return EXIT_FAILURE;
-		}
+		igz.clear();
+		igz2.clear();
+		// if (igz.good())
+		// {
+		// 	std::cerr << "ERROR: Closing file `" << std::string(scFile1) << "' failed.\n";
+		// 	return EXIT_FAILURE;
+		// }
+		// if (igz2.good())
+		// {
+		// 	std::cerr << "ERROR: Closing file `" << std::string(scFile2) << "' failed.\n";
+		// 	return EXIT_FAILURE;
+		// }
 
     } else {
 
         file.close();
         file2.close();
+		file.clear();
+		file2.clear();
     }
 	printSCMethylationLevels(scId);
 	return true;
