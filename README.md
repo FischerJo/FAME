@@ -39,7 +39,7 @@ The gzstream library is dependent on [zlib](https://zlib.net/), which is usually
 
 To retrieve the code base, just clone this repository:
 ```
-git clone https://github.com/FischerJo/Metal
+git clone https://github.com/FischerJo/FAME
 ```
 
 To install FAME on your machine, just use the shipped Makefile by typing
@@ -81,7 +81,7 @@ If you change any of those parameters, make sure to rebuild the program:
 make clean
 make
 ```
-An index is dependet on the parameters, that is, if you call the program
+An index is dependent on the parameters, that is, if you call the program
 with an index that was built with different parameters, it will throw an error.
 
 Here is a list of the external parameters:
@@ -212,7 +212,7 @@ Cell_ID2	unmethRev	1	2	3	3	0
 We appreciate any feedback to our tool.
 Feel free to contact us by mailing to fischer 'at' mpi-inf.mpg.de.
 
-If you found a bug, please contact us with a description of how you called the tool and which data you used.
+If you found a bug, please create an issue in this github repo with a description of how you called the tool and which data you used.
 
 
 ## 4) Authors
