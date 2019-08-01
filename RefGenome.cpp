@@ -245,11 +245,11 @@ void RefGenome::load(const std::string& filepath)
     }
     auto readl = MyConst::READLEN;
     ifs.read(reinterpret_cast<char*>(&readl), sizeof(readl));
-    // if (readl != MyConst::READLEN)
-    // {
-    //     std::cerr << "Read length used in source code and index file are different!\n\n";
-    //     exit(1);
-    // }
+    if (readl != MyConst::READLEN)
+    {
+        std::cerr << "Read length used in source code and index file are different!\n\n";
+        exit(1);
+    }
     auto winl = MyConst::WINLEN;
     ifs.read(reinterpret_cast<char*>(&winl), sizeof(winl));
     if (winl != MyConst::WINLEN)

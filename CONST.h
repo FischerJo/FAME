@@ -32,14 +32,14 @@ namespace MyConst {
 //
 //
 // maximum read length of the reads in bp
-constexpr unsigned int READLEN = 101;
+constexpr unsigned int READLEN = 100;
 
 // Number of cores that this program is allowed to occupy at any given point
 #define CORENUM 32
 
 // closed interval borders for distances allowed between paired reads
 constexpr uint32_t MINPDIST = 50;
-constexpr uint32_t MAXPDIST = 450;
+constexpr uint32_t MAXPDIST = 550;
 
 // number of chromosomes in organism
 constexpr unsigned int CHROMNUM = 24;
@@ -76,7 +76,7 @@ constexpr unsigned int KMERLEN = 32;
 constexpr uint32_t KMERMASK = (KMERLEN == 32 ? 0xffffffff : ((uint64_t)1 << KMERLEN) - 1);
 
 // minimum number of k-mers required to test for match
-// recommended is 5
+// recommended is 5 for read length 100
 constexpr uint16_t QTHRESH = 5;
 
 

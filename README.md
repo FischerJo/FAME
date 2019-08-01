@@ -12,8 +12,8 @@ Read Cytosines to map to Reference Thymines, but not vice versa. This is termed 
 
 ## 0) News
 
-This tool is still under development. We will update the news section once we published the algorithm and a stable version of the code is available.
-
+This tool is still under development.
+There is now an alpha release for single cell support.
 
 ## 1) Getting Started
 
@@ -125,13 +125,16 @@ Examples on how to use FAME in the command line are given in 2.D.
 | --human_opt | None | Uses optimizations for human reference genomes to prune away unlocalized contigs etc |
 | --load_index | Filepath | Loads the index constructed before. NOTE: Parameters in `CONST.h` must be the same. |
 | --no_loss | None | Builds the index with lossless filter (NOT RECOMMENDED). |
-| -o | Filepath | Base name for output file. Contains CpG methylation levels after processing. |
+| -o | Filepath | Base name for output file. Contains CpG methylation levels after processing, bulked values for single cell mode. |
 | --out_basename | Filepath | see -o |
+| --paired | None | Flag for single cell mode that indicates that cells are paired-end sequenced. |
 | -r | Filepath | Forces the tool to query the specified single end read .fastq file to a loaded index. |
 | -r1 | Filepath | Path to file with first reads of a paired read set. Read format must be .fastq. |
 | -r2 | Filepath | Path to file with second reads of a paired read set. Read format must be .fastq. |
+| --sc_input | Filepath | Path to file containing meta information on single cell data (see Section 2E). |
+| --sc_output | Filepath | Name for output file of single cell mode. |
 | --store_index | Filepath | Writes output of index construction to filepath (~38GB for human genome). NOTE: Directory must exist. |
-|--unord_reads | None | Disable optimization to find stranding of reads. |
+| --unord_reads | None | Disable optimization to find stranding of reads. |
 
 
 
@@ -162,10 +165,47 @@ Align the reads:
 ```
 ./FAME --load_index /Path/To/produced_index -r1 /Path/To/r1.fastq.gz -r2 /Path/To/r2.fastq.gz --gzip_reads -o pairedResults
 ```
-
 A file called pairedResults_cpg.tsv is generated containing the CpGs with corresponding methylation counts.
 
 
+Align single cell files:
+```
+./FAME --load_index /Path/To/produced_index --sc_input /Path/To/Metafile --sc_output stratified_results -o bulk_results
+```
+Produces counts for each single cell specified in the Metafile and outputs them as separate rows into 'stratified_results'.
+A summary of summed up methylation counts for each CpG across all cells (i.e. bulk values) are printed to bulk_results.
+
+### E) Single Cell Meta File
+
+To process single cell data, FAME requires a simple tsv file with meta information with 2 (3) columns for single-end (paired-end) single cell experiments.
+The first column contains a unique identifier for the cells, which is also used for the output.
+The second column contains the filepath to the .fastq read file for the cell.
+In case of paired-end experiments, the second read file is expected in the third column.
+Such a metafile could thus look like this:
+```
+Cell_ID1	/MyPath/Cell_ID1.read1.fastq	/MyPath/Cell_ID1.read2.fastq
+Cell_ID2	/MyPath/Cell_ID2.read1.fastq	/MyPath/Cell_ID2.read2.fastq
+```
+
+
+The single cell output is a tsv file consisting of 4 rows per cell. The columns are CpGs, which locations are indicated by a two line header.
+On the first line of the header, the chromosome of each CpG is given. The second line specifies the position within the chromosome, starting at 0.
+The first two columns contain the cell id and the count type, respectively. There are 4 count types for each CpG, similar to bulk processing, the count of
+mapped methylated Cs to the forward strand, unmethylated Cs to forward strand, methylated Cs to the reverse strand and unmethylated Cs to the reverse strand.
+A dummy output file could look like this:
+
+```
+SC_ID	Count_Type	chr1	chr1	chr1	chr2
+SC_ID	Count_Type	4405	4410	4443	1123
+Cell_ID1	methFwd	1	4	5	5	3
+Cell_ID1	unmethFwd	0	20	22	4	0
+Cell_ID1	methRev	1	4	6	2	2
+Cell_ID1	unmethRev	1	18	15	3	1
+Cell_ID2	methFwd	0	4	7	5	3
+Cell_ID2	unmethFwd	0	2	1	4	1
+Cell_ID2	methRev	1	4	22	13	2
+Cell_ID2	unmethRev	1	2	3	3	0
+```
 
 ## 3) Contact
 

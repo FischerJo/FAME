@@ -82,6 +82,42 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     ,   of("errOut.txt")
 {
 
+
+
+	// TODO: remove this
+    //
+	// std::ofstream cCountFile ("cCounts.tsv");
+	// cCountFile << "Chrom\tPos\tStrand\tCContent\n";
+	// for (size_t i = 0; i < ref.cpgTable.size(); ++i)
+	// {
+	// 	const auto& cpg = ref.cpgTable[i];
+	// 	uint32_t cCount = 0;
+	// 	for (std::vector<char>::iterator it = ref.fullSeq[cpg.chrom].begin() + cpg.pos - 100; it <= ref.fullSeq[cpg.chrom].begin() + cpg.pos + 100; ++it)
+	// 	{
+	// 		if (*it == 'C')
+	// 		{
+	// 			++cCount;
+	// 		}
+	// 	}
+	// 	cCountFile << ref.chrMap[cpg.chrom] << "\t" << cpg.pos + MyConst::READLEN - 2 << "\t+\t" << cCount << "\n";
+	// }
+	// // reverse strand
+	// for (size_t i = 0; i < ref.cpgTable.size(); ++i)
+	// {
+	// 	const auto& cpg = ref.cpgTable[i];
+	// 	uint32_t cCount = 0;
+	// 	for (std::vector<char>::iterator it = ref.fullSeq[cpg.chrom].begin() + cpg.pos - 100; it <= ref.fullSeq[cpg.chrom].begin() + cpg.pos + 100; ++it)
+	// 	{
+	// 		if (*it == 'G')
+	// 		{
+	// 			++cCount;
+	// 		}
+	// 	}
+	// 	cCountFile << ref.chrMap[cpg.chrom] << "\t" << cpg.pos + MyConst::READLEN - 2 << "\t-\t" << cCount << "\n";
+	// }
+	// cCountFile.close();
+
+
     if (isGZ)
     {
 
@@ -361,7 +397,7 @@ bool ReadQueue::matchReads(const unsigned int& procReads, uint64_t& succMatch, u
 
         const size_t readSize = r.seq.size();
 
-        if (readSize < MyConst::READLEN - 10)
+        if (readSize < MyConst::READLEN - 20)
         {
 
             r.isInvalid = true;
@@ -902,12 +938,12 @@ bool ReadQueue::matchPairedReads(const unsigned int& procReads, uint64_t& succMa
         const size_t readSize1 = r1.seq.size();
         const size_t readSize2 = r2.seq.size();
 
-        if (readSize1 < MyConst::READLEN - 20)
+        if (readSize1 < ceil((float)MyConst::READLEN*0.75))
         {
 
             r1.isInvalid = true;
         }
-        if (readSize2 < MyConst::READLEN - 20)
+        if (readSize2 < ceil((float)MyConst::READLEN*0.75))
         {
 
             r2.isInvalid = true;
@@ -1652,8 +1688,9 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
 	std::cout << "Processed " << MyConst::CHUNKSIZE * (i+1) << " paired reads\n";
 
 	std::cout << "Finished " << std::string(scFile) << "\n\n";
-	std::cout << "\nOverall number of reads for cell " << scId << ": (2*)" << MyConst::CHUNKSIZE * i + readCounter;
+	std::cout << "\nOverall number of reads for cell " << scId << ": " << MyConst::CHUNKSIZE * i + readCounter;
     std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n";
+	std::cout << "\n\nAlignment rate: " << (double)succMatch/(MyConst::CHUNKSIZE * i + readCounter) << "\n\n\n";
 
     if (isGZ)
     {
@@ -1744,7 +1781,8 @@ bool ReadQueue::matchSCBatchPaired(const char* scFile1, const char* scFile2, con
 
 	std::cout << "Finished " << std::string(scFile1) << " + " << std::string(scFile2) << "\n\n";
 	std::cout << "\nOverall number of reads for cell " << scId << ": (2*)" << MyConst::CHUNKSIZE * i + readCounter;
-    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nReads discarded as too short: " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
+    std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n\nInvalid reads (containing N or too short): " << tooShortCount << "\n\nFully matched pairs: " << succPairedMatch << "\n";
+	std::cout << "\n\nAlignment rate excluding invalid reads: " << succPairedMatch/(MyConst::CHUNKSIZE * i + readCounter - (tooShortCount/2)) << "\n\n\n";
 
     if (isGZ)
     {
@@ -1792,24 +1830,6 @@ bool ReadQueue::matchSCBatchPaired(const char* scFile1, const char* scFile2, con
 void ReadQueue::printMethylationLevels(std::string& filename)
 {
 
-    // std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg_start.tsv\" and \"" << filename << "_cpg.tsv\"\n\n";
-    // std::ofstream cpgFile(filename + "_cpg_start.tsv");
-    //
-    // // go over CpGs close to start of a chromosome
-    // for (size_t cpgID = 0; cpgID < ref.cpgStartTable.size(); ++cpgID)
-    // {
-    //
-    //     // print the position of the (C of the) CpG
-    //     cpgFile << ref.chrMap[ref.cpgStartTable[cpgID].chrom] << "\t" << ref.cpgStartTable[cpgID].pos << "\t";
-    //
-    //     // print the counts
-    //     // fwd counts
-    //     cpgFile << methLevelsStart[cpgID].methFwd << "\t" << methLevelsStart[cpgID].unmethFwd << "\t";
-    //     // rev counts
-    //     cpgFile << methLevelsStart[cpgID].methRev << "\t" << methLevelsStart[cpgID].unmethRev << "\n";
-    // }
-    // cpgFile.close();
-
     std::cout << "\nStart writing Methylation levels to \"" << filename << "_cpg.tsv\"\n\n";
 	std::ofstream cpgFile(filename + "_cpg.tsv");
 
@@ -1835,6 +1855,8 @@ void ReadQueue::printMethylationLevels(std::string& filename)
         cpgFile << methLevels[cpgID].methFwd << "\t" << methLevels[cpgID].unmethFwd << "\t";
         // rev counts
         cpgFile << methLevels[cpgID].methRev << "\t" << methLevels[cpgID].unmethRev << "\n";
+
+
     }
     cpgFile.close();
     std::cout << "Finished writing methylation levels to file\n\n";
@@ -3335,13 +3357,13 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 						++methLevels[cpgId].unmethFwd;
-// 						if (isSC)
-// 						{
-// #ifdef _OPENMP
-// #pragma omp atomic
-// #endif
-// 							++methLevelsSc[cpgId].unmethFwd;
-// 						}
+						if (isSC)
+						{
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+							++methLevelsSc[cpgId].unmethFwd;
+						}
 					}
 					else if (seq[readCpGPos] == 'C')
 					{
@@ -3349,16 +3371,16 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 						++methLevels[cpgId].methFwd;
-// 						if (isSC)
-// 						{
-// #ifdef _OPENMP
-// #pragma omp atomic
-// #endif
-// 							++methLevelsSc[cpgId].methFwd;
-// 						}
+						if (isSC)
+						{
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+							++methLevelsSc[cpgId].methFwd;
+						}
 					// TODO
-					// } else {
-
+// 					} else {
+//
 // #ifdef _OPENMP
 // #pragma omp critical
 // #endif
@@ -3376,13 +3398,13 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 						++methLevels[cpgId].unmethRev;
-// 						if (isSC)
-// 						{
-// #ifdef _OPENMP
-// #pragma omp atomic
-// #endif
-// 							++methLevelsSc[cpgId].unmethRev;
-// 						}
+						if (isSC)
+						{
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+							++methLevelsSc[cpgId].unmethRev;
+						}
 					}
 					else  if (seq[seq.size() - readCpGPos - 2] == 'C')
 					{
@@ -3390,13 +3412,13 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 						++methLevels[cpgId].methRev;
-// 						if (isSC)
-// 						{
-// #ifdef _OPENMP
-// #pragma omp atomic
-// #endif
-// 							++methLevelsSc[cpgId].methRev;
-// 						}
+						if (isSC)
+						{
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+							++methLevelsSc[cpgId].methRev;
+						}
 					// TODO
 // 					} else {
 //
@@ -3662,13 +3684,13 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 							++methLevels[cpgID].methFwd;
-// 							if (isSC)
-// 							{
-// #ifdef _OPENMP
-// #pragma omp atomic
-// #endif
-// 								++methLevelsSc[cpgID].methFwd;
-// 							}
+							if (isSC)
+							{
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+								++methLevelsSc[cpgID].methFwd;
+							}
 						}
 						else if (seq[readSeqPos] == 'T')
 						{
@@ -3676,13 +3698,13 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 #pragma omp atomic
 #endif
 							++methLevels[cpgID].unmethFwd;
-// 							if (isSC)
-// 							{
-// #ifdef _OPENMP
-// #pragma omp atomic
-// #endif
-// 								++methLevelsSc[cpgID].unmethFwd;
-// 							}
+							if (isSC)
+							{
+#ifdef _OPENMP
+#pragma omp atomic
+#endif
+								++methLevelsSc[cpgID].unmethFwd;
+							}
 						// TODO
 // 						} else {
 //
@@ -3690,8 +3712,8 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 // #pragma omp critical
 // #endif
 // 							{
-// 							// hasShift = true;
-// 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos] << "\n";
+// 							hasShift = true;
+// 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos] << " should match " << ref.fullSeq[chrom].data()[refSeqPos] << " for CpG " << ref.fullSeq[chrom].data()[ref.cpgTable[cpgID].pos + MyConst::READLEN - 2] <<  "\n";
 // 							std::cerr << "\tPos: " << readSeqPos << "\n";
 // 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n";
 // 							}
@@ -3784,24 +3806,29 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 								++methLevelsSc[cpgID].unmethRev;
 							}
 						// TODO
-// 						} else {
-//
-// 							break;
+						// } else {
+                        //
+							// break;
 // #ifdef _OPENMP
 // #pragma omp critical
 // #endif
 // 							{
-// 							// hasShift = true;
+// 							hasShift = true;
 // 							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos + 1] << "\n";
 // 							std::cerr << "\tPos: " << readSeqPos + 1 << "\n";
-// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].da
-//                                                     std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
-                               // TODO
-                               // if (hasShift)
-                               //      std::cerr << "\t" << al << "\n\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
+// 							}
 						}
 					// }
 				}
+// #ifdef _OPENMP
+// #pragma omp critical
+// #endif
+// 				{
+// 				// TODO
+// 				if (hasShift)
+// 					std::cerr << "\t" << al << "\n\n";
+// 				}
 			}
 		// }
 	}
