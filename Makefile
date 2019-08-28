@@ -2,7 +2,7 @@
 OBJECTS=gzstream.o RefReader_istr.o RefGenome.o DnaBitStr.o main.o\
 		ReadQueue.o Read.o CONST.o ShiftAnd.o LevenshtDP.o
 PROGNAME=FAME
-CXX=clang++
+CXX=g++
 
 CXXFLAGS= -std=c++14 -ggdb -Wshadow -Wall -pedantic -pipe -O3 -fopenmp -march=native -I ./sparsehash/include/usr/local/include/ -I ./hopscotch-map/include/tsl/
 GZFLAGS= -lz
