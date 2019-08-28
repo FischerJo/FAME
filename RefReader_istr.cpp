@@ -69,7 +69,7 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 			{
 				// check if primary assembly
 				// (GRCH versions)
-				if (*(line.begin() + 1) == 'C')
+				if (*(line.begin() + 1) == 'C' || (*(line.begin() + 1) == 'N' && *(line.begin() + 2) == 'C'))
 				{
 
 					++chrIndex;
