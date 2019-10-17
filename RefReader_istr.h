@@ -64,7 +64,7 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
                 // if previous letter was C, construct a CpG object
                 if (lastC)
                 {
-                    if (seq.size() >= (MyConst::READLEN - 1))
+                    if (seq.size() >= (MyConst::READLEN - 2))
                     {
 
                         cpgTab.push_back({chrIndex, static_cast<uint32_t>(seq.size()) - MyConst::READLEN + 1});
@@ -72,6 +72,7 @@ inline void readLine(std::string& line, bool& lastC, uint8_t chrIndex, std::vect
                     } else {
 
                         cpgStartTab.push_back({chrIndex, static_cast<uint32_t>(seq.size()) - 1});
+						// TODO: fix this!!!!
                     }
                     lastC = false;
                 }
