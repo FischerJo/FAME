@@ -46,6 +46,8 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 
     std::cout << "Start reading reference file " << filename << std::endl;
 
+	uint32_t unIDCount = 1;
+
     while (getline(ifs, line)) {
 
         // Test for id tag line
@@ -73,7 +75,21 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 				{
 
 					++chrIndex;
-					std::string chrID (line.begin() + 1, line.end());
+					std::string chrHeader (line.begin() + 1, line.end());
+					uint32_t pos = chrHeader.find_first_of(" \t");
+					std::string chrID(chrHeader, 0, pos);
+					for (const auto chrP : chrMap)
+					{
+						if (chrP.second == chrID)
+						{
+							std::cout << "WARNING: Chromosome identifier " << chrID << " found in header\n" <<
+								chrHeader << "\nis not unique.";
+							chrID.append("_");
+							chrID.append(std::to_string(unIDCount++));
+							std::cout << "Renaming to " << chrID << "\n";
+							break;
+						}
+					}
 					chrMap.insert(std::pair<uint8_t,std::string>(chrIndex - 1, chrID));
 					contFlag = true;
 					continue;
@@ -84,7 +100,21 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 				{
 
 					++chrIndex;
-					std::string chrID (line.begin() + 1, line.end());
+					std::string chrHeader (line.begin() + 1, line.end());
+					uint32_t pos = chrHeader.find_first_of(" \t");
+					std::string chrID(chrHeader, 0, pos);
+					for (const auto chrP : chrMap)
+					{
+						if (chrP.second == chrID)
+						{
+							std::cout << "WARNING: Chromosome identifier " << chrID << " found in header\n" <<
+								chrHeader << "\nis not unique.";
+							chrID.append("_");
+							chrID.append(std::to_string(unIDCount++));
+							std::cout << "Renaming to " << chrID << "\n";
+							break;
+						}
+					}
 					// test if real primary assembly sequence
 					if (!isPrimaryHG(chrID))
 					{
@@ -96,6 +126,8 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 					contFlag = true;
 					continue;
 
+				} else {
+					contFlag = false;
 				}
             } else {
 
@@ -106,7 +138,22 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
 						<< "Maybe the reference genome contains unlocalized contigs. You should consider removing them from the reference fasta.\n"
 						<< "For the human reference genome GRCH and HG versions, use \"--human_opt\" to mitigate this problem.\n";
 				}
-				std::string chrID (line.begin() + 1, line.end());
+				std::string chrHeader (line.begin() + 1, line.end());
+				uint32_t pos = chrHeader.find_first_of(" \t");
+				std::string chrID(chrHeader, 0, pos);
+				for (const auto chrP : chrMap)
+				{
+					if (chrP.second == chrID)
+					{
+						std::cout << "WARNING: Chromosome identifier " << chrID << " found in header\n" <<
+							chrHeader << "\nis not unique.";
+						chrID.append("_");
+						chrID.append(std::to_string(unIDCount++));
+						std::cout << "Renaming to " << chrID << "\n";
+						break;
+					}
+				}
+				std::cout << chrHeader << "\n" << chrID << "\n\n";
 				chrMap.insert(std::pair<uint8_t,std::string>(chrIndex - 1, chrID));
 				contFlag = true;
 				continue;
