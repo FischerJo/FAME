@@ -1690,7 +1690,7 @@ bool ReadQueue::matchSCBatch(const char* scFile, const std::string scId, const b
 	std::cout << "Finished " << std::string(scFile) << "\n\n";
 	std::cout << "\nOverall number of reads for cell " << scId << ": " << MyConst::CHUNKSIZE * i + readCounter;
     std::cout << "\tOverall successfully matched: " << succMatch << "\n\tUnsuccessfully matched: " << unSuccMatch << "\n\tNonunique matches: " << nonUniqueMatch << "\n";
-	std::cout << "\n\nAlignment rate: " << (double)succMatch/(MyConst::CHUNKSIZE * i + readCounter) << "\n\n\n";
+	std::cout << "\n\nAlignment rate: " << (double)succMatch/(double)(2*(MyConst::CHUNKSIZE * i + readCounter)) << "\n\n\n";
 
     if (isGZ)
     {
@@ -2733,7 +2733,7 @@ inline uint16_t ReadQueue::getSeedRefsFirstRead(const std::string& seq, const si
 		// of << hIt->first << "/" << ref.chrMap[ref.metaWindows[hIt->first].chrom] << "/" << ref.metaWindows[hIt->first].startPos << "\t" << (uint32_t)std::get<0>(hIt->second) << "\n";
 		if (std::get<0>(hIt->second) >= qThreshold)
 		{
-			newFwdMetas[hIt->first] = {std::get<0>(hIt->second), 0, false, false};
+			newFwdMetas[hIt->first] = std::make_tuple(std::get<0>(hIt->second), 0, false, false);
 		}
 		// if (std::get<0>(hIt->second) < qThreshold)
 		// 	fwdMetaIDs_t.erase(hIt);
@@ -2745,7 +2745,7 @@ inline uint16_t ReadQueue::getSeedRefsFirstRead(const std::string& seq, const si
 		// of << hIt->first << "/" << ref.chrMap[ref.metaWindows[hIt->first].chrom] << "/" << ref.metaWindows[hIt->first].startPos << "\t" << (uint32_t)std::get<0>(hIt->second) << "\n";
 		if (std::get<0>(hIt->second) >= qThreshold)
 		{
-			newRevMetas[hIt->first] = {std::get<0>(hIt->second), 0, false, false};
+			newRevMetas[hIt->first] = std::make_tuple(std::get<0>(hIt->second), 0, false, false);
 		}
 		// if (std::get<0>(hIt->second) < qThreshold)
 		// 	revMetaIDs_t.erase(hIt);
