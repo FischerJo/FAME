@@ -8,7 +8,7 @@ Reference genomes are expected to be .fasta files and reads in .fastq (or .fastq
 The code is written in C++ and parallelized using OpenMP and is licensed under GPL3.
 
 \*In WGBS experiments, unmethylated Cytosines are converted to Thymines in Reads, thus it is necessary to allow
-Read Cytosines to map to Reference Thymines, but not vice versa. This is termed asymmetric mapping problem and is commonly tackled by working only on the reduced alphabet (A,T,G), which results in false matchings of reference Ts to read Cs.
+Read Thymines to map to Reference Cytosines, but not vice versa. This is termed asymmetric mapping problem and is commonly tackled by working only on the reduced alphabet (A,T,G), which results in false matchings of reference Ts to read Cs.
 
 ## 0) News
 
