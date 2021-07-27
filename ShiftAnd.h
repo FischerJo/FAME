@@ -32,16 +32,9 @@ class ShiftAnd
 {
 
     // Internal representation of states
-    // one layer of states encoded by 128 bits (Note that our shift-and automata
-    // therefore represents at most 128-1 letters, first state is always active dummy state)
-    struct states {
-
-        uint64_t B_0;
-        uint64_t B_1;
-
-    };
-    using bitMasks = struct states;
-    using bitStates = struct states;
+	// one layer of states is split into 64bit int that represents 64 consecutive states
+    using bitMasks = std::vector<uint64_t>;
+    using bitStates = std::vector<uint64_t>;
 
     public:
 
@@ -168,14 +161,14 @@ inline void ShiftAnd<E>::querySeq(std::vector<char>::iterator start, std::vector
             {
                 if (errNum <= prevErrs)
                 {
-                    matches.back() = it - start;
+                    matches.back() = it - start + MyConst::MISCOUNT;
                     errors.back() = errNum;
                     prevErrs = errNum;
                 }
 
             } else {
 
-                matches.push_back(it - start);
+                matches.push_back(it - start + MyConst::MISCOUNT);
                 errors.push_back(errNum);
                 wasMatch = true;
                 prevErrs = errNum;
@@ -240,7 +233,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
                 if (errNum <= prevErrs)
                 {
 					// TODO make this safe for insertions!!
-                    matches.back() = it - end + pLen - 2;
+                    matches.back() = it - end + pLen - 1 + MyConst::MISCOUNT;
                     errors.back() = errNum;
                     prevErrs = errNum;
                 }
@@ -248,7 +241,7 @@ inline void ShiftAnd<E>::queryRevSeq(std::vector<char>::iterator start, std::vec
             } else {
 
 				// TODO make this safe for insertions!!
-                matches.push_back(it - end + pLen - 2);
+                matches.push_back(it - end + pLen - 1 + MyConst::MISCOUNT);
                 errors.push_back(errNum);
                 wasMatch = true;
                 prevErrs = errNum;
@@ -269,97 +262,13 @@ inline void ShiftAnd<E>::reset()
     {
 
         // set all initial states (with respect to epsilon transitions) active
-        active[i].B_0 = (static_cast<uint64_t>(1) << (i+1)) - 1;
-        active[i].B_1 = 0;
+		for (uint64_t j = active[i].size() - 1; j > 0; --j)
+		{
+			active[i][j] = 0;
+		}
+        active[i][0] = (static_cast<uint64_t>(1) << (i+1)) - 1;
 
     }
-}
-template <>
-inline void ShiftAnd<0>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-
-}
-template <>
-inline void ShiftAnd<1>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-    active[1].B_0 = 3;
-    active[1].B_1 = 0;
-
-}
-template <>
-inline void ShiftAnd<2>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-    active[1].B_0 = 3;
-    active[1].B_1 = 0;
-    active[2].B_0 = 7;
-    active[2].B_1 = 0;
-
-}
-template <>
-inline void ShiftAnd<3>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-    active[1].B_0 = 3;
-    active[1].B_1 = 0;
-    active[2].B_0 = 7;
-    active[2].B_1 = 0;
-    active[3].B_0 = 15;
-    active[3].B_1 = 0;
-}
-template <>
-inline void ShiftAnd<4>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-    active[1].B_0 = 3;
-    active[1].B_1 = 0;
-    active[2].B_0 = 7;
-    active[2].B_1 = 0;
-    active[3].B_0 = 15;
-    active[3].B_1 = 0;
-    active[4].B_0 = 31;
-    active[4].B_1 = 0;
-}
-template <>
-inline void ShiftAnd<5>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-    active[1].B_0 = 3;
-    active[1].B_1 = 0;
-    active[2].B_0 = 7;
-    active[2].B_1 = 0;
-    active[3].B_0 = 15;
-    active[3].B_1 = 0;
-    active[4].B_0 = 31;
-    active[4].B_1 = 0;
-    active[5].B_0 = 63;
-    active[5].B_1 = 0;
-}
-template <>
-inline void ShiftAnd<6>::reset()
-{
-    active[0].B_0 = 1;
-    active[0].B_1 = 0;
-    active[1].B_0 = 3;
-    active[1].B_1 = 0;
-    active[2].B_0 = 7;
-    active[2].B_1 = 0;
-    active[3].B_0 = 15;
-    active[3].B_1 = 0;
-    active[4].B_0 = 31;
-    active[4].B_1 = 0;
-    active[5].B_0 = 63;
-    active[5].B_1 = 0;
-    active[6].B_0 = 127;
-    active[6].B_1 = 0;
 }
 
 
@@ -367,363 +276,45 @@ template<size_t E>
 inline void ShiftAnd<E>::queryLetter(const char& c)
 {
 
-    const bitMasks& mask = masks[lmap[c%16]];
+	const bitMasks& mask = masks[lmap[c%16]];
+	// Bottom up update part for old values of previous iteration
+	for (size_t i = E; i > 0; --i)
+	{
 
-    // Bottom up update part for old values of previous iteration
-    for (size_t i = E; i > 0; --i)
-    {
+		// from right to left through states
+		for (uint64_t j = active[i].size() - 1; j > 0; --j)
+		{
+			// Update j-th part of pattern states
+			//
+			//                                  Match                                       Insertion                       Substitution
+			active[i][j] = ((active[i][j] << 1 | active[i][j-1] >> 63) & mask[j]) | (active[i-1][j]) | (active[i-1][j] << 1 | active[i-1][j-1] >> 63);
+		}
 
-        // Update second part of pattern states
-        //
-        //                                  Match                                       Insertion                       Substitution
-        active[i].B_1 = ((active[i].B_1 << 1 | active[i].B_0 >> 63) & mask.B_1) | (active[i-1].B_1) | (active[i-1].B_1 << 1 | active[i-1].B_0 >> 63);
+		// Update first part of pattern states
+		//
+		//                          Match                           Insertion               Substitution
+		active[i][0] = ((active[i][0] << 1 | 1) & mask[0]) | (active[i-1][0]) | (active[i-1][0] << 1);
 
-        // Update first part of pattern states
-        //
-        //                          Match                           Insertion               Substitution
-        active[i].B_0 = ((active[i].B_0 << 1 | 1) & mask.B_0) | (active[i-1].B_0) | (active[i-1].B_0 << 1);
+	}
+	// update zero error layer (at the top)
+	for (uint64_t j = active[0].size() - 1; j > 0; --j)
+	{
+		active[0][j] = ((active[0][j] << 1 | active[0][j-1] >> 63) & mask[j]);
+	}
+	active[0][0] = ((active[0][0] << 1 | 1) & mask[0]);
+	//
+	// Top down update for values of this iteration
+	for (size_t i = 1; i <= E; ++i)
+	{
 
-    }
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    for (size_t i = 1; i <= E; ++i)
-    {
+		// from right to left through states
+		for (uint64_t j = active[i].size() - 1; j > 0; --j)
+		{
+			active[i][j] |= active[i-1][j] << 1 | active[i-1][j-1] >> 63;
+		}
+		active[i][0] |= active[i-1][0] << 1;
 
-        active[i].B_1 |= active[i-1].B_1 << 1 | active[i-1].B_0 >> 63;
-        active[i].B_0 |= active[i-1].B_0 << 1;
-
-    }
-}
-// template spec for 0 errors
-template<>
-inline void ShiftAnd<0>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-}
-// template spec for 1 error
-template<>
-inline void ShiftAnd<1>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // Bottom up update part for old values of previous iteration for bottom layer
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
-    active[1].B_0 |= active[0].B_0 << 1;
-}
-// template spec for 2 errors
-template<>
-inline void ShiftAnd<2>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // Bottom up update part for old values of previous iteration for bottom layer
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
-    active[1].B_0 |= active[0].B_0 << 1;
-    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
-    active[2].B_0 |= active[1].B_0 << 1;
-}
-template<>
-inline void ShiftAnd<3>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // Bottom up update part for old values of previous iteration for bottom layer
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
-    active[1].B_0 |= active[0].B_0 << 1;
-    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
-    active[2].B_0 |= active[1].B_0 << 1;
-    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
-    active[3].B_0 |= active[2].B_0 << 1;
-}
-template<>
-inline void ShiftAnd<4>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // Bottom up update part for old values of previous iteration for bottom layer
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[4].B_1 = ((active[4].B_1 << 1 | active[4].B_0 >> 63) & mask.B_1) | (active[3].B_1) | (active[3].B_1 << 1 | active[3].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[4].B_0 = ((active[4].B_0 << 1 | 1) & mask.B_0) | (active[3].B_0) | (active[3].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
-    active[1].B_0 |= active[0].B_0 << 1;
-    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
-    active[2].B_0 |= active[1].B_0 << 1;
-    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
-    active[3].B_0 |= active[2].B_0 << 1;
-    active[4].B_1 |= active[3].B_1 << 1 | active[3].B_0 >> 63;
-    active[4].B_0 |= active[3].B_0 << 1;
-}
-template<>
-inline void ShiftAnd<5>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // Bottom up update part for old values of previous iteration for bottom layer
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[5].B_1 = ((active[5].B_1 << 1 | active[5].B_0 >> 63) & mask.B_1) | (active[4].B_1) | (active[4].B_1 << 1 | active[4].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[5].B_0 = ((active[5].B_0 << 1 | 1) & mask.B_0) | (active[4].B_0) | (active[4].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[4].B_1 = ((active[4].B_1 << 1 | active[4].B_0 >> 63) & mask.B_1) | (active[3].B_1) | (active[3].B_1 << 1 | active[3].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[4].B_0 = ((active[4].B_0 << 1 | 1) & mask.B_0) | (active[3].B_0) | (active[3].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
-    active[1].B_0 |= active[0].B_0 << 1;
-    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
-    active[2].B_0 |= active[1].B_0 << 1;
-    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
-    active[3].B_0 |= active[2].B_0 << 1;
-    active[4].B_1 |= active[3].B_1 << 1 | active[3].B_0 >> 63;
-    active[4].B_0 |= active[3].B_0 << 1;
-    active[5].B_1 |= active[4].B_1 << 1 | active[4].B_0 >> 63;
-    active[5].B_0 |= active[4].B_0 << 1;
-}
-template<>
-inline void ShiftAnd<6>::queryLetter(const char& c)
-{
-
-    const bitMasks& mask = masks[lmap[c%16]];
-
-    // Bottom up update part for old values of previous iteration for bottom layer
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[6].B_1 = ((active[6].B_1 << 1 | active[6].B_0 >> 63) & mask.B_1) | (active[5].B_1) | (active[5].B_1 << 1 | active[5].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[6].B_0 = ((active[6].B_0 << 1 | 1) & mask.B_0) | (active[5].B_0) | (active[5].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[5].B_1 = ((active[5].B_1 << 1 | active[5].B_0 >> 63) & mask.B_1) | (active[4].B_1) | (active[4].B_1 << 1 | active[4].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[5].B_0 = ((active[5].B_0 << 1 | 1) & mask.B_0) | (active[4].B_0) | (active[4].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[4].B_1 = ((active[4].B_1 << 1 | active[4].B_0 >> 63) & mask.B_1) | (active[3].B_1) | (active[3].B_1 << 1 | active[3].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[4].B_0 = ((active[4].B_0 << 1 | 1) & mask.B_0) | (active[3].B_0) | (active[3].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[3].B_1 = ((active[3].B_1 << 1 | active[3].B_0 >> 63) & mask.B_1) | (active[2].B_1) | (active[2].B_1 << 1 | active[2].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[3].B_0 = ((active[3].B_0 << 1 | 1) & mask.B_0) | (active[2].B_0) | (active[2].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[2].B_1 = ((active[2].B_1 << 1 | active[2].B_0 >> 63) & mask.B_1) | (active[1].B_1) | (active[1].B_1 << 1 | active[1].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[2].B_0 = ((active[2].B_0 << 1 | 1) & mask.B_0) | (active[1].B_0) | (active[1].B_0 << 1);
-    // Update second part of pattern states
-    //
-    //                                  Match                                       Insertion                       Substitution
-    active[1].B_1 = ((active[1].B_1 << 1 | active[1].B_0 >> 63) & mask.B_1) | (active[0].B_1) | (active[0].B_1 << 1 | active[0].B_0 >> 63);
-
-    // Update first part of pattern states
-    //
-    //                          Match                           Insertion               Substitution
-    active[1].B_0 = ((active[1].B_0 << 1 | 1) & mask.B_0) | (active[0].B_0) | (active[0].B_0 << 1);
-
-    // update zero error layer (at the top)
-    active[0].B_1 = ((active[0].B_1 << 1 | active[0].B_0 >> 63) & mask.B_1);
-    active[0].B_0 = ((active[0].B_0 << 1 | 1) & mask.B_0);
-    //
-    // Top down update for values of this iteration
-    active[1].B_1 |= active[0].B_1 << 1 | active[0].B_0 >> 63;
-    active[1].B_0 |= active[0].B_0 << 1;
-    active[2].B_1 |= active[1].B_1 << 1 | active[1].B_0 >> 63;
-    active[2].B_0 |= active[1].B_0 << 1;
-    active[3].B_1 |= active[2].B_1 << 1 | active[2].B_0 >> 63;
-    active[3].B_0 |= active[2].B_0 << 1;
-    active[4].B_1 |= active[3].B_1 << 1 | active[3].B_0 >> 63;
-    active[4].B_0 |= active[3].B_0 << 1;
-    active[5].B_1 |= active[4].B_1 << 1 | active[4].B_0 >> 63;
-    active[5].B_0 |= active[4].B_0 << 1;
-    active[6].B_1 |= active[5].B_1 << 1 | active[5].B_0 >> 63;
-    active[6].B_0 |= active[5].B_0 << 1;
+	}
 }
 
 
@@ -735,198 +326,16 @@ inline bool ShiftAnd<E>::isMatch(uint8_t& errNum)
     for (size_t i = 0; i <= E; ++i)
     {
 
-        // test if this layer is match
-        if ((active[i].B_1 & accepted.B_1) || (active[i].B_0 & accepted.B_0))
-        {
-            errNum = i;
-            return true;
-        }
+		for (size_t j = 0; j < active[i].size(); ++j)
+		{
+			// test if this layer is match
+			if (active[i][j] & accepted[j])
+			{
+				errNum = i;
+				return true;
+			}
+		}
 
-    }
-    return false;
-}
-// template spec for 0 errors
-template<>
-inline bool ShiftAnd<0>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0))
-    {
-        errNum = 0;
-        return true;
-    }
-    return false;
-}
-// template spec for 1 error
-template<>
-inline bool ShiftAnd<1>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
-    {
-        errNum = 0;
-        return true;
-    }
-    if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
-    {
-        errNum = 1;
-        return true;
-    }
-    return false;
-}
-// template spec for 2 errors
-template<>
-inline bool ShiftAnd<2>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
-    {
-        errNum = 0;
-        return true;
-    }
-	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
-    {
-        errNum = 1;
-        return true;
-    }
-	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
-    {
-        errNum = 2;
-        return true;
-    }
-    return false;
-}
-template<>
-inline bool ShiftAnd<3>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
-    {
-        errNum = 0;
-        return true;
-    }
-	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
-    {
-        errNum = 1;
-        return true;
-    }
-	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
-    {
-        errNum = 2;
-        return true;
-    }
-	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
-    {
-        errNum = 3;
-        return true;
-    }
-    return false;
-}
-template<>
-inline bool ShiftAnd<4>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
-    {
-        errNum = 0;
-        return true;
-    }
-	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
-    {
-        errNum = 1;
-        return true;
-    }
-	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
-    {
-        errNum = 2;
-        return true;
-    }
-	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
-    {
-        errNum = 3;
-        return true;
-    }
-	else if ((active[4].B_1 & accepted.B_1) || (active[4].B_0 & accepted.B_0) )
-    {
-        errNum = 4;
-        return true;
-    }
-    return false;
-}
-template<>
-inline bool ShiftAnd<5>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
-    {
-        errNum = 0;
-        return true;
-    }
-	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
-    {
-        errNum = 1;
-        return true;
-    }
-	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
-    {
-        errNum = 2;
-        return true;
-    }
-	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
-    {
-        errNum = 3;
-        return true;
-    }
-	else if ((active[4].B_1 & accepted.B_1) || (active[4].B_0 & accepted.B_0) )
-    {
-        errNum = 4;
-        return true;
-    }
-	else if ((active[5].B_1 & accepted.B_1) || (active[5].B_0 & accepted.B_0) )
-    {
-        errNum = 5;
-        return true;
-    }
-    return false;
-}
-template<>
-inline bool ShiftAnd<6>::isMatch(uint8_t& errNum)
-{
-
-    if ((active[0].B_1 & accepted.B_1) || (active[0].B_0 & accepted.B_0) )
-    {
-        errNum = 0;
-        return true;
-    }
-	else if ((active[1].B_1 & accepted.B_1) || (active[1].B_0 & accepted.B_0) )
-    {
-        errNum = 1;
-        return true;
-    }
-	else if ((active[2].B_1 & accepted.B_1) || (active[2].B_0 & accepted.B_0) )
-    {
-        errNum = 2;
-        return true;
-    }
-	else if ((active[3].B_1 & accepted.B_1) || (active[3].B_0 & accepted.B_0) )
-    {
-        errNum = 3;
-        return true;
-    }
-    else if ((active[4].B_1 & accepted.B_1) || (active[4].B_0 & accepted.B_0) )
-    {
-        errNum = 4;
-        return true;
-    }
-	else if ((active[5].B_1 & accepted.B_1) || (active[5].B_0 & accepted.B_0) )
-    {
-        errNum = 5;
-        return true;
-    }
-	else if ((active[6].B_1 & accepted.B_1) || (active[6].B_0 & accepted.B_0) )
-    {
-        errNum = 6;
-        return true;
     }
     return false;
 }
@@ -938,265 +347,87 @@ inline void ShiftAnd<E>::loadBitmasks(std::string& seq)
 
     // retrieve length of the sequence
     const size_t seqLen = seq.size();
-
-    // load full mask for trailing 1s for sequences that are shorter than pLen
-    uint64_t maskA = 0xffffffffffffffffULL;
-    uint64_t maskC = 0xffffffffffffffffULL;
-    uint64_t maskG = 0xffffffffffffffffULL;
-    uint64_t maskT = 0xffffffffffffffffULL;
-
-    if (seqLen < 64)
-    {
-
-        accepted.B_1 = 0;
-        accepted.B_0 = static_cast<uint64_t>(1) << seqLen;
-        // save masks for second part of sequence
-        // dummy bitmask to propagate states to the end
-        masks[0].B_1 = maskA;
-        masks[1].B_1 = maskA;
-        masks[2].B_1 = maskA;
-        masks[3].B_1 = maskA;
-
-        for (size_t i = seqLen; i > 0; )
-        {
-
-            // shift to make space for next letter
-            maskA = maskA << 1;
-            maskC = maskC << 1;
-            maskG = maskG << 1;
-            maskT = maskT << 1;
-
-            switch (seq[--i])
-            {
-                case ('A'):
-
-                    maskA |= 1;
-                    break;
-
-                case ('C'):
-
-                    maskC |= 1;
-                    break;
-
-                case ('G'):
-
-                    maskG |= 1;
-                    break;
-
-                case ('T'):
-
-                    maskT |= 1;
-                    maskC |= 1;
-
-            }
-
-        }
-        // load initial state
-        maskA = (maskA << 1) | 1;
-        maskC = (maskC << 1) | 1;
-        maskG = (maskG << 1) | 1;
-        maskT = (maskT << 1) | 1;
-        // save masks
-        masks[lmap['A'%16]].B_0 = maskA;
-        masks[lmap['C'%16]].B_0 = maskC;
-        masks[lmap['G'%16]].B_0 = maskG;
-        masks[lmap['T'%16]].B_0 = maskT;
-
-
-
-    } else if (seqLen <= 127) {
-
-        accepted.B_0 = 0;
-        accepted.B_1 = static_cast<uint64_t>(1) << (seqLen - 64);
-
-        // load second part of sequence
-        for (size_t i = seqLen - 1; i > 62; --i)
-        {
-
-            // shift to make space for next letter
-            maskA = maskA << 1;
-            maskC = maskC << 1;
-            maskG = maskG << 1;
-            maskT = maskT << 1;
-
-            switch (seq[i])
-            {
-                case ('A'):
-
-                    maskA |= 1;
-                    break;
-
-                case ('C'):
-
-                    maskC |= 1;
-                    break;
-
-                case ('G'):
-
-                    maskG |= 1;
-                    break;
-
-                case ('T'):
-
-                    maskT |= 1;
-                    maskC |= 1;
-
-            }
-
-        }
-        // save masks
-        masks[lmap['A'%16]].B_1 = maskA;
-        masks[lmap['C'%16]].B_1 = maskC;
-        masks[lmap['G'%16]].B_1 = maskG;
-        masks[lmap['T'%16]].B_1 = maskT;
-
-        // reset mask buffer
-        maskA = 0xffffffffffffffffULL;
-        maskC = 0xffffffffffffffffULL;
-        maskG = 0xffffffffffffffffULL;
-        maskT = 0xffffffffffffffffULL;
-
-        // load first part of sequence
-        for (size_t i = 63; i > 0; )
-        {
-            // shift to make space for next letter
-            maskA = maskA << 1;
-            maskC = maskC << 1;
-            maskG = maskG << 1;
-            maskT = maskT << 1;
-
-            switch (seq[--i])
-            {
-                case ('A'):
-
-                    maskA |= 1;
-                    break;
-
-                case ('C'):
-
-                    maskC |= 1;
-                    break;
-
-                case ('G'):
-
-                    maskG |= 1;
-                    break;
-
-                case ('T'):
-
-                    maskT |= 1;
-                    maskC |= 1;
-
-            }
-
-        }
-        // load initial state
-        maskA = (maskA << 1) | 1;
-        maskC = (maskC << 1) | 1;
-        maskG = (maskG << 1) | 1;
-        maskT = (maskT << 1) | 1;
-        // save masks
-        masks[lmap['A'%16]].B_0 = maskA;
-        masks[lmap['C'%16]].B_0 = maskC;
-        masks[lmap['G'%16]].B_0 = maskG;
-        masks[lmap['T'%16]].B_0 = maskT;
-
-    } else {
-
-        accepted.B_0 = 0;
-        accepted.B_1 = 0x8000000000000000ULL;
-        // load second part of sequence
-        for (size_t i = 127; i > 62; --i)
-        {
-
-            // shift to make space for next letter
-            maskA = maskA << 1;
-            maskC = maskC << 1;
-            maskG = maskG << 1;
-            maskT = maskT << 1;
-
-            switch (seq[i])
-            {
-                case ('A'):
-
-                    maskA |= 1;
-                    break;
-
-                case ('C'):
-
-                    maskC |= 1;
-                    break;
-
-                case ('G'):
-
-                    maskG |= 1;
-                    break;
-
-                case ('T'):
-
-                    maskT |= 1;
-                    maskC |= 1;
-
-            }
-
-        }
-        // save masks
-        masks[lmap['A'%16]].B_1 = maskA;
-        masks[lmap['C'%16]].B_1 = maskC;
-        masks[lmap['G'%16]].B_1 = maskG;
-        masks[lmap['T'%16]].B_1 = maskT;
-
-        // reset mask buffer
-        maskA = 0xffffffffffffffffULL;
-        maskC = 0xffffffffffffffffULL;
-        maskG = 0xffffffffffffffffULL;
-        maskT = 0xffffffffffffffffULL;
-
-        // load first part of sequence
-        for (size_t i = 63; i > 0; )
-        {
-
-            // shift to make space for next letter
-            maskA = maskA << 1;
-            maskC = maskC << 1;
-            maskG = maskG << 1;
-            maskT = maskT << 1;
-            switch (seq[--i])
-            {
-                case ('A'):
-
-                    maskA |= 1;
-                    break;
-
-                case ('C'):
-
-                    maskC |= 1;
-                    break;
-
-                case ('G'):
-
-                    maskG |= 1;
-                    break;
-
-                case ('T'):
-
-                    maskT |= 1;
-                    maskC |= 1;
-
-            }
-
-        }
-        // load initial state
-        maskA = (maskA << 1) | 1;
-        maskC = (maskC << 1) | 1;
-        maskG = (maskG << 1) | 1;
-        maskT = (maskT << 1) | 1;
-        // save masks
-        masks[lmap['A'%16]].B_0 = maskA;
-        masks[lmap['C'%16]].B_0 = maskC;
-        masks[lmap['G'%16]].B_0 = maskG;
-        masks[lmap['T'%16]].B_0 = maskT;
-    }
+	// initializing
+	accepted.resize(seqLen/64 + 1);
+	masks[lmap['A'%16]].resize(seqLen/64 + 1);
+	masks[lmap['C'%16]].resize(seqLen/64 + 1);
+	masks[lmap['T'%16]].resize(seqLen/64 + 1);
+	masks[lmap['G'%16]].resize(seqLen/64 + 1);
+	for (auto& ac : active)
+	{
+		ac.resize(seqLen/64 + 1);
+	}
+
+	for (size_t i = 0; i < seqLen / 64; ++i)
+	{
+		accepted[i] = 0;
+	}
+	accepted[seqLen/64] = static_cast<uint64_t>(1) << (seqLen%64);
+
+	// load full mask for trailing 1s for sequences that are shorter than pLen
+	uint64_t maskA = 0xffffffffffffffffULL;
+	uint64_t maskC = 0xffffffffffffffffULL;
+	uint64_t maskG = 0xffffffffffffffffULL;
+	uint64_t maskT = 0xffffffffffffffffULL;
+
+	for (uint64_t i = seqLen; i > 0; )
+	{
+
+		// shift to make space for next letter
+		maskA = maskA << 1;
+		maskC = maskC << 1;
+		maskG = maskG << 1;
+		maskT = maskT << 1;
+
+		switch (seq[i-1])
+		{
+			case ('A'):
+
+				maskA |= 1;
+				break;
+
+			case ('C'):
+
+				maskC |= 1;
+				break;
+
+			case ('G'):
+
+				maskG |= 1;
+				break;
+
+			case ('T'):
+
+				maskT |= 1;
+				maskC |= 1;
+
+		}
+		if (i%64 == 0)
+		{
+			// save masks
+			masks[lmap['A'%16]][i/64] = maskA;
+			masks[lmap['C'%16]][i/64] = maskC;
+			masks[lmap['G'%16]][i/64] = maskG;
+			masks[lmap['T'%16]][i/64] = maskT;
+			// load full mask for trailing 1s for sequences that are shorter than pLen
+			maskA = 0xffffffffffffffffULL;
+			maskC = 0xffffffffffffffffULL;
+			maskG = 0xffffffffffffffffULL;
+			maskT = 0xffffffffffffffffULL;
+		}
+		--i;
+
+	}
+	// load initial state
+	maskA = (maskA << 1) | 1;
+	maskC = (maskC << 1) | 1;
+	maskG = (maskG << 1) | 1;
+	maskT = (maskT << 1) | 1;
+	// save masks
+	masks[lmap['A'%16]][0] = maskA;
+	masks[lmap['C'%16]][0] = maskC;
+	masks[lmap['G'%16]][0] = maskG;
+	masks[lmap['T'%16]][0] = maskT;
 
 }
 

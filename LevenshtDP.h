@@ -80,7 +80,7 @@ class LevenshtDP
         // ARGUMENTS:
         //      comp        comparison function for the letters
         //      align       gives the alignment using error types as flags SHOULD BE EMPTY ON CALL
-        //
+		//
         // MODIFICATIONS:
         //      alignment will bevector of size of rowPat containing a value of type ERROR_T
         //      the value represents the type of transition made from i-th to
@@ -88,8 +88,59 @@ class LevenshtDP
         template <typename C>
         void backtrackDP(C& comp, std::vector<ERROR_T>& align);
         template <typename C>
-        void backtrackDPRev(C& comp, std::vector<ERROR_T>& align);
+        int backtrackDPRev(C& comp, std::vector<ERROR_T>& align);
 
+		// Print the DP matrix to the given stream
+		inline void printMatrix(std::ostream& os)
+		{
+			os << "\t\t";
+			for (int i = 0; i < 13; ++i)
+			{
+				// os << c << "\t";
+				os <<	*(colPat - rowPat.size() + i + 1) << "\t";
+			}
+			os << "\n\t";
+			// for (int row = 0; row <= rowPat.size(); ++row)
+			for (int row = 0; row <= 13; ++row)
+			{
+				if (row > 0)
+				{
+					os << rowPat[row] << "\t";
+				}
+				for (int off = 0; off < row - (int)band; ++off)
+				{
+					os << "\t";
+				}
+				for (long offset = -band; offset <= static_cast<long>(band); ++offset)
+				{
+					if (row + offset < 0)
+						continue;
+					os << dpMatrix(row, row + offset) << "\t";
+				}
+				os << "\n";
+			}
+		}
+
+		void printAlignment(std::ostream& os, std::vector<ERROR_T>& alignment)
+		{
+			for (const auto al : alignment)
+			{
+				switch (al)
+				{
+					case (MATCHING):
+						os << "=";
+						break;
+					case (MISMATCH):
+						os << "!";
+						break;
+					case (DELETION):
+						os << "-";
+						break;
+					case(INSERTION):
+						os << "+";
+				}
+			}
+		}
 
     private:
 
@@ -141,7 +192,7 @@ template <typename T, size_t band>
 LevenshtDP<T, band>::LevenshtDP(const std::string& rowStr, const char* colStr) :
         rowPat(rowStr)
     ,   colPat(colStr)
-    ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, static_cast<T>(0))
+    ,   dpMatrix(rowStr.size() + 1, rowStr.size() + 1 + band, static_cast<T>(std::numeric_limits<T>::max()))
 {
     // check if template param is correct size type
     if (!std::is_integral<T>::value)
@@ -293,7 +344,6 @@ void LevenshtDP<T, band>::backtrackDP(C& comp, std::vector<ERROR_T>& alignment)
         const T& valRef = dpMatrix(rowPat.size(), rowPat.size() + offset);
         if (valRef < minimum)
         {
-
             col = rowPat.size() + offset;
             minimum = valRef;
         }
@@ -350,10 +400,16 @@ void LevenshtDP<T, band>::backtrackDP(C& comp, std::vector<ERROR_T>& alignment)
         }
 
     }
+	// shift appropriately (biggest mindfuck in history because of choise of orientation for strings along matrix)
+	while (col > 0)
+	{
+		alignment.emplace_back(DELETION);
+		--col;
+	}
 }
 template <typename T, size_t band>
 template <typename C>
-void LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignment)
+int LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignment)
 {
 
     // the trace of errors
@@ -365,17 +421,55 @@ void LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignmen
     // find minimum in the last part of table
     T minimum = std::numeric_limits<T>::max();
     // stores the index of the cell of the minimum
-    size_t col = 0;
+    // size_t col = 0;
+	// // ERROR_T l = MATCHING;
+    // for (long offset = -static_cast<long>(band); offset <= static_cast<long>(band); ++offset)
+    // {
+    //     const T& valRef = dpMatrix(rowPat.size(), rowPat.size() + offset);
+    //     if (valRef < minimum)
+    //     {
+    //
+	// 		// if (offset > 0)
+	// 		// {
+	// 		// 	l = DELETION;
+	// 		// } else if (offset < 0)
+	// 		// {
+	// 		// 	l = INSERTION;
+	// 		// } else {
+	// 		// 	l = MATCHING;
+	// 		// }
+    //         //
+    //         col = rowPat.size() + offset;
+    //         minimum = valRef;
+    //     }
+    // }
+	// // if (l != MATCHING)
+	// // 	alignment.emplace_back(l);
+	size_t col = 0;
     for (long offset = -static_cast<long>(band); offset <= static_cast<long>(band); ++offset)
     {
         const T& valRef = dpMatrix(rowPat.size(), rowPat.size() + offset);
         if (valRef < minimum)
         {
-
             col = rowPat.size() + offset;
             minimum = valRef;
         }
     }
+	// if (col < rowPat.size())
+	// {
+	// 	for (long i = rowPat.size() - col; i > 0; --i)
+	// 	{
+	// 		alignment.emplace_back(INSERTION);
+	// 	}
+	// } else if (col > rowPat.size())
+	// {
+	// 	for (long i = col - rowPat.size(); i > 0; --i)
+	// 	{
+	// 		alignment.emplace_back(DELETION);
+	// 	}
+	// }
+
+	int varshift = 0;
 
     // BACKTRACK
     // starting from the minimum cell in the last column
@@ -392,6 +486,7 @@ void LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignmen
             if (dpMatrix(row-1,col) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
                 alignment.emplace_back(INSERTION);
+				// ++varshift;
                 --row;
 
             } else {
@@ -412,6 +507,7 @@ void LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignmen
             if (dpMatrix(row,col-1) + 1 < dpMatrix(row-1,col-1) + mismatchFlag)
             {
                 alignment.emplace_back(DELETION);
+				// --varshift;
                 --col;
 
             } else {
@@ -426,7 +522,27 @@ void LevenshtDP<T, band>::backtrackDPRev(C& comp, std::vector<ERROR_T>& alignmen
 
             }
         }
-    }
+	}
+	while (col > 0)
+	{
+		alignment.emplace_back(DELETION);
+		--col;
+		--varshift;
+	}
+	// auto it = alignment.end() - 1;
+	// for (; it != alignment.begin(); --it)
+	// {
+	// 	if (*it == INSERTION)
+	// 	{
+	// 		++varshift;
+	// 		it = alignment.erase(it) - 1;
+	// 	} else {
+	// 		break;
+	// 	}
+	// }
+	return varshift;
 }
+
+
 
 #endif /* LEVENSHTDP_H */

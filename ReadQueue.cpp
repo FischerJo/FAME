@@ -3245,11 +3245,6 @@ inline int ReadQueue::extractPairedMatch(MATCH::match& mat1, MATCH::match& mat2)
 }
 
 
-
-
-
-
-
 inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 {
 
@@ -3334,8 +3329,12 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 				// check if CpG is too far downstream of read match
 				// i.e. no overlap
 				if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 < minPos)
+				// if (ref.cpgTable[cpgId].pos < minPos)
 					continue;
+
 				// check if too far upstream
+				// if (ref.cpgTable[cpgId].pos > maxPos)
+				// 	break;
 				if (isFwd)
 				{
 					if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 > maxPos)
@@ -3348,10 +3347,16 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 
 
 				// position of CpG in read
-				uint32_t readCpGPos = ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 - (metaPos + offset - (seq.size() - 1));
+				// uint32_t readCpGPos = ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 - (metaPos + offset - (seq.size() - 1));
+				uint32_t trueCpGPos = ref.cpgTable[cpgId].pos - 1 + MyConst::READLEN - 1;
+				uint32_t readCpGPos = seq.size() - (metaPos + offset - trueCpGPos) - 1;
 				if (isFwd)
 				{
-					if (seq[readCpGPos] == 'T')
+					if (readCpGPos + MyConst::MISCOUNT >= seq.size())
+					{
+						continue;
+					}
+					if (seq[readCpGPos+MyConst::MISCOUNT] == 'T')
 					{
 #ifdef _OPENMP
 #pragma omp atomic
@@ -3365,7 +3370,7 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 							++methLevelsSc[cpgId].unmethFwd;
 						}
 					}
-					else if (seq[readCpGPos] == 'C')
+					else if (seq[readCpGPos+MyConst::MISCOUNT] == 'C')
 					{
 #ifdef _OPENMP
 #pragma omp atomic
@@ -3386,13 +3391,22 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 // #endif
 // 						{
 // 						std::cerr << "WHAT fwd!?\n";
+// 						std::cerr << "\tPos: " << readCpGPos << "\tMeta Offset: " << offset << "\nSequence original/read:\n\t";
+// 						std::cerr << std::string(ref.fullSeq[ref.cpgTable[cpgId].chrom].data() + metaPos + offset - seq.size(), seq.size()) << "\n\t" << seq << "\n\n";
+// 						std::cerr << "\t";
+// 						std::cerr << std::string(ref.fullSeq[ref.cpgTable[cpgId].chrom].data() + trueCpGPos, 50) << "\n\t" << std::string(seq.data()+readCpGPos+MyConst::MISCOUNT, 50) << "\n\n";
 // 						}
 					}
 // 					// else std::cout << "This should not happen 1!\n";
 
 				} else {
 
-					if (seq[seq.size() - readCpGPos - 2] == 'T')
+					if (readCpGPos + 1 + MyConst::MISCOUNT + 2 > seq.size())
+					{
+						continue;
+					}
+
+					if (seq[seq.size() - readCpGPos - 1 - MyConst::MISCOUNT - 2] == 'T')
 					{
 #ifdef _OPENMP
 #pragma omp atomic
@@ -3406,7 +3420,7 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 							++methLevelsSc[cpgId].unmethRev;
 						}
 					}
-					else  if (seq[seq.size() - readCpGPos - 2] == 'C')
+					else  if (seq[seq.size() - readCpGPos - 1 - MyConst::MISCOUNT - 2] == 'C')
 					{
 #ifdef _OPENMP
 #pragma omp atomic
@@ -3427,6 +3441,12 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 // #endif
 // 						{
 // 						std::cerr << "WHAT rev!?\n";
+// 						std::string revSeq = seq;
+// 						std::reverse(revSeq.begin(),revSeq.end());
+// 						std::cerr << "\tPos: " << readCpGPos << "\tMeta Offset: " << offset << "\nSequence original/read:\n\t";
+// 						std::cerr << std::string(ref.fullSeq[ref.cpgTable[cpgId].chrom].data() + metaPos + offset - revSeq.size() + 1, revSeq.size()) << "\n\t" << seq << "\n\n";
+// 						std::cerr << "\t";
+// 						std::cerr << std::string(ref.fullSeq[ref.cpgTable[cpgId].chrom].data() + trueCpGPos, 50) << "\n\t" << std::string(revSeq.data() + readCpGPos + 2 + MyConst::MISCOUNT, 50) << "\n\n";
 // 						}
 					}
 				}
@@ -3587,7 +3607,7 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 			const char* refSeq = ref.fullSeq[chrom].data() + metaPos + offset;
 
 			// init levenshtein DP algo
-			LevenshtDP<uint16_t, MyConst::MISCOUNT + MyConst::ADDMIS> lev(seq, refSeq);
+			LevenshtDP<uint16_t, 2*MyConst::MISCOUNT + MyConst::ADDMIS> lev(seq, refSeq);
 			std::vector<ERROR_T> alignment;
 
 			// minimum position for overlap
@@ -3629,6 +3649,7 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 				int32_t readSeqPos = seq.size() - 1;
 				// current position in alignment (note that we align from right to left)
 				int32_t alignPos = alignment.size() - 1;
+				// int32_t alignPos = 0;
 
 				// go through all overlapping CpGs from back,
 				// move through read and reference according to alignment
@@ -3640,6 +3661,7 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 				{
 					// align until this CpG
 					while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
+					// while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos <= alignment.size() - 1)
 					{
 						switch (alignment[alignPos])
 						{
@@ -3666,9 +3688,10 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 						}
 						if (readSeqPos < 0)
 							break;
-						if (readSeqPos == seq.size() - 1)
-							continue;
+						// if (readSeqPos == seq.size() - 1)
+						// 	continue;
 						--alignPos;
+						// ++alignPos;
 					}
 					if (readSeqPos < 0)
 					{
@@ -3712,10 +3735,16 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 // #pragma omp critical
 // #endif
 // 							{
-// 							hasShift = true;
-// 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos] << " should match " << ref.fullSeq[chrom].data()[refSeqPos] << " for CpG " << ref.fullSeq[chrom].data()[ref.cpgTable[cpgID].pos + MyConst::READLEN - 2] <<  "\n";
-// 							std::cerr << "\tPos: " << readSeqPos << "\n";
-// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n";
+// 							// hasShift = true;
+// 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos] << " should match " << ref.fullSeq[chrom].data()[refSeqPos] << " for CpG " << ref.fullSeq[chrom].data()[ref.cpgTable[cpgID].pos + MyConst::READLEN- 2] <<  "\n";
+// 							std::cerr << "\tPos: " << readSeqPos  << "\tMeta Offset: " << offset << "\n";
+// 							std::cerr << "Lev says: " << lev.getEditDist() << "  but  " << (uint32_t)errNum << "\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - seq.size() + 1, seq.size()) << "\n\t" << seq << "\n\n";
+// 							std::cerr << "\t";
+// 							std::cerr << std::string(ref.fullSeq[chrom].data() + refSeqPos, 50) << "\n\t" << std::string(seq.data() + readSeqPos, 50) << "\n\n";
+// 							std::cerr << "\t";
+// 							lev.printAlignment(std::cerr, alignment);
+// 							std::cerr << "\n\n";
 // 							}
 						}
 
@@ -3723,15 +3752,17 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 				}
 				// TODO
 				// if (hasShift)
-				// 	std::cerr << "\t" << al << "\n\n";
+					// std::cerr << "\t" << al << "\n\n";
 
 			} else {
 
 				lev.runDPFillRev<CompiRev>(cmpRev);
-				lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
+				int varshift = lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
+				// Offset for match ending in reference due to deletions/insertions
 				uint32_t refSeqPos = metaPos + offset;
 				int32_t readSeqPos = seq.size() - 1;
 				int32_t alignPos = alignment.size() - 1;
+				// int32_t alignPos = 0;
 				std::reverse(seq.begin(),seq.end());
 
 				// go through all overlapping CpGs from back,
@@ -3740,11 +3771,23 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 				// TODO
 				// std::string al (alignment.size(),'%');
 				// bool hasShift = false;
+				// int varshift = 0;
 				for (int32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
 				{
 					// align until this CpG
-					while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
+					// while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
+					while (alignPos >= 0 && (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos))
+					// while (alignPos < alignment.size() && (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos))
 					{
+						// if (alignPos < alignment.size() - 1)
+						// {
+						// 	if (alignment[alignPos + 1] == DELETION)
+						// 		--varshift;
+                        //
+						// 	else if (alignment[alignPos + 1] == INSERTION)
+						// 		++varshift;
+                        //
+						// }
 						switch (alignment[alignPos])
 						{
 							case (MATCHING):
@@ -3761,24 +3804,29 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 								break;
 							case (DELETION):
 								// al[alignPos] = '-';
+								// ++varshift;
 								--refSeqPos;
 								break;
 							case(INSERTION):
 								// al[alignPos] = '+';
+								// --varshift;
 								--readSeqPos;
 								break;
 						}
 						if (readSeqPos < 0)
 							break;
-						if (readSeqPos == seq.size() - 1)
-							continue;
 						--alignPos;
+						// ++alignPos;
 					}
+					// if (readSeqPos == seq.size() - 1)
+					// 	continue;
+					if (readSeqPos < 0)
+						break;
 					// check if we have a CpG aligned to the reference CpG
 					// if (seq[readSeqPos] == 'G')
 					// {
 						// check for unmethylated C
-						if (seq[readSeqPos + 1] == 'C')
+						if (seq[readSeqPos+1] == 'C')
 						{
 #ifdef _OPENMP
 #pragma omp atomic
@@ -3792,7 +3840,7 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 								++methLevelsSc[cpgID].methRev;
 							}
 						}
-						else if (seq[readSeqPos + 1] == 'T')
+						else if (seq[readSeqPos+1] == 'T')
 						{
 #ifdef _OPENMP
 #pragma omp atomic
@@ -3806,17 +3854,28 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 								++methLevelsSc[cpgID].unmethRev;
 							}
 						// TODO
-						// } else {
-                        //
-							// break;
+// 						} else {
+//
+// 							// break;
 // #ifdef _OPENMP
 // #pragma omp critical
 // #endif
 // 							{
-// 							hasShift = true;
-// 							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos + 1] << "\n";
-// 							std::cerr << "\tPos: " << readSeqPos + 1 << "\n";
-// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
+// 							// hasShift = true;
+// 							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos] << "\n";
+// 							std::cerr << std::string(ref.fullSeq[chrom].data() + refSeqPos, 20) << "\n";
+// 							std::cerr << std::string(ref.fullSeq[chrom].data() + ref.cpgTable[cpgID].pos + MyConst::READLEN - 2, 20) << "\n";
+// 							// std::cerr << "Shift: " << varshift << "\n";
+// 							// lev.printMatrix(std::cerr);
+// 							std::cerr << "\tReadPos: " << readSeqPos << "\tMeta Offset: " << offset << "\tvarshift " << varshift << "\n";
+// 							std::cerr << "\tMeta pos: " << metaPos << "\tRefPos: " << refSeqPos << "\n";
+// 							std::cerr << "Lev says: " << lev.getEditDist() << "  but  " << (uint32_t)errNum << "\n";
+// 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - seq.size() + 1, seq.size()) << "\n\t" << seq << "\n\n";
+// 							std::cerr << "\t";
+// 							std::cerr << std::string(ref.fullSeq[chrom].data() + refSeqPos, 50) << "\n\t" << std::string(seq.data() + readSeqPos, 50) << "\n\n";
+// 							std::cerr << "\t";
+// 							lev.printAlignment(std::cerr, alignment);
+// 							std::cerr << "\n\n";
 // 							}
 						}
 					// }
@@ -3827,12 +3886,623 @@ inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
 // 				{
 // 				// TODO
 // 				if (hasShift)
-// 					std::cerr << "\t" << al << "\n\n";
+// 				{
+// 					while (alignPos >= 0)
+// 					{
+// 						switch (alignment[alignPos])
+// 						{
+// 							case (MATCHING):
+// 								// TODO delete this
+// 								al[alignPos] = '=';
+// 								break;
+// 							case (MISMATCH):
+// 								// TODO
+// 								al[alignPos] = '!';
+// 								break;
+// 							case (DELETION):
+// 								al[alignPos] = '-';
+// 								break;
+// 							case(INSERTION):
+// 								al[alignPos] = '+';
+// 								break;
+// 						}
+// 						--alignPos;
+// 					}
+					// std::cerr << "\t" << al << "\n\n";
+// 				}
 // 				}
 			}
 		// }
 	}
 }
+
+
+
+
+
+// inline void ReadQueue::computeMethLvl(MATCH::match& mat, std::string& seq)
+// {
+//
+// 	// retrieve matched metaId
+// 	bool isFwd = MATCH::isFwd(mat);
+// 	uint32_t metaID = MATCH::getMetaID(mat);
+// 	uint16_t offset = MATCH::getOffset(mat);
+// 	uint8_t errNum = MATCH::getErrNum(mat);
+// 	// if no cpg in window, do not carry out alignment
+// 	if (ref.metaWindows[metaID].startInd == MyConst::CPGDUMMY)
+// 	{
+// 		return;
+// 	}
+//
+// 	// if no errors -> simple lookup of sequences
+// 	if (errNum == 0)
+// 	{
+//
+// 		// retrieve chromosome and position of match
+// // 		if (isStart)
+// // 		{
+// // 			struct metaCpG& m = ref.metaStartCpGs[metaID];
+// // 			// uint8_t chrom = ref.cpgStartTable[m.start].chrom;
+// // 			for (uint32_t cpgId = m.start; cpgId <= m.end; ++cpgId)
+// // 			{
+// // 				// check if CpG is too far downstream of read match
+// // 				// i.e. no overlap
+// // 				if (ref.cpgStartTable[cpgId].pos < offset - seq.size())
+// // 					continue;
+// // 				// check if too far upstream
+// // 				if (ref.cpgStartTable[cpgId].pos + 1 > offset)
+// // 					break;
+// //
+// //
+// // 				// position of CpG in read
+// // 				// last term represents position of start of read in reference sequence
+// // 				uint32_t readCpGPos = ref.cpgStartTable[cpgId].pos - (offset - seq.size() + 1);
+// // 				if (isFwd)
+// // 				{
+// // 					if (seq[readCpGPos] == 'T')
+// // 					{
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 						++methLevelsStart[cpgId].unmethFwd;
+// // 					} else {
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 						++methLevelsStart[cpgId].methFwd;
+// // 					}
+// // 				} else {
+// //
+// // 					if (seq[seq.size() - readCpGPos - 1] == 'T')
+// // 					{
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 						++methLevelsStart[cpgId].unmethRev;
+// // 					} else {
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 						++methLevelsStart[cpgId].methRev;
+// // 					}
+// // 				}
+// // 			}
+// //
+// //
+// // 		// normal match
+// 		// } else {
+//
+// 			// struct metaCpG& m = ref.metaCpGs[metaID];
+// 			metaWindow& m = ref.metaWindows[metaID];
+// 			// uint8_t chrom = ref.cpgTable[m.start].chrom;
+// 			// uint32_t metaPos = ref.cpgTable[m.startInd].pos;
+// 			uint32_t metaPos = m.startPos;
+// 			const uint32_t minPos = metaPos + offset - (seq.size() - 1);
+// 			const uint32_t maxPos = metaPos + offset;
+// 			for (uint32_t cpgId = m.startInd; cpgId <= m.endInd; ++cpgId)
+// 			{
+// 				// check if CpG is too far downstream of read match
+// 				// i.e. no overlap
+// 				if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 < minPos)
+// 					continue;
+// 				// check if too far upstream
+// 				if (isFwd)
+// 				{
+// 					if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 > maxPos)
+// 						break;
+// 				} else {
+// 					if (ref.cpgTable[cpgId].pos + MyConst::READLEN - 1 > maxPos)
+// 						break;
+// 				}
+//
+//
+//
+// 				// position of CpG in read
+// 				uint32_t readCpGPos = ref.cpgTable[cpgId].pos + MyConst::READLEN - 2 - (metaPos + offset - (seq.size() - 1));
+// 				if (isFwd)
+// 				{
+// 					if (seq[readCpGPos] == 'T')
+// 					{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 						++methLevels[cpgId].unmethFwd;
+// 						if (isSC)
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevelsSc[cpgId].unmethFwd;
+// 						}
+// 					}
+// 					else if (seq[readCpGPos] == 'C')
+// 					{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 						++methLevels[cpgId].methFwd;
+// 						if (isSC)
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevelsSc[cpgId].methFwd;
+// 						}
+// 					// TODO
+// // 					} else {
+// //
+// // #ifdef _OPENMP
+// // #pragma omp critical
+// // #endif
+// // 						{
+// // 						std::cerr << "WHAT fwd!?\n";
+// // 						}
+// 					}
+// // 					// else std::cout << "This should not happen 1!\n";
+//
+// 				} else {
+//
+// 					if (seq[seq.size() - readCpGPos - 2] == 'T')
+// 					{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 						++methLevels[cpgId].unmethRev;
+// 						if (isSC)
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevelsSc[cpgId].unmethRev;
+// 						}
+// 					}
+// 					else  if (seq[seq.size() - readCpGPos - 2] == 'C')
+// 					{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 						++methLevels[cpgId].methRev;
+// 						if (isSC)
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevelsSc[cpgId].methRev;
+// 						}
+// 					// TODO
+// // 					} else {
+// //
+// // #ifdef _OPENMP
+// // #pragma omp critical
+// // #endif
+// // 						{
+// // 						std::cerr << "WHAT rev!?\n";
+// // 						}
+// 					}
+// 				}
+// 			}
+// 		// }
+//
+// 	// if match was errornous
+// 	} else {
+//
+// // 		if (isStart)
+// // 		{
+// // 			struct metaCpG& m = ref.metaStartCpGs[metaID];
+// // 			uint8_t chrom = ref.cpgStartTable[m.start].chrom;
+// //
+// // 			const char* refSeq = ref.fullSeq[chrom].data() + offset;
+// //
+// // 			// init levenshtein DP algo
+// // 			LevenshtDP<uint16_t, MyConst::MISCOUNT + MyConst::ADDMIS> lev(seq, refSeq);
+// // 			std::vector<ERROR_T> alignment;
+// //
+// // 			// minimum position for overlap
+// // 			uint32_t minPos = offset - (seq.size() - 1);
+// // 			uint32_t maxPos = offset - 1;
+// // 			// positions of first/ last overlapping CpG
+// // 			uint32_t minIndex = m.start;
+// // 			uint32_t maxIndex = m.end;
+// // 			for (uint32_t cpgID = m.start; cpgID <= m.end; ++cpgID)
+// // 			{
+// // 				if (ref.cpgStartTable[cpgID].pos < minPos)
+// // 				{
+// // 					++minIndex;
+// // 				} else if (ref.cpgStartTable[cpgID].pos > maxPos)
+// // 				{
+// // 					maxIndex = cpgID - 1;
+// // 					break;
+// // 				}
+// // 			}
+// //
+// // 			if (isFwd)
+// // 			{
+// //
+// // 				// compute alignment
+// // 				lev.runDPFill<CompiFwd>(cmpFwd);
+// // 				lev.backtrackDP<CompiFwd>(cmpFwd, alignment);
+// // 				uint32_t refSeqPos = offset;
+// // 				uint32_t readSeqPos = seq.size() - 1;
+// // 				uint32_t alignPos = alignment.size() - 1;
+// //
+// // 				// go through all overlapping CpGs from back,
+// // 				// move through read and reference according to alignment
+// // 				// if position of CpG is hit, compare and count
+// // 				for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+// // 				{
+// // 					// align until this CpG
+// // 					while (ref.cpgStartTable[cpgID].pos < refSeqPos)
+// // 					{
+// // 						switch (alignment[alignPos--])
+// // 						{
+// // 							case (MATCHING):
+// // 							case (MISMATCH):
+// // 								--readSeqPos;
+// // 								--refSeqPos;
+// // 								break;
+// // 							case (DELETION):
+// // 								--refSeqPos;
+// // 								break;
+// // 							case(INSERTION):
+// // 								--readSeqPos;
+// // 								break;
+// // 						}
+// // 						// check if we have a CpG aligned to the reference CpG
+// // 						if (seq[readSeqPos + 1] == 'G')
+// // 						{
+// // 							// check for methylated C
+// // 							if (seq[readSeqPos] == 'C')
+// // 							{
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 								++methLevelsStart[cpgID].methFwd;
+// // 							}
+// // 							else if (seq[readSeqPos] == 'T')
+// // 							{
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 								++methLevelsStart[cpgID].unmethFwd;
+// // 							}
+// //
+// // 						}
+// // 					}
+// // 				}
+// //
+// // 			} else {
+// //
+// // 				lev.runDPFillRev<CompiRev>(cmpRev);
+// // 				lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
+// // 				uint32_t refSeqPos = offset;
+// // 				uint32_t readSeqPos = seq.size() - 1;
+// // 				uint32_t alignPos = alignment.size() - 1;
+// //
+// // 				// go through all overlapping CpGs from back,
+// // 				// move through read and reference according to alignment
+// // 				// if position of CpG is hit, compare and count
+// // 				for (uint32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+// // 				{
+// // 					// align until this CpG
+// // 					while (ref.cpgStartTable[cpgID].pos < refSeqPos)
+// // 					{
+// // 						switch (alignment[alignPos--])
+// // 						{
+// // 							case (MATCHING):
+// // 							case (MISMATCH):
+// // 								--readSeqPos;
+// // 								--refSeqPos;
+// // 								break;
+// // 							case (DELETION):
+// // 								--refSeqPos;
+// // 								break;
+// // 							case(INSERTION):
+// // 								--readSeqPos;
+// // 								break;
+// // 						}
+// // 						// check if we have a CpG aligned to the reference CpG
+// // 						if (seq[readSeqPos] == 'G')
+// // 						{
+// // 							// check for methylated C (on reverse!)
+// // 							if (seq[readSeqPos + 1] == 'C')
+// // 							{
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 								++methLevelsStart[cpgID].methRev;
+// // 							}
+// // 							else if (seq[readSeqPos] == 'T')
+// // 							{
+// // #ifdef _OPENMP
+// // #pragma omp atomic
+// // #endif
+// // 								++methLevelsStart[cpgID].unmethRev;
+// // 							}
+// //
+// // 						}
+// // 					}
+// // 				}
+// // 			}
+// //
+// //
+// // 		// not start CpG (normal)
+// // 		} else {
+//
+// 			// struct metaCpG& m = ref.metaCpGs[metaID];
+// 			metaWindow& m = ref.metaWindows[metaID];
+// 			uint8_t chrom = ref.cpgTable[m.startInd].chrom;
+// 			// uint32_t metaPos = ref.cpgTable[m.startInd].pos;
+// 			uint32_t metaPos = m.startPos;
+//
+// 			const char* refSeq = ref.fullSeq[chrom].data() + metaPos + offset;
+//
+// 			// init levenshtein DP algo
+// 			LevenshtDP<uint16_t, MyConst::MISCOUNT + MyConst::ADDMIS> lev(seq, refSeq);
+// 			std::vector<ERROR_T> alignment;
+//
+// 			// minimum position for overlap
+// 			const uint32_t minPos = metaPos + offset - (seq.size() - 1);
+// 			const uint32_t maxPos = metaPos + offset;
+// 			// positions of first/ last overlapping CpG
+// 			int32_t minIndex = m.startInd;
+// 			int32_t maxIndex = m.endInd;
+// 			for (int32_t cpgID = m.startInd; cpgID <= m.endInd; ++cpgID)
+// 			{
+// 				if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < minPos)
+// 				{
+// 					++minIndex;
+//
+// 				} else if (isFwd)
+// 				{
+// 					if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 > maxPos)
+// 					{
+// 						maxIndex = cpgID - 1;
+// 						break;
+// 					}
+// 				} else {
+// 					if (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 > maxPos)
+// 					{
+// 						maxIndex = cpgID - 1;
+// 						break;
+// 					}
+// 				}
+// 			}
+//
+// 			if (isFwd)
+// 			{
+//
+// 				// compute alignment
+// 				lev.runDPFill<CompiFwd>(cmpFwd);
+// 				lev.backtrackDP<CompiFwd>(cmpFwd, alignment);
+// 				// current position in read and reference
+// 				uint32_t refSeqPos = metaPos + offset;
+// 				int32_t readSeqPos = seq.size() - 1;
+// 				// current position in alignment (note that we align from right to left)
+// 				int32_t alignPos = alignment.size() - 1;
+//
+// 				// go through all overlapping CpGs from back,
+// 				// move through read and reference according to alignment
+// 				// if position of CpG is hit, compare and count
+// 				// TODO
+// 				// std::string al (alignment.size(),'%');
+// 				// bool hasShift = false;
+// 				for (int32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+// 				{
+// 					// align until this CpG
+// 					while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
+// 					{
+// 						switch (alignment[alignPos])
+// 						{
+// 							case (MATCHING):
+// 								// TODO delete this
+// 								// al[alignPos] = '=';
+// 								// --readSeqPos;
+// 								// --refSeqPos;
+// 								// break;
+// 							case (MISMATCH):
+// 								// TODO
+// 								// al[alignPos] = '!';
+// 								--readSeqPos;
+// 								--refSeqPos;
+// 								break;
+// 							case (DELETION):
+// 								// al[alignPos] = '-';
+// 								--refSeqPos;
+// 								break;
+// 							case(INSERTION):
+// 								// al[alignPos] = '+';
+// 								--readSeqPos;
+// 								break;
+// 						}
+// 						if (readSeqPos < 0)
+// 							break;
+// 						if (readSeqPos == seq.size() - 1)
+// 							continue;
+// 						--alignPos;
+// 					}
+// 					if (readSeqPos < 0)
+// 					{
+// 						break;
+// 					}
+// 					// check if we have a CpG aligned to the reference CpG
+// 					// if (seq[readSeqPos + 1] == 'G')
+// 					// {
+// 						// check for unmethylated C
+// 						if (seq[readSeqPos] == 'C')
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevels[cpgID].methFwd;
+// 							if (isSC)
+// 							{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 								++methLevelsSc[cpgID].methFwd;
+// 							}
+// 						}
+// 						else if (seq[readSeqPos] == 'T')
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevels[cpgID].unmethFwd;
+// 							if (isSC)
+// 							{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 								++methLevelsSc[cpgID].unmethFwd;
+// 							}
+// 						// TODO
+// // 						} else {
+// //
+// // #ifdef _OPENMP
+// // #pragma omp critical
+// // #endif
+// // 							{
+// // 							hasShift = true;
+// // 							std::cerr << "WHAT on fwd err!?\t" << seq[readSeqPos] << " should match " << ref.fullSeq[chrom].data()[refSeqPos] << " for CpG " << ref.fullSeq[chrom].data()[ref.cpgTable[cpgID].pos + MyConst::READLEN - 2] <<  "\n";
+// // 							std::cerr << "\tPos: " << readSeqPos << "\n";
+// // 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n";
+// // 							}
+// 						}
+//
+// 					// }
+// 				}
+// 				// TODO
+// 				// if (hasShift)
+// 				// 	std::cerr << "\t" << al << "\n\n";
+//
+// 			} else {
+//
+// 				lev.runDPFillRev<CompiRev>(cmpRev);
+// 				lev.backtrackDPRev<CompiRev>(cmpRev, alignment);
+// 				uint32_t refSeqPos = metaPos + offset;
+// 				int32_t readSeqPos = seq.size() - 1;
+// 				int32_t alignPos = alignment.size() - 1;
+// 				std::reverse(seq.begin(),seq.end());
+//
+// 				// go through all overlapping CpGs from back,
+// 				// move through read and reference according to alignment
+// 				// if position of CpG is hit, compare and count
+// 				// TODO
+// 				// std::string al (alignment.size(),'%');
+// 				// bool hasShift = false;
+// 				for (int32_t cpgID = maxIndex; cpgID >= minIndex; --cpgID)
+// 				{
+// 					// align until this CpG
+// 					while (ref.cpgTable[cpgID].pos + MyConst::READLEN - 2 < refSeqPos && alignPos >= 0)
+// 					{
+// 						switch (alignment[alignPos])
+// 						{
+// 							case (MATCHING):
+// 								// TODO delete this
+// 								// al[alignPos] = '=';
+// 								// --readSeqPos;
+// 								// --refSeqPos;
+// 								// break;
+// 							case (MISMATCH):
+// 								// TODO
+// 								// al[alignPos] = '!';
+// 								--readSeqPos;
+// 								--refSeqPos;
+// 								break;
+// 							case (DELETION):
+// 								// al[alignPos] = '-';
+// 								--refSeqPos;
+// 								break;
+// 							case(INSERTION):
+// 								// al[alignPos] = '+';
+// 								--readSeqPos;
+// 								break;
+// 						}
+// 						if (readSeqPos < 0)
+// 							break;
+// 						if (readSeqPos == seq.size() - 1)
+// 							continue;
+// 						--alignPos;
+// 					}
+// 					// check if we have a CpG aligned to the reference CpG
+// 					// if (seq[readSeqPos] == 'G')
+// 					// {
+// 						// check for unmethylated C
+// 						if (seq[readSeqPos + 1] == 'C')
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevels[cpgID].methRev;
+// 							if (isSC)
+// 							{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 								++methLevelsSc[cpgID].methRev;
+// 							}
+// 						}
+// 						else if (seq[readSeqPos + 1] == 'T')
+// 						{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 							++methLevels[cpgID].unmethRev;
+// 							if (isSC)
+// 							{
+// #ifdef _OPENMP
+// #pragma omp atomic
+// #endif
+// 								++methLevelsSc[cpgID].unmethRev;
+// 							}
+// 						// TODO
+// 						// } else {
+//                         //
+// 							// break;
+// // #ifdef _OPENMP
+// // #pragma omp critical
+// // #endif
+// // 							{
+// // 							hasShift = true;
+// // 							std::cerr << "WHAT on rev err!?\t" << seq[readSeqPos + 1] << "\n";
+// // 							std::cerr << "\tPos: " << readSeqPos + 1 << "\n";
+// // 							std::cerr << "Sequence original/read:\n\t" << std::string(ref.fullSeq[chrom].data() + metaPos + offset - 100, 100) << "\n\t" << seq << "\n\n";
+// // 							}
+// 						}
+// 					// }
+// 				}
+// // #ifdef _OPENMP
+// // #pragma omp critical
+// // #endif
+// // 				{
+// // 				// TODO
+// // 				if (hasShift)
+// // 					std::cerr << "\t" << al << "\n\n";
+// // 				}
+// 			}
+// 		// }
+// 	}
+// }
 
 
 inline bool ReadQueue::matchFwdFirst(std::pair<uint32_t, std::tuple<uint8_t, uint8_t, bool, bool> >& meta, uint8_t& prevChr, uint64_t& prevOff, std::vector<MATCH::match>& mats, int32_t& bmCount, uint16_t qThreshold, ShiftAnd<MyConst::MISCOUNT + MyConst::ADDMIS>& sa)

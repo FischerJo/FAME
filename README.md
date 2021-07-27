@@ -13,6 +13,9 @@ Read Thymines to map to Reference Cytosines, but not vice versa. This is termed 
 ## 0) News
 
 This tool is still under development.
+
+7/27/2021	New beta release v0.3 with several important bugfixes.
+
 There is now an alpha release for single cell support.
 
 ## 1) Getting Started
