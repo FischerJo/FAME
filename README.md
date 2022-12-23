@@ -213,7 +213,7 @@ Cell_ID2	unmethRev	1	2	3	3	0
 ## 3) Contact
 
 We appreciate any feedback to our tool.
-Feel free to contact us by mailing to fischer 'at' mpi-inf.mpg.de.
+Feel free to contact us by mailing to fischer 'at' mpi-inf.mpg.de .
 
 If you found a bug, please create an issue in this github repo with a description of how you called the tool and which data you used.
 
@@ -221,7 +221,7 @@ If you found a bug, please create an issue in this github repo with a descriptio
 ## 4) Authors
 
 * **Jonas Fischer** - *Main Contributor* - Max-Planck-Institute for Informatics, Saarbruecken, Germany
-* **Marcel H. Schulz** Max-Planck-Institute for Informatics, Saarbruecken, Germany
+* **Marcel H. Schulz** Goethe University, Frankfurt, Germany
 
 
 ## 5) License
