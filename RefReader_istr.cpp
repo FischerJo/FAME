@@ -43,6 +43,11 @@ void readReference(const std::string& filename, std::vector<struct CpG>& cpgTab,
     bool lastC = false;
 
     std::ifstream ifs (filename);
+	if(!ifs)
+    {
+        std::cerr << "Opening genome reference file " << filename << " was unsuccessful! Exiting..." << std::endl;
+		exit(1);
+    }
 
     std::cout << "Start reading reference file " << filename << std::endl;
 

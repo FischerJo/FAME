@@ -333,13 +333,20 @@ int main(int argc, char** argv)
         std::vector<std::vector<char>> genSeq;
 		std::unordered_map<uint8_t, std::string> chrMap;
 
-        readReference(genomeFile, cpgTab, cpgStartTab, genSeq, chrMap, humanOptFlag);
-        RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq, noloss, chrMap);
+        char* _emergencyMemory = new char[16384];
+        try{
+            readReference(genomeFile, cpgTab, cpgStartTab, genSeq, chrMap, humanOptFlag);
+            RefGenome ref(std::move(cpgTab), std::move(cpgStartTab), genSeq, noloss, chrMap);
 
-        if (storeIndexFlag)
+            if (storeIndexFlag)
+            {
+                ref.save(indexFile);
+
+            }
+        } catch (std::bad_alloc)
         {
-            ref.save(indexFile);
-
+            std::cerr << "Ran out of memory while building index. 40GB of RAM are advised to build the index structure.";
+            exit(1);
         }
     }
 
