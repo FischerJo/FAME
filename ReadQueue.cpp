@@ -40,10 +40,20 @@ ReadQueue::ReadQueue(const char* filePath, RefGenome& reference, const bool isGZ
     {
 
         igz.open(filePath);
+		if(!igz)
+		{
+			std::cerr << "Opening read file " << std::string(filePath) << " was unsuccessful! Exiting..." << std::endl;
+			exit(1);
+		}
 
     } else {
 
         file.open(filePath);
+		if(!file)
+		{
+			std::cerr << "Opening read file " << std::string(filePath) << " was unsuccessful! Exiting..." << std::endl;
+			exit(1);
+		}
     }
 
     // fill counting structure for parallelization
@@ -122,12 +132,32 @@ ReadQueue::ReadQueue(const char* filePath, const char* filePath2, RefGenome& ref
     {
 
         igz.open(filePath);
+		if(!igz)
+		{
+			std::cerr << "Opening read file " << std::string(filePath) << " was unsuccessful! Exiting..." << std::endl;
+			exit(1);
+		}
         igz2.open(filePath2);
+		if(!igz2)
+		{
+			std::cerr << "Opening read file " << std::string(filePath2) << " was unsuccessful! Exiting..." << std::endl;
+			exit(1);
+		}
 
     } else {
 
         file.open(filePath);
+		if(!file)
+		{
+			std::cerr << "Opening read file " << std::string(filePath) << " was unsuccessful! Exiting..." << std::endl;
+			exit(1);
+		}
         file2.open(filePath2);
+		if(!file2)
+		{
+			std::cerr << "Opening read file " << std::string(filePath2) << " was unsuccessful! Exiting..." << std::endl;
+			exit(1);
+		}
     }
 
     // fill counting structure for parallelization
